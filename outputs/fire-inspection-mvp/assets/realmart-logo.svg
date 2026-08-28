@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-label="Realmart logo">
+  <rect width="320" height="320" rx="34" fill="#d90000"/>
+  <path d="M70 280V40h120c50 0 88 37 88 86 0 39-23 71-58 82l53 72h-73l-45-64h-25v64H70zm60-116h54c20 0 34-15 34-36s-14-35-34-35h-54v71z" fill="#fff" opacity=".96"/>
+  <path d="M90 245h52V105c0-19-11-31-26-31s-26 12-26 31v140z" fill="#d90000"/>
+  <path d="M104 237h25V116c0-10-5-16-13-16s-12 6-12 16v121z" fill="#fff"/>
+  <path d="M86 83h89c9 0 14 10 8 17-17 18-38 26-64 24l-33-3V83z" fill="#fff"/>
+</svg>

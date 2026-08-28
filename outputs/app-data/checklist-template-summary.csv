@@ -1,0 +1,11 @@
+template_id,title,device_type,sections,setup_fields,questions,repeatable_or_summary_tables,source_file
+dry_riser_system,Dry Riser System Checklist,DR,9,32,14,2,outputs/checklist-templates/dry-riser-system-checklist.md
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,9,37,26,0,outputs/checklist-templates/fire-alarm-control-panel-checklist.md
+fireman_intercom_system,Fireman Intercom System Checklist,FI,9,33,16,1,outputs/checklist-templates/fireman-intercom-system-checklist.md
+gas_release_system,Gas Release System Checklist,GAS,10,41,32,1,outputs/checklist-templates/gas-release-system-checklist.md
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,13,40,52,1,outputs/checklist-templates/hose-reel-system-checklist.md
+normal_hydrant,Normal Hydrant Checklist,HYD,6,23,10,1,outputs/checklist-templates/normal-hydrant-checklist.md
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,9,26,10,4,outputs/checklist-templates/portable-fire-extinguisher-checklist.md
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,15,48,50,2,outputs/checklist-templates/pressurized-hydrant-system-checklist.md
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,14,49,47,2,outputs/checklist-templates/sprinkler-system-checklist.md
+tripping_system,Tripping System Checklist,TRIP,9,30,20,1,outputs/checklist-templates/tripping-system-checklist.md

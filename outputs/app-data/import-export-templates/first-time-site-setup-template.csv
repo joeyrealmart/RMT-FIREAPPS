@@ -1,0 +1,4 @@
+client_name,site_name,site_address,floor_area,device_tag,device_type,location,brand_model,serial_barcode,expiry_date,status,remarks,captured_by,captured_at
+MTB Reality Sdn Bhd,MTB Reality Sdn Bhd,Bandar Hilir,Level 1,L1.MCP.1,Manual Call Point,Lift lobby,,,,"Pending Review","Confirm exact mimic position",Demo Inspector,2026-07-14
+MTB Reality Sdn Bhd,MTB Reality Sdn Bhd,Bandar Hilir,Level 1,L1.SD.1,Smoke Detector,Main corridor,,,,"Pending Review","From first-time survey",Demo Inspector,2026-07-14
+MTB Reality Sdn Bhd,MTB Reality Sdn Bhd,Bandar Hilir,Basement,UNKNOWN-001,Fire Extinguisher,Smoking area,,UF032026Y967551,2027-07-08,"Pending Review","Bomba barcode captured from photo",Demo Inspector,2026-07-14

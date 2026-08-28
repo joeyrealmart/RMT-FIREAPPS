@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Realmart Fire Inspection App</title>
+    <link rel="stylesheet" href="styles.css?v=20260820-signature-flow">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="login-view" id="loginView">
+        <div class="brand-panel">
+          <div class="brand-logo-lockup">
+            <img id="loginCompanyLogo" src="assets/realmart-logo.png" alt="Realmart Sdn Bhd logo">
+            <div>
+              <p class="eyebrow" id="loginCompanyEyebrow">Engineering & Maintenance Services</p>
+              <h1 id="loginAppTitle">Realmart Fire Inspection App</h1>
+            </div>
+          </div>
+          <p>Tap the mimic diagram, align device tags, complete the checklist, capture photos, and generate a site report.</p>
+          <p class="brand-tagline" id="loginCompanyTagline">Safe. Reliable. Professional.</p>
+        </div>
+        <form class="login-card" id="loginForm">
+          <h2>Inspector Login</h2>
+          <label>
+            Email
+            <input id="loginEmail" value="admin@rmtfire.local" type="email">
+          </label>
+          <label>
+            Password
+            <input id="loginPassword" value="" type="password" placeholder="Type any local test password">
+          </label>
+          <button type="submit">Login</button>
+          <div class="demo-account-grid">
+            <button type="button" class="secondary" data-demo-login="admin">Use Admin</button>
+            <button type="button" class="secondary" data-demo-login="tech">Use Technician</button>
+            <button type="button" class="secondary" data-demo-login="tech2">Use Tech 2</button>
+            <button type="button" class="secondary" data-demo-login="tech3">Use Tech 3</button>
+          </div>
+          <p class="hint" id="loginStatus">Demo mode: choose Admin or Technician, type any local test password, then press Login. Replace with real authentication before live use.</p>
+        </form>
+      </section>
+
+      <section class="workspace hidden" id="workspace">
+        <header class="topbar">
+          <div class="topbar-brand">
+            <span id="topbarCompanyLogo" class="topbar-logo-mark" aria-label="Realmart Sdn Bhd logo">R</span>
+            <div>
+              <p class="eyebrow">MTB Reality Sdn Bhd</p>
+              <h1>Maintenance Inspection</h1>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <span id="currentUserBadge" class="role-badge">Admin</span>
+            <span id="syncState">Local server ready</span>
+            <button id="generateScopeBtn" class="secondary admin-only">Generate Scope</button>
+            <button id="showStaffTrackingBtn" class="secondary admin-only">Staff Tracking</button>
+            <button id="showRequestBtn" class="secondary">Suggest Device</button>
+            <button id="showReportBtn" class="admin-only">Generate Report</button>
+            <button id="logoutBtn" class="secondary" type="button">Logout</button>
+          </div>
+        </header>
+
+        <section class="selector-row">
+          <label class="client-selector-label">
+            Client
+            <select id="clientSelect">
+              <option>MTB Reality Sdn Bhd</option>
+            </select>
+          </label>
+          <label class="site-selector-label">
+            Site / Area
+            <select id="siteSelect">
+              <option>Bandar Hilir</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="schedule-panel admin-only" id="schedulePanel">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Admin Work Calendar</p>
+              <h2>Plan Client Jobs / Site Work</h2>
+            </div>
+            <div class="setup-actions admin-only">
+              <button id="saveScheduleBtn" type="button">Save Schedule</button>
+              <button id="saveSchedulesPcBtn" type="button" class="secondary">Save Schedules to PC</button>
+            </div>
+          </div>
+          <p class="hint">Use this as your company work calendar. Schedule maintenance, extinguisher collection, installation, breakdown, site survey, documentation follow-up, and other client jobs.</p>
+          <div class="contract-rule-card admin-only">
+            <div>
+              <strong>Client Contract Rule</strong>
+              <span>Saved per client/site. Maintenance schedules will follow this until admin changes it.</span>
+            </div>
+            <select id="contractFrequency">
+              <option value="10">Monthly contract - 10% passive + 100% active</option>
+              <option value="20">Bi-monthly contract - 20% passive + 100% active</option>
+              <option value="30">Tri-monthly contract - 30% passive + 100% active</option>
+              <option value="50">Special contract - 50% passive + 100% active</option>
+              <option value="100">Yearly / full inspection - 100% all devices</option>
+            </select>
+            <button id="saveContractRuleBtn" type="button" class="secondary">Save Contract Rule</button>
+          </div>
+          <div class="schedule-grid admin-only">
+            <label>
+              Client Type
+              <select id="scheduleClientMode">
+                <option value="existing">Existing client / site</option>
+                <option value="new">New / one-time client</option>
+              </select>
+            </label>
+            <label class="schedule-existing-client">
+              Existing Client / Site
+              <select id="scheduleClientSite"></select>
+            </label>
+            <label class="schedule-new-client hidden">
+              New Client Name
+              <input id="scheduleManualClient" placeholder="Type new customer / company name">
+            </label>
+            <label class="schedule-new-client hidden">
+              Place / Site
+              <input id="scheduleManualPlace" placeholder="Example: Shop name / building / area">
+            </label>
+            <label class="schedule-wide schedule-new-client hidden">
+              Address
+              <input id="scheduleManualAddress" placeholder="Full address for new or one-time client">
+            </label>
+            <label>
+              Work Date
+              <input id="scheduleDate" type="date">
+            </label>
+            <label>
+              Time
+              <input id="scheduleTime" type="time" value="09:00">
+            </label>
+            <label>
+              Technician
+              <input id="scheduleTechnician" value="Demo Technician" placeholder="Technician / team">
+            </label>
+            <label>
+              Job Scope
+              <select id="scheduleServiceType">
+                <option>Maintenance / Inspection</option>
+                <option>Fire Extinguisher Collection</option>
+                <option>Fire Extinguisher Delivery / Loan Unit</option>
+                <option>Fire Extinguisher Service / Refill</option>
+                <option>Fire Extinguisher Return / Reinstall</option>
+                <option>Loan Unit Follow-up / Collection</option>
+                <option>Cash / Payment Receive</option>
+                <option>Installation Work</option>
+                <option>Testing & Commissioning</option>
+                <option>Emergency Breakdown</option>
+                <option>Site Survey / Quotation</option>
+                <option>Document / Submission Follow-up</option>
+                <option>Client Meeting / Handover</option>
+                <option>Other Job</option>
+              </select>
+            </label>
+            <label>
+              Start Floor
+              <select id="scheduleFloor"></select>
+            </label>
+            <label>
+              Job Detail / Checklist
+              <select id="scheduleScope">
+                <option value="general-job">General Client Job</option>
+                <option value="full-maintenance">Maintenance - Full Visit</option>
+                <option value="fire-alarm">Fire Alarm Checklist</option>
+                <option value="emergency-exit">Emergency / Exit Light Checklist</option>
+                <option value="extinguisher">Fire Extinguisher Checklist</option>
+                <option value="hose-reel">Hose Reel Checklist</option>
+                <option value="pump-system">Pump / Water System Checklist</option>
+                <option value="gas-release">Gas Release / FM200 / CO2 Checklist</option>
+                <option value="wet-chemical">Wet Chemical Checklist</option>
+                <option value="intercom-flow">Fireman Intercom / Flow Switch Checklist</option>
+                <option value="tripping">Tripping / Interface Test Checklist</option>
+                <option value="first-setup">First-Time Asset Data Capture</option>
+                <option value="extinguisher-collection">Extinguisher Collection / Delivery</option>
+                <option value="loan-unit">Loan Unit Issue / Follow-up</option>
+                <option value="extinguisher-return">Extinguisher Return / Reinstall</option>
+                <option value="cash-receive">Cash / Payment Receive</option>
+                <option value="installation">Installation Work</option>
+                <option value="testing-commissioning">Testing & Commissioning</option>
+                <option value="breakdown">Breakdown / Troubleshooting</option>
+                <option value="site-survey">Site Survey / Quotation</option>
+                <option value="document-followup">Document / Submission Follow-up</option>
+                <option value="client-meeting">Client Meeting / Handover</option>
+              </select>
+            </label>
+            <label>
+              Priority
+              <select id="schedulePriority">
+                <option>Normal</option>
+                <option>Urgent</option>
+                <option>Critical</option>
+              </select>
+            </label>
+            <label class="schedule-wide">
+              Instruction / Job Notes
+              <textarea id="scheduleNotes" rows="2" placeholder="Example: Collect 12 extinguishers from security counter. Bring loan units and take photo proof."></textarea>
+            </label>
+            <label class="schedule-wide">
+              Extinguisher Details Needed
+              <textarea id="scheduleExtinguisherDetails" rows="2" placeholder="Example: 9kg ABC x 4, 2kg CO2 x 2, collect from guard house, barcode/serial to scan on site."></textarea>
+            </label>
+            <div class="schedule-tracker-wide">
+              <div class="tracker-header">
+                <strong>Extinguisher / Payment Tally</strong>
+                <span id="extinguisherTallyStatus">No tally entered yet</span>
+              </div>
+              <div class="extinguisher-tracker-grid">
+                <label>
+                  Total Unit
+                  <input id="scheduleTotalUnits" type="number" min="0" value="0">
+                </label>
+                <label>
+                  Collected Unit
+                  <input id="scheduleCollectedUnits" type="number" min="0" value="0">
+                </label>
+                <label>
+                  Loan Unit Issued
+                  <input id="scheduleLoanUnits" type="number" min="0" value="0">
+                </label>
+                <label>
+                  Returned Unit
+                  <input id="scheduleReturnedUnits" type="number" min="0" value="0">
+                </label>
+                <label>
+                  Loan Unit Collected Back
+                  <input id="scheduleLoanReturnedUnits" type="number" min="0" value="0">
+                </label>
+                <label>
+                  Cash Received (RM)
+                  <input id="scheduleCashReceived" type="number" min="0" step="0.01" value="0">
+                </label>
+                <label>
+                  Receipt / Payment Ref
+                  <input id="scheduleReceiptRef" placeholder="Receipt no. / transfer ref">
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="schedule-calendar-layout admin-only">
+            <article class="schedule-calendar-card">
+              <div class="calendar-header">
+                <button id="calendarPrevBtn" type="button" class="secondary">Prev</button>
+                <strong id="calendarTitle">Schedule Calendar</strong>
+                <button id="calendarNextBtn" type="button" class="secondary">Next</button>
+              </div>
+              <div class="calendar-weekdays">
+                <span>Sun</span>
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+              </div>
+              <div id="scheduleCalendarGrid" class="schedule-calendar-grid"></div>
+            </article>
+            <article class="schedule-calendar-card">
+              <h3>Drag Job Scope To Date</h3>
+              <p class="hint">Select client/site, time, and technician above first. Then drag the job scope onto a calendar day.</p>
+              <div class="calendar-drag-settings">
+                <span><b>Client:</b> <span id="calendarDragClient">-</span></span>
+                <span><b>Job:</b> <span id="calendarDragJob">-</span></span>
+                <span><b>Time:</b> <span id="calendarDragTime">-</span></span>
+              </div>
+              <div id="calendarTemplateList" class="calendar-template-list">
+                <button type="button" draggable="true" data-calendar-job="Maintenance / Inspection" data-calendar-scope="full-maintenance">Maintenance / Inspection</button>
+                <button type="button" draggable="true" data-calendar-job="Fire Extinguisher Collection" data-calendar-scope="extinguisher-collection">Extinguisher Collection</button>
+                <button type="button" draggable="true" data-calendar-job="Fire Extinguisher Delivery / Loan Unit" data-calendar-scope="loan-unit">Loan Unit Issue</button>
+                <button type="button" draggable="true" data-calendar-job="Fire Extinguisher Service / Refill" data-calendar-scope="extinguisher-collection">Extinguisher Service / Refill</button>
+                <button type="button" draggable="true" data-calendar-job="Fire Extinguisher Return / Reinstall" data-calendar-scope="extinguisher-return">Return / Reinstall</button>
+                <button type="button" draggable="true" data-calendar-job="Loan Unit Follow-up / Collection" data-calendar-scope="loan-unit">Loan Unit Follow-up</button>
+                <button type="button" draggable="true" data-calendar-job="Cash / Payment Receive" data-calendar-scope="cash-receive">Cash / Payment Receive</button>
+                <button type="button" draggable="true" data-calendar-job="Installation Work" data-calendar-scope="installation">Installation Work</button>
+                <button type="button" draggable="true" data-calendar-job="Testing & Commissioning" data-calendar-scope="testing-commissioning">Testing & Commissioning</button>
+                <button type="button" draggable="true" data-calendar-job="Emergency Breakdown" data-calendar-scope="breakdown">Emergency Breakdown</button>
+                <button type="button" draggable="true" data-calendar-job="Site Survey / Quotation" data-calendar-scope="site-survey">Site Survey / Quotation</button>
+                <button type="button" draggable="true" data-calendar-job="Document / Submission Follow-up" data-calendar-scope="document-followup">Document Follow-up</button>
+                <button type="button" draggable="true" data-calendar-job="Client Meeting / Handover" data-calendar-scope="client-meeting">Client Meeting / Handover</button>
+              </div>
+            </article>
+          </div>
+          <div class="schedule-preview-layout">
+            <article class="schedule-preview-card admin-only">
+              <h3>Job Preview</h3>
+              <div id="scheduleChecklistPreview" class="checklist-preview"></div>
+            </article>
+            <article class="schedule-preview-card">
+              <h3>Saved Jobs</h3>
+              <div id="scheduleRows" class="schedule-list"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="tech-extinguisher-panel technician-only hidden" id="techExtinguisherPanel">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Technician Job Form</p>
+              <h2>Extinguisher Return / Loan Unit</h2>
+            </div>
+            <button id="saveTechExtinguisherBtn" type="button">Save Extinguisher Record</button>
+          </div>
+          <p class="hint">This form opens only after admin assigns an extinguisher collection / return / loan unit job, or after admin approves a technician request.</p>
+          <div class="tech-ext-form">
+            <label>
+              Customer Type
+              <select id="techExtCustomerMode">
+                <option value="standalone">On-call / one-time customer</option>
+                <option value="existing">Existing maintenance client</option>
+              </select>
+            </label>
+            <label class="tech-ext-existing-client">
+              Existing Client / Site (optional)
+              <select id="techExtClientSite"></select>
+            </label>
+            <label>
+              Customer / Company Name
+              <input id="techExtManualClient" placeholder="Type customer name">
+            </label>
+            <label>
+              Collection / Return Place
+              <input id="techExtManualPlace" placeholder="Shop / building / area">
+            </label>
+            <label class="schedule-wide">
+              Address
+              <input id="techExtManualAddress" placeholder="Full address for new or one-time customer">
+            </label>
+            <label>
+              Date
+              <input id="techExtDate" type="date">
+            </label>
+            <label>
+              Time
+              <input id="techExtTime" type="time" value="09:00">
+            </label>
+            <label>
+              Technician
+              <input id="techExtTechnician" value="Demo Technician">
+            </label>
+            <label>
+              Job Type
+              <select id="techExtJobType">
+                <option>Fire Extinguisher Collection</option>
+                <option>Fire Extinguisher Delivery / Loan Unit</option>
+                <option>Fire Extinguisher Service / Refill</option>
+                <option>Fire Extinguisher Return / Reinstall</option>
+                <option>Loan Unit Follow-up / Collection</option>
+                <option>Cash / Payment Receive</option>
+              </select>
+            </label>
+            <label class="schedule-wide">
+              Extinguisher Details
+              <textarea id="techExtDetails" rows="2" placeholder="Example: 9kg ABC x 4, 2kg CO2 x 2, barcode/serial, collection place."></textarea>
+            </label>
+            <div class="schedule-tracker-wide extinguisher-unit-card">
+              <div class="tracker-header">
+                <strong>Extinguisher Unit Details</strong>
+                <span>Collection -> office booking -> Bomba -> return</span>
+              </div>
+              <div class="extinguisher-detail-grid">
+                <label class="schedule-wide">
+                  Sticker / Barcode Text
+                  <div class="inline-field-action">
+                    <input id="techExtStickerText" placeholder="Example: SRI 012015 Y ABC 522118">
+                    <button id="parseTechExtStickerBtn" type="button" class="secondary">Parse</button>
+                  </div>
+                </label>
+                <label>
+                  Brand
+                  <input id="techExtBrand" placeholder="Example: SRI">
+                </label>
+                <label>
+                  Month / Year
+                  <input id="techExtMfgMonthYear" placeholder="Example: 01/2015">
+                </label>
+                <label>
+                  Agent / Type
+                  <input id="techExtAgentType" placeholder="Example: ABC / CO2">
+                </label>
+                <label>
+                  Serial Number
+                  <input id="techExtSerialNumber" placeholder="Example: 522118">
+                </label>
+                <label>
+                  Size
+                  <input id="techExtSizeKg" placeholder="Example: 9kg / 2kg">
+                </label>
+                <label>
+                  Pressurized 9kg
+                  <select id="techExtPressurized9">
+                    <option value="">Select</option>
+                    <option>Yes</option>
+                    <option>No</option>
+                    <option>N/A</option>
+                  </select>
+                </label>
+                <label>
+                  Powder
+                  <select id="techExtPowderStatus">
+                    <option value="">Select</option>
+                    <option>No refill needed</option>
+                    <option>Need refill</option>
+                    <option>N/A</option>
+                  </select>
+                </label>
+                <label>
+                  Discharge Hose
+                  <select id="techExtDischargeHose">
+                    <option value="">Select</option>
+                    <option>Yes</option>
+                    <option>No</option>
+                    <option>N/A</option>
+                  </select>
+                </label>
+                <label>
+                  Belt
+                  <select id="techExtBelt">
+                    <option value="">Select</option>
+                    <option>Yes</option>
+                    <option>No</option>
+                    <option>N/A</option>
+                  </select>
+                </label>
+                <label>
+                  Workflow Status
+                  <select id="techExtWorkflowStatus">
+                    <option>Collected from customer</option>
+                    <option>Passed to office for booking</option>
+                    <option>Booked for Bomba inspection</option>
+                    <option>Inspected by Bomba</option>
+                    <option>Ready to send back</option>
+                    <option>Returned to customer / loan collected</option>
+                  </select>
+                </label>
+                <label>
+                  Bomba Inspection Date
+                  <input id="techExtBombaInspectionDate" type="date">
+                </label>
+                <label>
+                  New Bomba Expiry
+                  <input id="techExtBombaExpiryDate" type="date">
+                </label>
+                <label>
+                  Target Return Date
+                  <input id="techExtReturnTargetDate" type="date">
+                </label>
+                <label class="schedule-wide">
+                  Loan Unit Details / Location
+                  <textarea id="techExtLoanUnitDetails" rows="2" placeholder="Example: Loan 9kg ABC L-009 placed at guard house, photo taken from far showing location."></textarea>
+                </label>
+              </div>
+            </div>
+            <label class="schedule-wide">
+              Remarks / Client PIC
+              <textarea id="techExtRemarks" rows="2" placeholder="Client PIC name, reason for collection/return, missing unit remarks, follow-up date."></textarea>
+            </label>
+            <div class="schedule-tracker-wide">
+              <div class="tracker-header">
+                <strong>Unit / Cash Tally</strong>
+                <span id="techExtTallyStatus">No tally entered yet</span>
+              </div>
+              <div class="extinguisher-tracker-grid">
+                <label>
+                  Total Unit
+                  <input id="techExtTotalUnits" type="number" min="0" value="0">
+                </label>
+                <label>
+                  Collected Unit
+                  <input id="techExtCollectedUnits" type="number" min="0" value="0">
+                </label>
+                <label>
+                  Loan Unit Issued
+                  <input id="techExtLoanUnits" type="number" min="0" value="0">
+                </label>
+                <label>
+                  Returned Unit
+                  <input id="techExtReturnedUnits" type="number" min="0" value="0">
+                </label>
+                <label>
+                  Loan Unit Collected Back
+                  <input id="techExtLoanReturnedUnits" type="number" min="0" value="0">
+                </label>
+                <label>
+                  Cash Received (RM)
+                  <input id="techExtCashReceived" type="number" min="0" step="0.01" value="0">
+                </label>
+                <label>
+                  Receipt / Payment Ref
+                  <input id="techExtReceiptRef" placeholder="Receipt no. / transfer ref">
+                </label>
+              </div>
+            </div>
+            <div class="schedule-tracker-wide">
+              <div class="tracker-header">
+                <strong>Photo Proof Attachments</strong>
+                <span>Collection / return / loan unit movement</span>
+              </div>
+              <div class="tech-ext-photo-grid">
+                <label>
+                  Collection Photo Proof
+                  <input id="techExtCollectionPhotos" type="file" accept="image/*" multiple>
+                </label>
+                <label>
+                  Return / Reinstall Photo Proof
+                  <input id="techExtReturnPhotos" type="file" accept="image/*" multiple>
+                </label>
+                <label>
+                  Loan Unit Issued Photo
+                  <input id="techExtLoanIssuePhotos" type="file" accept="image/*" multiple>
+                </label>
+                <label>
+                  Loan Unit Collected Back Photo
+                  <input id="techExtLoanReturnPhotos" type="file" accept="image/*" multiple>
+                </label>
+              </div>
+              <div id="techExtPhotoPreview" class="tech-ext-photo-preview"></div>
+            </div>
+          </div>
+          <article class="schedule-preview-card">
+            <h3>Required Steps</h3>
+            <div id="techExtChecklistPreview" class="checklist-preview"></div>
+          </article>
+        </section>
+
+        <section class="job-panel admin-only" id="jobPanel">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Service Job</p>
+              <h2>Start / Track Site Work</h2>
+            </div>
+            <span id="jobStatusBadge" class="job-status-badge">No active job</span>
+          </div>
+          <div class="job-grid">
+            <label>
+              Inspector / Technician
+              <input id="jobInspector" value="Demo Inspector" placeholder="Technician name">
+            </label>
+            <label>
+              Job Scope
+              <select id="jobServiceType">
+                <option>Maintenance / Inspection</option>
+                <option>Fire Extinguisher Collection</option>
+                <option>Fire Extinguisher Delivery / Loan Unit</option>
+                <option>Fire Extinguisher Service / Refill</option>
+                <option>Fire Extinguisher Return / Reinstall</option>
+                <option>Loan Unit Follow-up / Collection</option>
+                <option>Cash / Payment Receive</option>
+                <option>Installation Work</option>
+                <option>Testing & Commissioning</option>
+                <option>Emergency Breakdown</option>
+                <option>Site Survey / Quotation</option>
+                <option>Document / Submission Follow-up</option>
+                <option>Client Meeting / Handover</option>
+                <option>Other Job</option>
+              </select>
+            </label>
+            <label>
+              Job Reference
+              <input id="jobReference" placeholder="Optional: PO / contract / service no.">
+            </label>
+          </div>
+          <div class="job-actions">
+            <button id="startJobBtn" type="button">Start Job</button>
+            <button id="checkInJobBtn" type="button" class="secondary">Check In</button>
+            <button id="saveProgressBtn" type="button" class="secondary">Save Progress</button>
+            <button id="checkOutJobBtn" type="button" class="secondary">Check Out</button>
+          </div>
+          <p id="jobSummary" class="hint">No active job. Start a job before site testing so staff movement and saved progress can be tracked.</p>
+          <div id="jobEventList" class="job-event-list"></div>
+        </section>
+
+        <section class="mimic-setup-panel admin-only" id="mimicSetupPanel">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Mimic Setup</p>
+              <h2>Upload Floor Plan / Hand Sketch</h2>
+            </div>
+            <div class="setup-actions">
+              <button id="updateMimicInfoBtn" type="button" class="secondary">Update Company / Site</button>
+              <button id="saveMimicBtn" type="button">Save Mimic Floor</button>
+            </div>
+          </div>
+          <p class="hint">Use this when a customer has no softcopy mimic. Upload the floor image, give it a floor code, then pin device locations on top.</p>
+          <div class="mimic-upload-grid">
+            <label>
+              Company / Client Name
+              <input id="mimicCompany" value="MTB Reality Sdn Bhd" placeholder="Example: MTB Reality Sdn Bhd">
+            </label>
+            <label>
+              Site Name
+              <input id="mimicSite" value="Bandar Hilir" placeholder="Example: Ramada / Bandar Hilir">
+            </label>
+            <label>
+              Floor Code
+              <input id="mimicFloorCode" placeholder="Example: B1, G, L1, L2">
+            </label>
+            <label>
+              Floor Name
+              <input id="mimicFloorName" placeholder="Example: Basement / Level 1">
+            </label>
+            <label class="mimic-file">
+              Mimic Image
+              <input id="mimicUpload" type="file" accept="image/png,image/jpeg,image/webp">
+            </label>
+            <label>
+              Current Saved File
+              <input id="mimicSavedName" placeholder="No mimic uploaded yet" readonly>
+            </label>
+          </div>
+        </section>
+
+        <section class="tech-work-panel technician-only" id="techWorkPanel">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Technician Work</p>
+              <h2>Today / Assigned Checklist</h2>
+            </div>
+            <span id="techContractBadge" class="job-status-badge">No contract loaded</span>
+          </div>
+          <div id="techActiveJobSummary" class="tech-active-job"></div>
+          <div class="job-actions tech-unlock-actions">
+            <button id="clearActiveJobBtn" type="button" class="secondary danger hidden">Unlock Start / Reset Active Job</button>
+          </div>
+          <div id="techAssignedJobs" class="tech-assigned-jobs"></div>
+          <div id="techExtAssignedJobs" class="tech-ext-assigned"></div>
+        </section>
+
+        <section class="content-grid">
+          <div class="map-panel">
+            <div class="map-toolbar">
+              <div>
+                <strong id="mapTitle">LV-1 First Floor</strong>
+                <span>Tap a device marker to inspect</span>
+              </div>
+              <label class="map-floor-control">
+                <span>Mimic Level</span>
+                <select id="floorSelect">
+                  <option value="lv1">LV-1 First Floor</option>
+                  <option value="ground">Ground Floor Reference</option>
+                  <option value="production">Production Map Reference</option>
+                </select>
+              </label>
+              <div class="mimic-view-toggle" aria-label="Mimic view">
+                <button id="originalMimicBtn" type="button" class="secondary active">Original</button>
+                <button id="cleanMimicBtn" type="button" class="secondary">Clean</button>
+              </div>
+              <div class="legend">
+                <span><i class="dot pending"></i> Pending</span>
+                <span><i class="dot pass"></i> Pass</span>
+                <span><i class="dot fail"></i> Fail</span>
+              </div>
+            </div>
+            <div class="page-tabs hidden" id="libraryPageTabs"></div>
+            <div class="tag-palette admin-only" id="tagPalette">
+              <div>
+                <strong>Ready Tags</strong>
+                <span id="tagPaletteHint">Pick a tag, then tap the mimic to pin it. Drag orange draft tags to adjust.</span>
+              </div>
+              <div class="tag-workflow">
+                <div class="tag-buttons">
+                  <button type="button" data-type="Manual Call Point" data-short="MCP" data-prefix="MCP">MCP</button>
+                  <button type="button" data-type="Smoke Detector" data-short="SD" data-prefix="SD">SD</button>
+                  <button type="button" data-type="Heat Detector" data-short="HD" data-prefix="HD">HD</button>
+                  <button type="button" data-type="Hose Reel" data-short="HR" data-prefix="HR">HR</button>
+                  <button type="button" data-type="Wet Riser" data-short="WR" data-prefix="WR">WR</button>
+                  <button type="button" data-type="Emergency Light" data-short="EL" data-prefix="EL">EL</button>
+                  <button type="button" data-type="Exit Sign" data-short="EX" data-prefix="EX">EX</button>
+                  <button type="button" data-type="Fire Extinguisher" data-short="FE" data-prefix="FE">FE</button>
+                  <button type="button" data-type="9kg Fire Extinguisher" data-short="9FE" data-prefix="9FE">9FE</button>
+                  <button type="button" data-type="2kg CO2 Fire Extinguisher" data-short="2CO" data-prefix="2CO">2CO</button>
+                  <button type="button" data-type="Wet Chemical" data-short="WCC" data-prefix="WCC">WCC</button>
+                  <button type="button" data-type="CO2 System" data-short="CO2" data-prefix="CO2">CO2</button>
+                  <button type="button" data-type="FM200 System" data-short="FM" data-prefix="FM">FM</button>
+                  <button type="button" data-type="Main Fire Alarm Panel" data-short="MFAP" data-prefix="MFAP">MFAP</button>
+                  <button type="button" data-type="Hose Reel Panel" data-short="HRP" data-prefix="HRP">HRP</button>
+                  <button type="button" data-type="Sprinkler Panel" data-short="SPP" data-prefix="SPP">SPP</button>
+                  <button type="button" data-type="Wet Riser Panel" data-short="WRP" data-prefix="WRP">WRP</button>
+                  <button type="button" data-type="Pressurized Hydrant Panel" data-short="PHP" data-prefix="PHP">PHP</button>
+                  <button type="button" data-type="Fireman Intercom" data-short="FI" data-prefix="FI">FI</button>
+                  <button type="button" data-type="Flow Switch" data-short="FS" data-prefix="FS">FS</button>
+                </div>
+                <div class="mapping-actions">
+                  <button id="clearActiveTagBtn" type="button" class="secondary">Stop Pinning</button>
+                  <button id="undoPinBtn" type="button" class="secondary">Undo Last Pin</button>
+                  <button id="editSelectedPinBtn" type="button" class="secondary">Edit Selected Pin</button>
+                  <button id="deleteSelectedPinBtn" type="button" class="secondary danger">Delete Selected Pin</button>
+                </div>
+              </div>
+            </div>
+            <div class="map-stage" id="mapStage">
+              <div class="map-canvas" id="mapCanvas">
+                <img id="mapImage" src="assets/lv1-map.png" alt="LV-1 mimic diagram">
+                <div id="markersLayer"></div>
+              </div>
+            </div>
+          </div>
+
+          <aside class="inspection-panel">
+            <section class="tech-assigned-item-panel technician-only" id="techAssignedItemPanel">
+              <div class="section-header compact">
+                <div>
+                  <p class="eyebrow">Assigned Items</p>
+                  <h3>Follow This List First</h3>
+                </div>
+                <span id="techItemProgress" class="job-status-badge">No item loaded</span>
+              </div>
+              <p class="hint">Open each assigned item from this list. Use Map only when you need help finding the device.</p>
+              <div id="techActiveChecklistMount" class="tech-active-checklist-mount"></div>
+              <div id="techAssignedItemList" class="tech-assigned-item-list"></div>
+              <div id="techCompletionPanel" class="tech-completion-panel hidden"></div>
+            </section>
+
+            <div id="emptyState">
+              <p class="eyebrow">Ready</p>
+              <h2>Select A Device</h2>
+              <p>Open an assigned item from the list, or use the mimic map when you need help finding the device.</p>
+              <button id="emptySuggestBtn" type="button">Suggest Missing Device</button>
+            </div>
+
+            <form class="hidden" id="checklistForm">
+              <p class="eyebrow" id="deviceType"></p>
+              <h2 id="deviceName"></h2>
+              <p id="deviceLocation"></p>
+
+              <div class="history-box">
+                <div class="section-header compact">
+                  <div>
+                    <p class="eyebrow">Device History</p>
+                    <h3>Previous Tests</h3>
+                  </div>
+                  <span id="lastTestBadge">No history</span>
+                </div>
+                <div id="historyList" class="history-list"></div>
+              </div>
+
+              <div class="question-list" id="questionList"></div>
+
+              <div class="photo-row">
+                <label>
+                  Before Photo
+                  <input id="beforePhoto" type="file" accept="image/*">
+                </label>
+                <label>
+                  After Photo
+                  <input id="afterPhoto" type="file" accept="image/*">
+                </label>
+              </div>
+
+              <label>
+                Notes / Defect
+                <textarea id="notes" rows="4" placeholder="Example: Hose reel cabinet door hard to open."></textarea>
+              </label>
+
+              <label>
+                Replacement / Corrective Action
+                <textarea id="actionTaken" rows="3" placeholder="Example: Nozzle replaced, signage cleaned, battery changed."></textarea>
+              </label>
+
+              <div class="panel-actions">
+                <button type="button" id="markFailBtn" class="secondary danger">Mark Fail</button>
+                <button type="submit">Save Inspection</button>
+                <button type="button" id="saveNextInspectionBtn">Save & Next Item</button>
+              </div>
+            </form>
+          </aside>
+        </section>
+
+        <section class="summary-band">
+          <div><strong id="totalCount">0</strong><span>Total Devices</span></div>
+          <div><strong id="passCount">0</strong><span>Pass</span></div>
+          <div><strong id="failCount">0</strong><span>Fail</span></div>
+          <div><strong id="pendingCount">0</strong><span>Pending</span></div>
+          <div><strong id="requestCount">0</strong><span>Add Requests</span></div>
+        </section>
+
+        <section class="staff-tracking-panel admin-only" id="staffTrackingPanel">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Staff Tracking</p>
+              <h2>WETEX Demo Inspection Run</h2>
+            </div>
+            <div class="setup-actions">
+              <a class="button-link" href="/reports/wetex-customer-demo-inspection-report.pdf" target="_blank">Open Customer Report</a>
+              <a class="button-link secondary" href="/reports/wetex-backend-staff-tracking-demo-report.pdf" target="_blank">Open Backend Report</a>
+            </div>
+          </div>
+          <p class="hint" id="staffTrackingIntro">Loading WETEX demo staff activity...</p>
+          <div id="staffTrackingSummary" class="scope-summary"></div>
+          <div class="staff-tracking-grid">
+            <article class="staff-card staff-critical-card">
+              <h3>Critical System Tracking</h3>
+              <p class="hint">CO2, pump panels, and MFAP are separated from normal device points because skipped steps can cause false discharge, system downtime, or unsafe restoration.</p>
+              <div id="criticalSystemList" class="critical-system-list"></div>
+            </article>
+            <article class="staff-card">
+              <h3>Backend Red Flags</h3>
+              <div id="staffFlagList" class="staff-flag-list"></div>
+            </article>
+            <article class="staff-card">
+              <h3>How The Technician Ticked</h3>
+              <div class="setup-table-wrap">
+                <table class="setup-table">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Staff</th>
+                      <th>Action</th>
+                      <th>Floor</th>
+                      <th>Tag</th>
+                      <th>Flag</th>
+                    </tr>
+                  </thead>
+                  <tbody id="staffTimelineRows"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="setup-panel admin-only" id="setupPanel">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">First-Time Site Setup</p>
+              <h2>Capture Customer Asset Data</h2>
+            </div>
+            <div class="setup-actions">
+              <button id="setupSavePc" type="button">Save to PC Folder</button>
+              <label class="file-button">
+                Import CSV
+                <input id="setupImportCsv" type="file" accept=".csv,text/csv">
+              </label>
+              <button id="setupExportCsv" type="button" class="secondary">Download CSV Backup</button>
+            </div>
+          </div>
+          <p class="hint">Use this during first visit to collect the site, floor, device tag, serial number, brand, expiry, and remark before the mimic is fully ready. Saving stores the device master in the local PC project folder.</p>
+
+          <div class="setup-stats">
+            <div><strong id="setupCapturedCount">0</strong><span>Captured Devices</span></div>
+            <div><strong id="setupPendingCount">0</strong><span>Pending Review</span></div>
+            <div><strong id="setupConfirmedCount">0</strong><span>Confirmed</span></div>
+          </div>
+
+          <form class="setup-form" id="setupForm">
+            <label>
+              Device Tag
+              <input id="setupTag" placeholder="Example: L1.MCP.1 or UNKNOWN-001" required>
+            </label>
+            <label>
+              Device Type
+              <select id="setupType" required>
+                <option>Manual Call Point</option>
+                <option>Smoke Detector</option>
+                <option>Heat Detector</option>
+                <option>Hose Reel</option>
+                <option>Wet Riser</option>
+                <option>Fire Extinguisher</option>
+                <option>9kg Fire Extinguisher</option>
+                <option>2kg CO2 Fire Extinguisher</option>
+                <option>Emergency Light</option>
+                <option>Exit Sign</option>
+                <option>Wet Chemical</option>
+                <option>CO2 System</option>
+                <option>FM200 System</option>
+                <option>Fire Pump</option>
+                <option>Main Fire Alarm Panel</option>
+                <option>Hose Reel Panel</option>
+                <option>Sprinkler Panel</option>
+                <option>Wet Riser Panel</option>
+                <option>Pressurized Hydrant Panel</option>
+                <option>Fireman Intercom</option>
+                <option>Flow Switch</option>
+                <option>Gas Release System</option>
+                <option>Other</option>
+              </select>
+            </label>
+            <label>
+              Floor / Area
+              <input id="setupFloor" value="Level 1">
+            </label>
+            <label>
+              Location
+              <input id="setupLocation" placeholder="Example: Lift lobby, beside staircase">
+            </label>
+            <label>
+              Brand / Model
+              <input id="setupBrand" placeholder="Optional">
+            </label>
+            <label>
+              Serial / Barcode
+              <input id="setupSerial" placeholder="Optional">
+            </label>
+            <label>
+              Expiry / Due Date
+              <input id="setupExpiry" type="date">
+            </label>
+            <label>
+              Status
+              <select id="setupStatus">
+                <option>Pending Review</option>
+                <option>Confirmed</option>
+                <option>Need Admin Check</option>
+              </select>
+            </label>
+            <label>
+              Mimic Pin
+              <input id="setupPin" placeholder="No pin yet" readonly>
+            </label>
+            <label class="setup-wide">
+              Remarks
+              <textarea id="setupRemarks" rows="2" placeholder="Example: Tag not shown on old mimic. Need admin to confirm exact position."></textarea>
+            </label>
+            <div class="setup-wide setup-submit">
+              <button type="submit">Save Device Master Draft</button>
+              <button id="setupSavePcBottom" type="button" class="secondary">Save to PC Folder</button>
+            </div>
+          </form>
+
+          <div class="setup-table-wrap">
+            <table class="setup-table">
+              <thead>
+                <tr>
+                  <th>Tag</th>
+                  <th>Type</th>
+                  <th>Floor</th>
+                  <th>Location</th>
+                  <th>Serial / Barcode</th>
+                  <th>Pin</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="setupDeviceRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="scope-panel admin-only" id="scopePanel">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Maintenance Scope</p>
+              <h2>Generated Checkpoints</h2>
+            </div>
+            <div class="scope-controls">
+              <select id="serviceFrequency">
+                <option value="10">Monthly - 10% passive devices</option>
+                <option value="20">Bi-monthly - 20% passive devices</option>
+                <option value="30">Tri-monthly - 30% passive devices</option>
+                <option value="50">Special - 50% passive devices</option>
+                <option value="100">Yearly - 100% all devices</option>
+              </select>
+              <button id="regenerateScopeBtn" type="button">Generate</button>
+            </div>
+          </div>
+          <p class="hint">Passive devices are rotated across the whole selected site. Active systems are always 100% checked every visit. Technician can select the floor they are working on.</p>
+          <div id="scopeSummary" class="scope-summary"></div>
+          <div id="scopeList" class="scope-list"></div>
+        </section>
+
+        <section class="system-check-panel admin-only" id="systemCheckPanel">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">System Checklist</p>
+              <h2>UOB Full Service Checklist</h2>
+            </div>
+            <button id="saveSystemCheckBtn" type="button">Save System Checklist</button>
+          </div>
+          <p class="hint">Use this for full system-level service checks. Device pins still handle individual point testing, photos, and remarks.</p>
+          <div id="systemCheckSummary" class="scope-summary"></div>
+          <div class="system-check-layout">
+            <div id="systemCheckTabs" class="system-check-tabs"></div>
+            <form id="systemCheckForm" class="system-check-form"></form>
+          </div>
+        </section>
+
+        <section class="critical-sop-panel" id="criticalSopPanel">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Compulsory Testing Mode</p>
+              <h2>Step-By-Step MOS Workflow</h2>
+            </div>
+            <div class="setup-actions">
+              <button id="resetCriticalSopBtn" type="button" class="secondary danger admin-only">Reset Current SOP</button>
+              <button id="saveCriticalSopBtn" type="button">Save Critical SOP</button>
+            </div>
+          </div>
+          <div class="critical-warning">
+            <strong>Technician cannot jump steps</strong>
+            <span>Use this during actual testing. Fast SOP systems are tick-by-step, with compulsory before/after photos and final supervisor confirmation.</span>
+          </div>
+          <div class="critical-sop-layout">
+            <div id="criticalSopTabs" class="system-check-tabs"></div>
+            <form id="criticalSopForm" class="system-check-form"></form>
+          </div>
+        </section>
+
+        <section class="request-panel admin-only" id="requestPanel">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Admin Review</p>
+              <h2>Missing Device Requests</h2>
+            </div>
+            <button id="clearRequestsBtn" type="button" class="secondary">Clear Demo Requests</button>
+          </div>
+          <div id="requestList" class="request-list"></div>
+        </section>
+      </section>
+
+      <section class="modal hidden" id="requestModal" aria-label="Suggest missing device">
+        <form class="modal-card" id="requestForm">
+          <div class="section-header">
+            <div>
+              <p class="eyebrow">Technician Request</p>
+              <h2>Suggest Missing Device</h2>
+            </div>
+            <button id="closeRequestBtn" type="button" class="secondary">Close</button>
+          </div>
+          <label>
+            Device Type
+            <select id="requestType" required>
+              <option value="">Select type</option>
+              <option>Manual Call Point</option>
+              <option>Smoke Detector</option>
+              <option>Heat Detector</option>
+              <option>Hose Reel</option>
+              <option>Wet Riser</option>
+              <option>Fire Extinguisher</option>
+              <option>9kg Fire Extinguisher</option>
+              <option>2kg CO2 Fire Extinguisher</option>
+              <option>Wet Chemical</option>
+              <option>CO2 System</option>
+              <option>FM200 System</option>
+              <option>Break Glass</option>
+              <option>Emergency Light</option>
+              <option>Key Switch</option>
+              <option>Exit Sign</option>
+              <option>Fire Alarm</option>
+              <option>Main Fire Alarm Panel</option>
+              <option>Hose Reel Panel</option>
+              <option>Sprinkler Panel</option>
+              <option>Wet Riser Panel</option>
+              <option>Pressurized Hydrant Panel</option>
+              <option>Fireman Intercom</option>
+              <option>Flow Switch</option>
+              <option>Gas Release System</option>
+              <option>Other</option>
+            </select>
+          </label>
+          <label>
+            Suggested Label / Tag
+            <input id="requestLabel" placeholder="Example: LV1-HR-3">
+          </label>
+          <label>
+            Location Description
+            <textarea id="requestLocation" rows="3" placeholder="Example: Beside right stair door, near Guan Seng area" required></textarea>
+          </label>
+          <label>
+            Pinned Position
+            <input id="requestPinText" placeholder="Tap mimic map first to capture pin" readonly>
+          </label>
+          <label>
+            Reason
+            <textarea id="requestReason" rows="3" placeholder="Example: Device found on site but not shown on mimic diagram" required></textarea>
+          </label>
+          <label>
+            Photo Evidence
+            <input id="requestPhoto" type="file" accept="image/*">
+          </label>
+          <button type="submit">Send To Admin Review</button>
+        </form>
+      </section>
+
+      <section class="report-view hidden" id="reportView">
+        <section class="report-letterhead" id="reportLetterhead">
+          <img id="reportLetterheadImage" class="report-letterhead-image" src="assets/realmart-letterhead-clean.png" alt="Realmart Sdn Bhd letterhead">
+          <div class="report-company-main report-company-text">
+            <img id="reportCompanyLogo" src="assets/realmart-logo.png" alt="Realmart Sdn Bhd logo">
+            <div>
+              <h2 id="reportCompanyName">Realmart Sdn Bhd</h2>
+              <p id="reportCompanySubtitle">Engineering & Maintenance Services</p>
+              <p id="reportCompanyReg">Registration No: 138295-P</p>
+            </div>
+          </div>
+          <div class="report-company-contact">
+            <p id="reportCompanyAddress"></p>
+            <p id="reportCompanyContact"></p>
+            <p id="reportCompanyLicenses"></p>
+          </div>
+        </section>
+        <header class="report-header">
+          <div>
+            <p class="eyebrow">Inspection Report</p>
+            <h1>MTB Reality Sdn Bhd - Maintenance Inspection</h1>
+          </div>
+          <div>
+            <button id="backToMapBtn" class="secondary">Back</button>
+            <button id="saveRunBtn" class="secondary">Save Inspection Run</button>
+            <button id="printBtn">Print / Save PDF</button>
+            <span id="reportSaveStatus" class="report-save-status">Not saved yet</span>
+          </div>
+        </header>
+        <div class="report-card">
+          <div class="report-meta">
+            <span>Date: <strong id="reportDate"></strong></span>
+            <span>Inspector: <strong id="reportInspectorName">Demo Inspector</strong></span>
+            <span>Status: <strong id="reportStatus"></strong></span>
+          </div>
+          <section class="report-section">
+            <h2>Summary</h2>
+            <p id="reportSummaryText"></p>
+          </section>
+          <section class="report-section report-critical-section" id="reportCriticalSection">
+            <h2>Critical System Detailed Test Records</h2>
+            <p class="report-section-intro">Detailed readings and safety confirmations are shown for pump, panel, gas discharge, CO2, FM200, wet chemical and other active systems.</p>
+            <div id="reportCriticalSystemDetails"></div>
+          </section>
+          <section class="report-section report-grid">
+            <div>
+              <h2>Defect / Quotation Follow-Up</h2>
+              <div id="reportDefectList"></div>
+            </div>
+            <div>
+              <h2>First-Time Data Captured</h2>
+              <div id="reportSetupList"></div>
+            </div>
+          </section>
+          <table>
+            <thead>
+              <tr>
+                <th>Device</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Checked By</th>
+                <th>Notes</th>
+                <th>Action</th>
+                <th>Photos</th>
+              </tr>
+            </thead>
+            <tbody id="reportRows"></tbody>
+          </table>
+          <footer class="report-footer" id="reportFooter">This report is generated by Realmart Fire Inspection App.</footer>
+        </div>
+      </section>
+    </main>
+    <script src="app.js?v=20260820-audit-tracking"></script>
+  </body>
+</html>

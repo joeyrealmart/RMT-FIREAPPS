@@ -1,0 +1,3 @@
+quotation_ref,report_no,client_name,site_name,device_tag,device_type,floor_area,location,defect_summary,recommended_work,priority,status,created_date
+QT-DRAFT-001,RPT-2026-0001,MTB Reality Sdn Bhd,MTB Reality Sdn Bhd,L1.EL.1,Emergency Light,Level 1,Main corridor,"Emergency light weak during test","Replace battery or fitting after supervisor confirmation",Medium,Draft,2026-07-14
+QT-DRAFT-002,RPT-2026-0001,MTB Reality Sdn Bhd,MTB Reality Sdn Bhd,UNKNOWN-001,Fire Extinguisher,Basement,Smoking area,"Device not in mimic drawing","Admin to add device to master and next maintenance scope",Low,Need Review,2026-07-14

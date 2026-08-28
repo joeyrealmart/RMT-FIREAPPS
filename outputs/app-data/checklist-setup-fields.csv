@@ -1,0 +1,360 @@
+template_id,template_title,device_type,section_id,section_title,field_id,label,input_type,required,display_order
+dry_riser_system,Dry Riser System Checklist,DR,a_system_information,A. System Information,dry_riser_system_site_area,Site / area,text,False,1
+dry_riser_system,Dry Riser System Checklist,DR,a_system_information,A. System Information,dry_riser_system_riser_type_dry_riser_wet_riser_combined,Riser type: Dry Riser / Wet Riser / Combined,text,False,2
+dry_riser_system,Dry Riser System Checklist,DR,a_system_information,A. System Information,dry_riser_system_breeching_inlet_location,Breeching inlet location,text,False,3
+dry_riser_system,Dry Riser System Checklist,DR,a_system_information,A. System Information,dry_riser_system_total_dry_wet_outlet_quantity,Total dry/wet outlet quantity,text,False,4
+dry_riser_system,Dry Riser System Checklist,DR,a_system_information,A. System Information,dry_riser_system_pump_system_applicable_yes_no,Pump system applicable: Yes / No,text,False,5
+dry_riser_system,Dry Riser System Checklist,DR,a_system_information,A. System Information,dry_riser_system_jockey_pump_applicable_yes_no,Jockey pump applicable: Yes / No,text,False,6
+dry_riser_system,Dry Riser System Checklist,DR,a_system_information,A. System Information,dry_riser_system_duty_pump_applicable_yes_no,Duty pump applicable: Yes / No,text,False,7
+dry_riser_system,Dry Riser System Checklist,DR,a_system_information,A. System Information,dry_riser_system_standby_pump_applicable_yes_no,Standby pump applicable: Yes / No,text,False,8
+dry_riser_system,Dry Riser System Checklist,DR,a_system_information,A. System Information,dry_riser_system_last_service_date,Last service date,text,False,9
+dry_riser_system,Dry Riser System Checklist,DR,g_final_restoration,G. Final Restoration,dry_riser_system_confirm_all_landing_valves_are_shut_when_not_in_use,Confirm all landing valves are shut when not in use.,text,False,10
+dry_riser_system,Dry Riser System Checklist,DR,g_final_restoration,G. Final Restoration,dry_riser_system_confirm_bleeding_valves_are_in_correct_normal_position,Confirm bleeding valves are in correct normal position.,text,False,11
+dry_riser_system,Dry Riser System Checklist,DR,g_final_restoration,G. Final Restoration,dry_riser_system_confirm_breeching_inlet_caps_are_secured,Confirm breeching inlet caps are secured.,text,False,12
+dry_riser_system,Dry Riser System Checklist,DR,g_final_restoration,G. Final Restoration,dry_riser_system_confirm_cabinets_are_closed_and_secured,Confirm cabinets are closed and secured.,text,False,13
+dry_riser_system,Dry Riser System Checklist,DR,g_final_restoration,G. Final Restoration,dry_riser_system_inform_facilities_manager_client_representative_testing_completed,Inform Facilities Manager / client representative testing completed.,text,False,14
+dry_riser_system,Dry Riser System Checklist,DR,h_required_photos,H. Required Photos,dry_riser_system_breeching_inlet,Breeching inlet,text,False,15
+dry_riser_system,Dry Riser System Checklist,DR,h_required_photos,H. Required Photos,dry_riser_system_dry_wet_outlet_cabinet,Dry / wet outlet cabinet,text,False,16
+dry_riser_system,Dry Riser System Checklist,DR,h_required_photos,H. Required Photos,dry_riser_system_landing_valve,Landing valve,text,False,17
+dry_riser_system,Dry Riser System Checklist,DR,h_required_photos,H. Required Photos,dry_riser_system_bleeding_valve,Bleeding valve,text,False,18
+dry_riser_system,Dry Riser System Checklist,DR,h_required_photos,H. Required Photos,dry_riser_system_canvas_hose,Canvas hose,text,False,19
+dry_riser_system,Dry Riser System Checklist,DR,h_required_photos,H. Required Photos,dry_riser_system_nozzle,Nozzle,text,False,20
+dry_riser_system,Dry Riser System Checklist,DR,h_required_photos,H. Required Photos,dry_riser_system_cabinet_condition,Cabinet condition,text,False,21
+dry_riser_system,Dry Riser System Checklist,DR,h_required_photos,H. Required Photos,dry_riser_system_obstructed_damaged_missing_item,Obstructed / damaged / missing item,text,False,22
+dry_riser_system,Dry Riser System Checklist,DR,i_report_remarks,I. Report Remarks,dry_riser_system_obstructed_riser_outlet,Obstructed riser outlet,text,False,23
+dry_riser_system,Dry Riser System Checklist,DR,i_report_remarks,I. Report Remarks,dry_riser_system_missing_landing_valve,Missing landing valve,text,False,24
+dry_riser_system,Dry Riser System Checklist,DR,i_report_remarks,I. Report Remarks,dry_riser_system_missing_damaged_hose,Missing / damaged hose,text,False,25
+dry_riser_system,Dry Riser System Checklist,DR,i_report_remarks,I. Report Remarks,dry_riser_system_missing_damaged_nozzle,Missing / damaged nozzle,text,False,26
+dry_riser_system,Dry Riser System Checklist,DR,i_report_remarks,I. Report Remarks,dry_riser_system_valve_not_shut,Valve not shut,text,False,27
+dry_riser_system,Dry Riser System Checklist,DR,i_report_remarks,I. Report Remarks,dry_riser_system_bleeding_valve_issue,Bleeding valve issue,text,False,28
+dry_riser_system,Dry Riser System Checklist,DR,i_report_remarks,I. Report Remarks,dry_riser_system_breeching_inlet_issue,Breeching inlet issue,text,False,29
+dry_riser_system,Dry Riser System Checklist,DR,i_report_remarks,I. Report Remarks,dry_riser_system_cabinet_damaged,Cabinet damaged,text,False,30
+dry_riser_system,Dry Riser System Checklist,DR,i_report_remarks,I. Report Remarks,dry_riser_system_parts_recommended,Parts recommended,text,False,31
+dry_riser_system,Dry Riser System Checklist,DR,i_report_remarks,I. Report Remarks,dry_riser_system_follow_up_quotation_required_yes_no,Follow-up quotation required: Yes / No,text,False,32
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,a_panel_information,A. Panel Information,fire_alarm_control_panel_panel_type_addressable_semi_addressable_conventional,Panel type: Addressable / Semi-addressable / Conventional,text,False,1
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,a_panel_information,A. Panel Information,fire_alarm_control_panel_brand,Brand,text,False,2
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,a_panel_information,A. Panel Information,fire_alarm_control_panel_model,Model,text,False,3
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,a_panel_information,A. Panel Information,fire_alarm_control_panel_panel_location,Panel location,text,False,4
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,a_panel_information,A. Panel Information,fire_alarm_control_panel_total_zones_loops,Total zones / loops,text,False,5
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,a_panel_information,A. Panel Information,fire_alarm_control_panel_zones_currently_used,Zones currently used,text,False,6
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,a_panel_information,A. Panel Information,fire_alarm_control_panel_spare_zones_available,Spare zones available,text,False,7
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,a_panel_information,A. Panel Information,fire_alarm_control_panel_battery_quantity_and_rating,Battery quantity and rating,text,False,8
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,a_panel_information,A. Panel Information,fire_alarm_control_panel_charger_rating,Charger rating,text,False,9
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,a_panel_information,A. Panel Information,fire_alarm_control_panel_last_service_date,Last service date,text,False,10
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,a_panel_information,A. Panel Information,fire_alarm_control_panel_last_alarm_fault_history_if_available,Last alarm / fault history if available,text,False,11
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,fire_alarm_control_panel_inform_facilities_manager_client_representative_before_testing,Inform Facilities Manager / client representative before testing.,text,False,12
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,fire_alarm_control_panel_confirm_testing_time_and_affected_areas,Confirm testing time and affected areas.,text,False,13
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,fire_alarm_control_panel_set_panel_to_silence_alarm_test_mode_before_checking_devices,Set panel to silence / alarm test mode before checking devices.,text,False,14
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,fire_alarm_control_panel_switch_off_isolate_all_tripping_outputs_before_testing,Switch off / isolate all tripping outputs before testing.,text,False,15
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,fire_alarm_control_panel_confirm_lift_air_con_roller_shutter_smoke_spill_fan_pressurizing_fan_and_gas_release_interfaces_before_alarm_mode_testing,"Confirm lift, air-con, roller shutter, smoke spill fan, pressurizing fan, and gas release interfaces before alarm-mode testing.",text,False,16
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,fire_alarm_control_panel_confirm_whether_bomba_link_monitoring_line_needs_to_be_isolated,Confirm whether Bomba link / monitoring line needs to be isolated.,text,False,17
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,fire_alarm_control_panel_record_who_approved_the_test,Record who approved the test.,text,False,18
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,g_final_restoration,G. Final Restoration,fire_alarm_control_panel_reinstate_all_tripping_outputs_isolations,Reinstate all tripping outputs / isolations.,text,False,19
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,g_final_restoration,G. Final Restoration,fire_alarm_control_panel_reset_fire_alarm_panel,Reset fire alarm panel.,text,False,20
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,g_final_restoration,G. Final Restoration,fire_alarm_control_panel_confirm_panel_returns_to_normal_status,Confirm panel returns to normal status.,text,False,21
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,g_final_restoration,G. Final Restoration,fire_alarm_control_panel_confirm_no_active_fault_isolate_alarm_left_behind,Confirm no active fault / isolate / alarm left behind.,text,False,22
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,g_final_restoration,G. Final Restoration,fire_alarm_control_panel_confirm_mimic_panel_normal,Confirm mimic panel normal.,text,False,23
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,g_final_restoration,G. Final Restoration,fire_alarm_control_panel_inform_facilities_manager_client_representative_testing_completed,Inform Facilities Manager / client representative testing completed.,text,False,24
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,g_final_restoration,G. Final Restoration,fire_alarm_control_panel_record_final_panel_status_photo,Record final panel status photo.,text,False,25
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,h_required_photos,H. Required Photos,fire_alarm_control_panel_panel_front_view,Panel front view,text,False,26
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,h_required_photos,H. Required Photos,fire_alarm_control_panel_panel_normal_status_before_test,Panel normal status before test,text,False,27
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,h_required_photos,H. Required Photos,fire_alarm_control_panel_battery_charger_photo,Battery / charger photo,text,False,28
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,h_required_photos,H. Required Photos,fire_alarm_control_panel_mimic_panel_photo,Mimic panel photo,text,False,29
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,h_required_photos,H. Required Photos,fire_alarm_control_panel_fault_isolate_screen_if_any,Fault / isolate screen if any,text,False,30
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,h_required_photos,H. Required Photos,fire_alarm_control_panel_final_normal_status_after_restoration,Final normal status after restoration,text,False,31
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,i_report_remarks,I. Report Remarks,fire_alarm_control_panel_faults_found,Faults found,text,False,32
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,i_report_remarks,I. Report Remarks,fire_alarm_control_panel_devices_failed,Devices failed,text,False,33
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,i_report_remarks,I. Report Remarks,fire_alarm_control_panel_interface_failed,Interface failed,text,False,34
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,i_report_remarks,I. Report Remarks,fire_alarm_control_panel_parts_recommended,Parts recommended,text,False,35
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,i_report_remarks,I. Report Remarks,fire_alarm_control_panel_urgent_safety_concerns,Urgent safety concerns,text,False,36
+fire_alarm_control_panel,Fire Alarm Control Panel Checklist,FAP,i_report_remarks,I. Report Remarks,fire_alarm_control_panel_follow_up_quotation_required_yes_no,Follow-up quotation required: Yes / No,text,False,37
+fireman_intercom_system,Fireman Intercom System Checklist,FI,a_system_information,A. System Information,fireman_intercom_system_system_location,System location,text,False,1
+fireman_intercom_system,Fireman Intercom System Checklist,FI,a_system_information,A. System Information,fireman_intercom_system_master_panel_location,Master panel location,text,False,2
+fireman_intercom_system,Fireman Intercom System Checklist,FI,a_system_information,A. System Information,fireman_intercom_system_master_intercom_brand_model,Master intercom brand / model,text,False,3
+fireman_intercom_system,Fireman Intercom System Checklist,FI,a_system_information,A. System Information,fireman_intercom_system_cpu_controller_brand_model_if_available,CPU / controller brand / model if available,text,False,4
+fireman_intercom_system,Fireman Intercom System Checklist,FI,a_system_information,A. System Information,fireman_intercom_system_total_master_quantity,Total master quantity,text,False,5
+fireman_intercom_system,Fireman Intercom System Checklist,FI,a_system_information,A. System Information,fireman_intercom_system_total_slave_handset_quantity,Total slave handset quantity,text,False,6
+fireman_intercom_system,Fireman Intercom System Checklist,FI,a_system_information,A. System Information,fireman_intercom_system_last_service_date,Last service date,text,False,7
+fireman_intercom_system,Fireman Intercom System Checklist,FI,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,fireman_intercom_system_inform_facilities_manager_client_representative_before_testing,Inform Facilities Manager / client representative before testing.,text,False,8
+fireman_intercom_system,Fireman Intercom System Checklist,FI,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,fireman_intercom_system_confirm_testing_time_and_affected_areas,Confirm testing time and affected areas.,text,False,9
+fireman_intercom_system,Fireman Intercom System Checklist,FI,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,fireman_intercom_system_confirm_master_panel_can_be_tested,Confirm master panel can be tested.,text,False,10
+fireman_intercom_system,Fireman Intercom System Checklist,FI,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,fireman_intercom_system_confirm_access_to_slave_handset_locations,Confirm access to slave handset locations.,text,False,11
+fireman_intercom_system,Fireman Intercom System Checklist,FI,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,fireman_intercom_system_record_who_approved_the_test,Record who approved the test.,text,False,12
+fireman_intercom_system,Fireman Intercom System Checklist,FI,g_final_restoration,G. Final Restoration,fireman_intercom_system_confirm_master_panel_returns_to_normal_status,Confirm master panel returns to normal status.,text,False,13
+fireman_intercom_system,Fireman Intercom System Checklist,FI,g_final_restoration,G. Final Restoration,fireman_intercom_system_confirm_no_fault_indication_left_after_testing,Confirm no fault indication left after testing.,text,False,14
+fireman_intercom_system,Fireman Intercom System Checklist,FI,g_final_restoration,G. Final Restoration,fireman_intercom_system_confirm_all_handset_cabinets_are_closed_and_secured,Confirm all handset cabinets are closed and secured.,text,False,15
+fireman_intercom_system,Fireman Intercom System Checklist,FI,g_final_restoration,G. Final Restoration,fireman_intercom_system_inform_facilities_manager_client_representative_testing_completed,Inform Facilities Manager / client representative testing completed.,text,False,16
+fireman_intercom_system,Fireman Intercom System Checklist,FI,h_required_photos,H. Required Photos,fireman_intercom_system_master_intercom_panel,Master intercom panel,text,False,17
+fireman_intercom_system,Fireman Intercom System Checklist,FI,h_required_photos,H. Required Photos,fireman_intercom_system_panel_normal_status,Panel normal status,text,False,18
+fireman_intercom_system,Fireman Intercom System Checklist,FI,h_required_photos,H. Required Photos,fireman_intercom_system_battery_and_charger,Battery and charger,text,False,19
+fireman_intercom_system,Fireman Intercom System Checklist,FI,h_required_photos,H. Required Photos,fireman_intercom_system_cpu_controller_if_visible,CPU / controller if visible,text,False,20
+fireman_intercom_system,Fireman Intercom System Checklist,FI,h_required_photos,H. Required Photos,fireman_intercom_system_sample_slave_handset,Sample slave handset,text,False,21
+fireman_intercom_system,Fireman Intercom System Checklist,FI,h_required_photos,H. Required Photos,fireman_intercom_system_failed_handset_damaged_glass_damaged_lock,Failed handset / damaged glass / damaged lock,text,False,22
+fireman_intercom_system,Fireman Intercom System Checklist,FI,h_required_photos,H. Required Photos,fireman_intercom_system_final_normal_panel_status,Final normal panel status,text,False,23
+fireman_intercom_system,Fireman Intercom System Checklist,FI,i_report_remarks,I. Report Remarks,fireman_intercom_system_master_panel_issue,Master panel issue,text,False,24
+fireman_intercom_system,Fireman Intercom System Checklist,FI,i_report_remarks,I. Report Remarks,fireman_intercom_system_cpu_control_operation_issue,CPU / control operation issue,text,False,25
+fireman_intercom_system,Fireman Intercom System Checklist,FI,i_report_remarks,I. Report Remarks,fireman_intercom_system_no_speech_master_to_slave,No speech master to slave,text,False,26
+fireman_intercom_system,Fireman Intercom System Checklist,FI,i_report_remarks,I. Report Remarks,fireman_intercom_system_no_speech_slave_to_master,No speech slave to master,text,False,27
+fireman_intercom_system,Fireman Intercom System Checklist,FI,i_report_remarks,I. Report Remarks,fireman_intercom_system_audio_unclear,Audio unclear,text,False,28
+fireman_intercom_system,Fireman Intercom System Checklist,FI,i_report_remarks,I. Report Remarks,fireman_intercom_system_broken_glass,Broken glass,text,False,29
+fireman_intercom_system,Fireman Intercom System Checklist,FI,i_report_remarks,I. Report Remarks,fireman_intercom_system_lock_damaged_missing_key,Lock damaged / missing key,text,False,30
+fireman_intercom_system,Fireman Intercom System Checklist,FI,i_report_remarks,I. Report Remarks,fireman_intercom_system_handset_damaged,Handset damaged,text,False,31
+fireman_intercom_system,Fireman Intercom System Checklist,FI,i_report_remarks,I. Report Remarks,fireman_intercom_system_parts_recommended,Parts recommended,text,False,32
+fireman_intercom_system,Fireman Intercom System Checklist,FI,i_report_remarks,I. Report Remarks,fireman_intercom_system_follow_up_quotation_required_yes_no,Follow-up quotation required: Yes / No,text,False,33
+gas_release_system,Gas Release System Checklist,GAS,a_system_information,A. System Information,gas_release_system_protected_area,Protected area,text,False,1
+gas_release_system,Gas Release System Checklist,GAS,a_system_information,A. System Information,gas_release_system_gas_release_agent_type,Gas release agent type,text,False,2
+gas_release_system,Gas Release System Checklist,GAS,a_system_information,A. System Information,gas_release_system_gas_release_agent_panel_location,Gas release agent panel location,text,False,3
+gas_release_system,Gas Release System Checklist,GAS,a_system_information,A. System Information,gas_release_system_panel_brand_model,Panel brand / model,text,False,4
+gas_release_system,Gas Release System Checklist,GAS,a_system_information,A. System Information,gas_release_system_cylinder_quantity,Cylinder quantity,text,False,5
+gas_release_system,Gas Release System Checklist,GAS,a_system_information,A. System Information,gas_release_system_cylinder_serial_numbers,Cylinder serial numbers,text,False,6
+gas_release_system,Gas Release System Checklist,GAS,a_system_information,A. System Information,gas_release_system_manual_release_location,Manual release location,text,False,7
+gas_release_system,Gas Release System Checklist,GAS,a_system_information,A. System Information,gas_release_system_abort_switch_location,Abort switch location,text,False,8
+gas_release_system,Gas Release System Checklist,GAS,a_system_information,A. System Information,gas_release_system_sounder_beacon_flashing_light_location,Sounder / beacon / flashing light location,text,False,9
+gas_release_system,Gas Release System Checklist,GAS,a_system_information,A. System Information,gas_release_system_last_service_date,Last service date,text,False,10
+gas_release_system,Gas Release System Checklist,GAS,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,gas_release_system_inform_facilities_manager_client_representative_before_testing,Inform Facilities Manager / client representative before testing.,text,False,11
+gas_release_system,Gas Release System Checklist,GAS,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,gas_release_system_confirm_testing_approval_before_isolating_discharge,Confirm testing approval before isolating discharge.,text,False,12
+gas_release_system,Gas Release System Checklist,GAS,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,gas_release_system_confirm_protected_area_is_safe_to_test,Confirm protected area is safe to test.,text,False,13
+gas_release_system,Gas Release System Checklist,GAS,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,gas_release_system_confirm_gas_discharge_must_not_occur_during_test,Confirm gas discharge must not occur during test.,text,False,14
+gas_release_system,Gas Release System Checklist,GAS,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,gas_release_system_isolate_gas_discharge_switch,Isolate gas discharge switch.,text,False,15
+gas_release_system,Gas Release System Checklist,GAS,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,gas_release_system_remove_discharge_cable,Remove discharge cable.,text,False,16
+gas_release_system,Gas Release System Checklist,GAS,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,gas_release_system_do_not_short_circuit_discharge_cable,Do not short circuit discharge cable.,text,False,17
+gas_release_system,Gas Release System Checklist,GAS,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,gas_release_system_remove_pyrocharge_solenoid_head,Remove pyrocharge / solenoid head.,text,False,18
+gas_release_system,Gas Release System Checklist,GAS,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,gas_release_system_record_who_approved_the_test,Record who approved the test.,text,False,19
+gas_release_system,Gas Release System Checklist,GAS,i_required_photos_videos,I. Required Photos / Videos,gas_release_system_gas_release_agent_panel,Gas release agent panel,text,False,20
+gas_release_system,Gas Release System Checklist,GAS,i_required_photos_videos,I. Required Photos / Videos,gas_release_system_panel_normal_status_before_test,Panel normal status before test,text,False,21
+gas_release_system,Gas Release System Checklist,GAS,i_required_photos_videos,I. Required Photos / Videos,gas_release_system_battery_and_charger,Battery and charger,text,False,22
+gas_release_system,Gas Release System Checklist,GAS,i_required_photos_videos,I. Required Photos / Videos,gas_release_system_discharge_isolation_switch,Discharge isolation switch,text,False,23
+gas_release_system,Gas Release System Checklist,GAS,i_required_photos_videos,I. Required Photos / Videos,gas_release_system_removed_discharge_cable,Removed discharge cable,text,False,24
+gas_release_system,Gas Release System Checklist,GAS,i_required_photos_videos,I. Required Photos / Videos,gas_release_system_removed_pyrocharge_solenoid_head,Removed pyrocharge / solenoid head,text,False,25
+gas_release_system,Gas Release System Checklist,GAS,i_required_photos_videos,I. Required Photos / Videos,gas_release_system_test_alarm_discharge_delay_screen,Test alarm / discharge delay screen,text,False,26
+gas_release_system,Gas Release System Checklist,GAS,i_required_photos_videos,I. Required Photos / Videos,gas_release_system_manual_key_switch_manual_puller,Manual key switch / manual puller,text,False,27
+gas_release_system,Gas Release System Checklist,GAS,i_required_photos_videos,I. Required Photos / Videos,gas_release_system_flashing_light_alarm_bell,Flashing light / alarm bell,text,False,28
+gas_release_system,Gas Release System Checklist,GAS,i_required_photos_videos,I. Required Photos / Videos,gas_release_system_tripping_device_activation_if_tested,Tripping device activation if tested,text,False,29
+gas_release_system,Gas Release System Checklist,GAS,i_required_photos_videos,I. Required Photos / Videos,gas_release_system_final_normal_panel_status_after_restoration,Final normal panel status after restoration,text,False,30
+gas_release_system,Gas Release System Checklist,GAS,j_report_remarks,J. Report Remarks,gas_release_system_panel_fault,Panel fault,text,False,31
+gas_release_system,Gas Release System Checklist,GAS,j_report_remarks,J. Report Remarks,gas_release_system_battery_charger_issue,Battery / charger issue,text,False,32
+gas_release_system,Gas Release System Checklist,GAS,j_report_remarks,J. Report Remarks,gas_release_system_cpu_control_issue,CPU / control issue,text,False,33
+gas_release_system,Gas Release System Checklist,GAS,j_report_remarks,J. Report Remarks,gas_release_system_discharge_delay_not_within_20_30_seconds,Discharge delay not within 20-30 seconds,text,False,34
+gas_release_system,Gas Release System Checklist,GAS,j_report_remarks,J. Report Remarks,gas_release_system_alarm_bell_failed,Alarm bell failed,text,False,35
+gas_release_system,Gas Release System Checklist,GAS,j_report_remarks,J. Report Remarks,gas_release_system_flashing_light_failed,Flashing light failed,text,False,36
+gas_release_system,Gas Release System Checklist,GAS,j_report_remarks,J. Report Remarks,gas_release_system_manual_key_switch_puller_failed,Manual key switch / puller failed,text,False,37
+gas_release_system,Gas Release System Checklist,GAS,j_report_remarks,J. Report Remarks,gas_release_system_tripping_device_failed,Tripping device failed,text,False,38
+gas_release_system,Gas Release System Checklist,GAS,j_report_remarks,J. Report Remarks,gas_release_system_discharge_circuit_solenoid_issue,Discharge circuit / solenoid issue,text,False,39
+gas_release_system,Gas Release System Checklist,GAS,j_report_remarks,J. Report Remarks,gas_release_system_parts_recommended,Parts recommended,text,False,40
+gas_release_system,Gas Release System Checklist,GAS,j_report_remarks,J. Report Remarks,gas_release_system_follow_up_quotation_required_yes_no,Follow-up quotation required: Yes / No,text,False,41
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,a_system_information,A. System Information,hose_reel_system_system_location,System location,text,False,1
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,a_system_information,A. System Information,hose_reel_system_hose_reel_tank_location,Hose reel tank location,text,False,2
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,a_system_information,A. System Information,hose_reel_system_pump_room_location,Pump room location,text,False,3
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,a_system_information,A. System Information,hose_reel_system_duty_pump_brand_model,Duty pump brand / model,text,False,4
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,a_system_information,A. System Information,hose_reel_system_duty_pump_serial_number,Duty pump serial number,text,False,5
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,a_system_information,A. System Information,hose_reel_system_standby_pump_brand_model,Standby pump brand / model,text,False,6
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,a_system_information,A. System Information,hose_reel_system_standby_pump_serial_number,Standby pump serial number,text,False,7
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,a_system_information,A. System Information,hose_reel_system_pump_starter_panel_brand_model,Pump starter panel brand / model,text,False,8
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,a_system_information,A. System Information,hose_reel_system_tank_capacity_if_available,Tank capacity if available,text,False,9
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,a_system_information,A. System Information,hose_reel_system_number_of_hose_reels,Number of hose reels,text,False,10
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,a_system_information,A. System Information,hose_reel_system_last_service_date,Last service date,text,False,11
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,hose_reel_system_inform_facilities_manager_client_representative_before_testing,Inform Facilities Manager / client representative before testing.,text,False,12
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,hose_reel_system_confirm_test_discharge_location,Confirm test discharge location.,text,False,13
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,hose_reel_system_confirm_water_supply_is_available,Confirm water supply is available.,text,False,14
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,hose_reel_system_confirm_power_supply_is_safe_before_operating_pump,Confirm power supply is safe before operating pump.,text,False,15
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,hose_reel_system_for_3_phase_supply_measure_all_phases_before_testing,"For 3-phase supply, measure all phases before testing.",text,False,16
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,hose_reel_system_confirm_standby_diesel_pump_area_is_ventilated_before_test_run,Confirm standby diesel pump area is ventilated before test run.,text,False,17
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,hose_reel_system_record_who_approved_the_test,Record who approved the test.,text,False,18
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,j_final_restoration,J. Final Restoration,hose_reel_system_return_all_valves_to_correct_normal_position,Return all valves to correct normal position.,text,False,19
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,j_final_restoration,J. Final Restoration,hose_reel_system_return_pump_panel_selector_to_correct_normal_position,Return pump panel selector to correct normal position.,text,False,20
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,j_final_restoration,J. Final Restoration,hose_reel_system_confirm_duty_pump_standby_pump_status_normal,Confirm duty pump / standby pump status normal.,text,False,21
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,j_final_restoration,J. Final Restoration,hose_reel_system_confirm_no_leakage_after_testing,Confirm no leakage after testing.,text,False,22
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,j_final_restoration,J. Final Restoration,hose_reel_system_confirm_pump_room_clean_and_safe,Confirm pump room clean and safe.,text,False,23
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,j_final_restoration,J. Final Restoration,hose_reel_system_inform_facilities_manager_client_representative_testing_completed,Inform Facilities Manager / client representative testing completed.,text,False,24
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,k_required_photos,K. Required Photos,hose_reel_system_hose_reel_tank,Hose reel tank,text,False,25
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,k_required_photos,K. Required Photos,hose_reel_system_pump_starter_panel_before_test,Pump starter panel before test,text,False,26
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,k_required_photos,K. Required Photos,hose_reel_system_3_phase_voltage_measurement_photo,3-phase voltage measurement photo,text,False,27
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,k_required_photos,K. Required Photos,hose_reel_system_duty_pump,Duty pump,text,False,28
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,k_required_photos,K. Required Photos,hose_reel_system_standby_pump_diesel_engine,Standby pump / diesel engine,text,False,29
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,k_required_photos,K. Required Photos,hose_reel_system_battery_and_charger,Battery and charger,text,False,30
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,k_required_photos,K. Required Photos,hose_reel_system_fuel_oil_level_if_applicable,Fuel / oil level if applicable,text,False,31
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,k_required_photos,K. Required Photos,hose_reel_system_sample_hose_reel_cabinet,Sample hose reel cabinet,text,False,32
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,k_required_photos,K. Required Photos,hose_reel_system_failed_hose_reel_nozzle_hose_condition,Failed hose reel / nozzle / hose condition,text,False,33
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,k_required_photos,K. Required Photos,hose_reel_system_final_normal_pump_panel_status,Final normal pump panel status,text,False,34
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,l_report_remarks,L. Report Remarks,hose_reel_system_faults_found,Faults found,text,False,35
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,l_report_remarks,L. Report Remarks,hose_reel_system_hose_reels_failed,Hose reels failed,text,False,36
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,l_report_remarks,L. Report Remarks,hose_reel_system_pump_issues,Pump issues,text,False,37
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,l_report_remarks,L. Report Remarks,hose_reel_system_valve_pipe_leakage,Valve / pipe leakage,text,False,38
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,l_report_remarks,L. Report Remarks,hose_reel_system_parts_recommended,Parts recommended,text,False,39
+hose_reel_system,Hose Reel System Checklist,HR_SYSTEM,l_report_remarks,L. Report Remarks,hose_reel_system_follow_up_quotation_required_yes_no,Follow-up quotation required: Yes / No,text,False,40
+normal_hydrant,Normal Hydrant Checklist,HYD,a_system_information,A. System Information,normal_hydrant_site_area,Site / area,text,False,1
+normal_hydrant,Normal Hydrant Checklist,HYD,a_system_information,A. System Information,normal_hydrant_hydrant_zone_block,Hydrant zone / block,text,False,2
+normal_hydrant,Normal Hydrant Checklist,HYD,a_system_information,A. System Information,normal_hydrant_total_pillar_hydrant_quantity,Total pillar hydrant quantity,text,False,3
+normal_hydrant,Normal Hydrant Checklist,HYD,a_system_information,A. System Information,normal_hydrant_last_service_date,Last service date,text,False,4
+normal_hydrant,Normal Hydrant Checklist,HYD,a_system_information,A. System Information,normal_hydrant_water_source_tank_if_known,Water source / tank if known,text,False,5
+normal_hydrant,Normal Hydrant Checklist,HYD,a_system_information,A. System Information,normal_hydrant_remarks_from_previous_inspection,Remarks from previous inspection,text,False,6
+normal_hydrant,Normal Hydrant Checklist,HYD,e_required_photos,E. Required Photos,normal_hydrant_overall_pillar_hydrant_photo,Overall pillar hydrant photo,text,False,7
+normal_hydrant,Normal Hydrant Checklist,HYD,e_required_photos,E. Required Photos,normal_hydrant_hydrant_cabinet_photo,Hydrant cabinet photo,text,False,8
+normal_hydrant,Normal Hydrant Checklist,HYD,e_required_photos,E. Required Photos,normal_hydrant_cabinet_key_lock_glass,Cabinet key / lock / glass,text,False,9
+normal_hydrant,Normal Hydrant Checklist,HYD,e_required_photos,E. Required Photos,normal_hydrant_canvas_hose,Canvas hose,text,False,10
+normal_hydrant,Normal Hydrant Checklist,HYD,e_required_photos,E. Required Photos,normal_hydrant_nozzle,Nozzle,text,False,11
+normal_hydrant,Normal Hydrant Checklist,HYD,e_required_photos,E. Required Photos,normal_hydrant_landing_valve,Landing valve,text,False,12
+normal_hydrant,Normal Hydrant Checklist,HYD,e_required_photos,E. Required Photos,normal_hydrant_cap_and_chain,Cap and chain,text,False,13
+normal_hydrant,Normal Hydrant Checklist,HYD,e_required_photos,E. Required Photos,normal_hydrant_any_obstruction,Any obstruction,text,False,14
+normal_hydrant,Normal Hydrant Checklist,HYD,e_required_photos,E. Required Photos,normal_hydrant_any_damaged_or_missing_item,Any damaged or missing item,text,False,15
+normal_hydrant,Normal Hydrant Checklist,HYD,f_report_remarks,F. Report Remarks,normal_hydrant_missing_hose_nozzle_key,Missing hose / nozzle / key,text,False,16
+normal_hydrant,Normal Hydrant Checklist,HYD,f_report_remarks,F. Report Remarks,normal_hydrant_broken_cabinet_glass,Broken cabinet glass,text,False,17
+normal_hydrant,Normal Hydrant Checklist,HYD,f_report_remarks,F. Report Remarks,normal_hydrant_damaged_landing_valve,Damaged landing valve,text,False,18
+normal_hydrant,Normal Hydrant Checklist,HYD,f_report_remarks,F. Report Remarks,normal_hydrant_missing_cap_and_chain,Missing cap and chain,text,False,19
+normal_hydrant,Normal Hydrant Checklist,HYD,f_report_remarks,F. Report Remarks,normal_hydrant_obstructed_hydrant,Obstructed hydrant,text,False,20
+normal_hydrant,Normal Hydrant Checklist,HYD,f_report_remarks,F. Report Remarks,normal_hydrant_suspected_unauthorized_usage,Suspected unauthorized usage,text,False,21
+normal_hydrant,Normal Hydrant Checklist,HYD,f_report_remarks,F. Report Remarks,normal_hydrant_parts_recommended,Parts recommended,text,False,22
+normal_hydrant,Normal Hydrant Checklist,HYD,f_report_remarks,F. Report Remarks,normal_hydrant_follow_up_quotation_required_yes_no,Follow-up quotation required: Yes / No,text,False,23
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,a_system_information,A. System Information,portable_fire_extinguisher_site_area,Site / area,text,False,1
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,a_system_information,A. System Information,portable_fire_extinguisher_total_extinguisher_quantity,Total extinguisher quantity,text,False,2
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,a_system_information,A. System Information,portable_fire_extinguisher_total_9kg_d_p_quantity,Total 9kg D/P quantity,text,False,3
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,a_system_information,A. System Information,portable_fire_extinguisher_total_2_2kg_co2_2kg_co2_quantity,Total 2.2kg CO2 / 2kg CO2 quantity,text,False,4
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,a_system_information,A. System Information,portable_fire_extinguisher_last_inspection_date,Last inspection date,text,False,5
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,a_system_information,A. System Information,portable_fire_extinguisher_fire_certificate_status_n_a_yes_no,Fire certificate status: N/A / Yes / No,text,False,6
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,a_system_information,A. System Information,portable_fire_extinguisher_if_fire_certificate_is_yes_expiry_date,"If fire certificate is yes, expiry date",text,False,7
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,h_required_photos,H. Required Photos,portable_fire_extinguisher_overall_extinguisher_location_photo,Overall extinguisher location photo,text,False,8
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,h_required_photos,H. Required Photos,portable_fire_extinguisher_bomba_qr_barcode_sticker,Bomba QR / barcode sticker,text,False,9
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,h_required_photos,H. Required Photos,portable_fire_extinguisher_pressure_gauge,Pressure gauge,text,False,10
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,h_required_photos,H. Required Photos,portable_fire_extinguisher_safety_pin_seal,Safety pin / seal,text,False,11
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,h_required_photos,H. Required Photos,portable_fire_extinguisher_nozzle_hose,Nozzle / hose,text,False,12
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,h_required_photos,H. Required Photos,portable_fire_extinguisher_physical_damage_if_any,Physical damage if any,text,False,13
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,h_required_photos,H. Required Photos,portable_fire_extinguisher_leakage_if_any,Leakage if any,text,False,14
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,h_required_photos,H. Required Photos,portable_fire_extinguisher_expired_certificate_expired_sticker_if_any,Expired certificate / expired sticker if any,text,False,15
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,h_required_photos,H. Required Photos,portable_fire_extinguisher_missing_location_photo_if_extinguisher_is_not_found,Missing location photo if extinguisher is not found,text,False,16
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,i_report_remarks,I. Report Remarks,portable_fire_extinguisher_missing_extinguisher,Missing extinguisher,text,False,17
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,i_report_remarks,I. Report Remarks,portable_fire_extinguisher_wrong_location,Wrong location,text,False,18
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,i_report_remarks,I. Report Remarks,portable_fire_extinguisher_expired_bomba_certificate,Expired Bomba certificate,text,False,19
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,i_report_remarks,I. Report Remarks,portable_fire_extinguisher_drop_in_pressure,Drop in pressure,text,False,20
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,i_report_remarks,I. Report Remarks,portable_fire_extinguisher_empty_cylinder,Empty cylinder,text,False,21
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,i_report_remarks,I. Report Remarks,portable_fire_extinguisher_safety_pin_missing,Safety pin missing,text,False,22
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,i_report_remarks,I. Report Remarks,portable_fire_extinguisher_physical_damage_leakage_clogged_nozzle,Physical damage / leakage / clogged nozzle,text,False,23
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,i_report_remarks,I. Report Remarks,portable_fire_extinguisher_over_10_12_years,Over 10 / 12 years,text,False,24
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,i_report_remarks,I. Report Remarks,portable_fire_extinguisher_replacement_recommended,Replacement recommended,text,False,25
+portable_fire_extinguisher,Portable Fire Extinguisher Checklist,EXT,i_report_remarks,I. Report Remarks,portable_fire_extinguisher_follow_up_quotation_required_yes_no,Follow-up quotation required: Yes / No,text,False,26
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_site_area,Site / area,text,False,1
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_hydrant_tank_location,Hydrant tank location,text,False,2
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_pump_room_location,Pump room location,text,False,3
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_total_pillar_hydrant_quantity,Total pillar hydrant quantity,text,False,4
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_duty_pump_brand_model,Duty pump brand / model,text,False,5
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_duty_pump_serial_number,Duty pump serial number,text,False,6
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_standby_pump_brand_model,Standby pump brand / model,text,False,7
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_standby_pump_serial_number,Standby pump serial number,text,False,8
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_jockey_pump_brand_model,Jockey pump brand / model,text,False,9
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_jockey_pump_serial_number,Jockey pump serial number,text,False,10
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_pump_starter_panel_brand_model,Pump starter panel brand / model,text,False,11
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_zone_butterfly_valve_quantity,Zone butterfly valve quantity,text,False,12
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,a_system_information,A. System Information,pressurized_hydrant_system_last_service_date,Last service date,text,False,13
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,pressurized_hydrant_system_inform_facilities_manager_client_representative_before_testing,Inform Facilities Manager / client representative before testing.,text,False,14
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,pressurized_hydrant_system_confirm_test_discharge_drain_location,Confirm test discharge / drain location.,text,False,15
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,pressurized_hydrant_system_confirm_water_supply_is_available,Confirm water supply is available.,text,False,16
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,pressurized_hydrant_system_confirm_pump_power_supply_is_safe_before_testing,Confirm pump power supply is safe before testing.,text,False,17
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,pressurized_hydrant_system_for_3_phase_supply_measure_all_phases_before_testing,"For 3-phase supply, measure all phases before testing.",text,False,18
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,pressurized_hydrant_system_confirm_standby_diesel_pump_area_is_ventilated_before_test_run,Confirm standby diesel pump area is ventilated before test run.,text,False,19
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,pressurized_hydrant_system_record_who_approved_the_test,Record who approved the test.,text,False,20
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,m_final_restoration,M. Final Restoration,pressurized_hydrant_system_return_all_valves_to_correct_normal_position,Return all valves to correct normal position.,text,False,21
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,m_final_restoration,M. Final Restoration,pressurized_hydrant_system_return_pump_panel_selector_to_correct_normal_position,Return pump panel selector to correct normal position.,text,False,22
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,m_final_restoration,M. Final Restoration,pressurized_hydrant_system_confirm_jockey_duty_standby_pump_status_normal,Confirm jockey / duty / standby pump status normal.,text,False,23
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,m_final_restoration,M. Final Restoration,pressurized_hydrant_system_confirm_no_leakage_after_testing,Confirm no leakage after testing.,text,False,24
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,m_final_restoration,M. Final Restoration,pressurized_hydrant_system_confirm_hydrant_cabinet_is_closed_and_secured,Confirm hydrant cabinet is closed and secured.,text,False,25
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,m_final_restoration,M. Final Restoration,pressurized_hydrant_system_inform_facilities_manager_client_representative_testing_completed,Inform Facilities Manager / client representative testing completed.,text,False,26
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,n_required_photos,N. Required Photos,pressurized_hydrant_system_hydrant_water_tank,Hydrant water tank,text,False,27
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,n_required_photos,N. Required Photos,pressurized_hydrant_system_pump_starter_panel_before_test,Pump starter panel before test,text,False,28
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,n_required_photos,N. Required Photos,pressurized_hydrant_system_3_phase_voltage_measurement_photo,3-phase voltage measurement photo,text,False,29
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,n_required_photos,N. Required Photos,pressurized_hydrant_system_jockey_pump,Jockey pump,text,False,30
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,n_required_photos,N. Required Photos,pressurized_hydrant_system_duty_pump,Duty pump,text,False,31
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,n_required_photos,N. Required Photos,pressurized_hydrant_system_standby_pump_diesel_engine,Standby pump / diesel engine,text,False,32
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,n_required_photos,N. Required Photos,pressurized_hydrant_system_battery_and_charger,Battery and charger,text,False,33
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,n_required_photos,N. Required Photos,pressurized_hydrant_system_fuel_oil_level_if_applicable,Fuel / oil level if applicable,text,False,34
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,n_required_photos,N. Required Photos,pressurized_hydrant_system_zone_butterfly_valve,Zone butterfly valve,text,False,35
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,n_required_photos,N. Required Photos,pressurized_hydrant_system_pillar_hydrant_and_cabinet,Pillar hydrant and cabinet,text,False,36
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,n_required_photos,N. Required Photos,pressurized_hydrant_system_hydrant_hose_nozzle_landing_valve,Hydrant hose / nozzle / landing valve,text,False,37
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,n_required_photos,N. Required Photos,pressurized_hydrant_system_final_normal_pump_panel_status,Final normal pump panel status,text,False,38
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,o_report_remarks,O. Report Remarks,pressurized_hydrant_system_missing_hose_nozzle_key,Missing hose / nozzle / key,text,False,39
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,o_report_remarks,O. Report Remarks,pressurized_hydrant_system_broken_cabinet_glass,Broken cabinet glass,text,False,40
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,o_report_remarks,O. Report Remarks,pressurized_hydrant_system_damaged_landing_valve,Damaged landing valve,text,False,41
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,o_report_remarks,O. Report Remarks,pressurized_hydrant_system_missing_cap_and_chain,Missing cap and chain,text,False,42
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,o_report_remarks,O. Report Remarks,pressurized_hydrant_system_obstructed_hydrant,Obstructed hydrant,text,False,43
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,o_report_remarks,O. Report Remarks,pressurized_hydrant_system_suspected_unauthorized_usage,Suspected unauthorized usage,text,False,44
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,o_report_remarks,O. Report Remarks,pressurized_hydrant_system_pump_issues,Pump issues,text,False,45
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,o_report_remarks,O. Report Remarks,pressurized_hydrant_system_valve_pipe_leakage,Valve / pipe leakage,text,False,46
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,o_report_remarks,O. Report Remarks,pressurized_hydrant_system_parts_recommended,Parts recommended,text,False,47
+pressurized_hydrant_system,Pressurized Hydrant System Checklist,HYD_PRESSURIZED,o_report_remarks,O. Report Remarks,pressurized_hydrant_system_follow_up_quotation_required_yes_no,Follow-up quotation required: Yes / No,text,False,48
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_system_location,System location,text,False,1
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_sprinkler_tank_location,Sprinkler tank location,text,False,2
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_pump_room_location,Pump room location,text,False,3
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_duty_pump_brand_model,Duty pump brand / model,text,False,4
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_duty_pump_serial_number,Duty pump serial number,text,False,5
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_standby_pump_brand_model,Standby pump brand / model,text,False,6
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_standby_pump_serial_number,Standby pump serial number,text,False,7
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_jockey_pump_brand_model,Jockey pump brand / model,text,False,8
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_jockey_pump_serial_number,Jockey pump serial number,text,False,9
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_pump_starter_panel_brand_model,Pump starter panel brand / model,text,False,10
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_sprinkler_alarm_valve_quantity,Sprinkler alarm valve quantity,text,False,11
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_zone_valve_quantity,Zone valve quantity,text,False,12
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_flow_switch_quantity,Flow switch quantity,text,False,13
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,a_system_information,A. System Information,sprinkler_system_last_service_date,Last service date,text,False,14
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,sprinkler_system_inform_facilities_manager_client_representative_before_testing,Inform Facilities Manager / client representative before testing.,text,False,15
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,sprinkler_system_confirm_test_discharge_drain_location,Confirm test discharge / drain location.,text,False,16
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,sprinkler_system_confirm_water_supply_is_available,Confirm water supply is available.,text,False,17
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,sprinkler_system_confirm_pump_power_supply_is_safe_before_testing,Confirm pump power supply is safe before testing.,text,False,18
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,sprinkler_system_for_3_phase_supply_measure_all_phases_before_testing,"For 3-phase supply, measure all phases before testing.",text,False,19
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,sprinkler_system_confirm_standby_diesel_pump_area_is_ventilated_before_test_run,Confirm standby diesel pump area is ventilated before test run.,text,False,20
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,sprinkler_system_confirm_sprinkler_alarm_fire_alarm_interface_before_flow_proving_test,Confirm sprinkler alarm / fire alarm interface before flow proving test.,text,False,21
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,sprinkler_system_record_who_approved_the_test,Record who approved the test.,text,False,22
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,l_final_restoration,L. Final Restoration,sprinkler_system_return_all_valves_to_correct_normal_open_closed_position,Return all valves to correct normal open/closed position.,text,False,23
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,l_final_restoration,L. Final Restoration,sprinkler_system_return_pump_panel_selector_to_correct_normal_position,Return pump panel selector to correct normal position.,text,False,24
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,l_final_restoration,L. Final Restoration,sprinkler_system_confirm_jockey_duty_standby_pump_status_normal,Confirm jockey / duty / standby pump status normal.,text,False,25
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,l_final_restoration,L. Final Restoration,sprinkler_system_confirm_alarm_valves_reset_and_normal,Confirm alarm valves reset and normal.,text,False,26
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,l_final_restoration,L. Final Restoration,sprinkler_system_confirm_no_leakage_after_testing,Confirm no leakage after testing.,text,False,27
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,l_final_restoration,L. Final Restoration,sprinkler_system_confirm_fire_alarm_panel_status_normal_if_interface_was_tested,Confirm fire alarm panel status normal if interface was tested.,text,False,28
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,l_final_restoration,L. Final Restoration,sprinkler_system_inform_facilities_manager_client_representative_testing_completed,Inform Facilities Manager / client representative testing completed.,text,False,29
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_sprinkler_water_tank,Sprinkler water tank,text,False,30
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_pump_starter_panel_before_test,Pump starter panel before test,text,False,31
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_3_phase_voltage_measurement_photo,3-phase voltage measurement photo,text,False,32
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_jockey_pump,Jockey pump,text,False,33
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_duty_pump,Duty pump,text,False,34
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_standby_pump_diesel_engine,Standby pump / diesel engine,text,False,35
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_battery_and_charger,Battery and charger,text,False,36
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_fuel_oil_level_if_applicable,Fuel / oil level if applicable,text,False,37
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_breeching_inlet,Breeching inlet,text,False,38
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_alarm_valve_set,Alarm valve set,text,False,39
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_zone_butterfly_valve,Zone butterfly valve,text,False,40
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_flow_switch_location,Flow switch location,text,False,41
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,m_required_photos,M. Required Photos,sprinkler_system_final_normal_pump_panel_status,Final normal pump panel status,text,False,42
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,n_report_remarks,N. Report Remarks,sprinkler_system_faults_found,Faults found,text,False,43
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,n_report_remarks,N. Report Remarks,sprinkler_system_pump_issues,Pump issues,text,False,44
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,n_report_remarks,N. Report Remarks,sprinkler_system_alarm_valve_flow_switch_issues,Alarm valve / flow switch issues,text,False,45
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,n_report_remarks,N. Report Remarks,sprinkler_system_valve_not_open_not_accessible,Valve not open / not accessible,text,False,46
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,n_report_remarks,N. Report Remarks,sprinkler_system_leakage,Leakage,text,False,47
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,n_report_remarks,N. Report Remarks,sprinkler_system_parts_recommended,Parts recommended,text,False,48
+sprinkler_system,Sprinkler System Checklist,SPK_SYSTEM,n_report_remarks,N. Report Remarks,sprinkler_system_follow_up_quotation_required_yes_no,Follow-up quotation required: Yes / No,text,False,49
+tripping_system,Tripping System Checklist,TRIP,a_system_information,A. System Information,tripping_system_site_area,Site / area,text,False,1
+tripping_system,Tripping System Checklist,TRIP,a_system_information,A. System Information,tripping_system_tripping_system_type,Tripping system type,text,False,2
+tripping_system,Tripping System Checklist,TRIP,a_system_information,A. System Information,tripping_system_starter_panel_location,Starter panel location,text,False,3
+tripping_system,Tripping System Checklist,TRIP,a_system_information,A. System Information,tripping_system_connected_equipment_for_example_fan_roller_shutter_lift_air_con_smoke_spill_pressurizing_fan,"Connected equipment, for example fan / roller shutter / lift / air-con / smoke spill / pressurizing fan",text,False,4
+tripping_system,Tripping System Checklist,TRIP,a_system_information,A. System Information,tripping_system_main_fire_alarm_control_panel_location,Main fire alarm control panel location,text,False,5
+tripping_system,Tripping System Checklist,TRIP,a_system_information,A. System Information,tripping_system_relay_panel_location_if_separate,Relay panel location if separate,text,False,6
+tripping_system,Tripping System Checklist,TRIP,a_system_information,A. System Information,tripping_system_last_service_date,Last service date,text,False,7
+tripping_system,Tripping System Checklist,TRIP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,tripping_system_inform_facilities_manager_client_representative_before_testing,Inform Facilities Manager / client representative before testing.,text,False,8
+tripping_system,Tripping System Checklist,TRIP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,tripping_system_confirm_which_equipment_will_activate,Confirm which equipment will activate.,text,False,9
+tripping_system,Tripping System Checklist,TRIP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,tripping_system_confirm_testing_will_not_affect_occupied_unsafe_areas,Confirm testing will not affect occupied / unsafe areas.,text,False,10
+tripping_system,Tripping System Checklist,TRIP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,tripping_system_confirm_roller_shutter_path_is_clear,Confirm roller shutter path is clear.,text,False,11
+tripping_system,Tripping System Checklist,TRIP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,tripping_system_confirm_fan_motor_area_is_safe,Confirm fan / motor area is safe.,text,False,12
+tripping_system,Tripping System Checklist,TRIP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,tripping_system_confirm_lift_air_con_interface_test_permission_if_applicable,Confirm lift / air-con interface test permission if applicable.,text,False,13
+tripping_system,Tripping System Checklist,TRIP,b_safety_preparation_before_testing,B. Safety Preparation Before Testing,tripping_system_record_who_approved_the_test,Record who approved the test.,text,False,14
+tripping_system,Tripping System Checklist,TRIP,h_required_photos_videos,H. Required Photos / Videos,tripping_system_starter_panel,Starter panel,text,False,15
+tripping_system,Tripping System Checklist,TRIP,h_required_photos_videos,H. Required Photos / Videos,tripping_system_selector_switch_before_test,Selector switch before test,text,False,16
+tripping_system,Tripping System Checklist,TRIP,h_required_photos_videos,H. Required Photos / Videos,tripping_system_fire_alarm_panel_alarm_indication,Fire alarm panel alarm indication,text,False,17
+tripping_system,Tripping System Checklist,TRIP,h_required_photos_videos,H. Required Photos / Videos,tripping_system_equipment_activated_in_fire_mode,Equipment activated in fire mode,text,False,18
+tripping_system,Tripping System Checklist,TRIP,h_required_photos_videos,H. Required Photos / Videos,tripping_system_video_of_activation_if_useful,Video of activation if useful,text,False,19
+tripping_system,Tripping System Checklist,TRIP,h_required_photos_videos,H. Required Photos / Videos,tripping_system_selector_switch_restored_to_auto,Selector switch restored to Auto,text,False,20
+tripping_system,Tripping System Checklist,TRIP,h_required_photos_videos,H. Required Photos / Videos,tripping_system_final_fire_alarm_panel_normal_status,Final fire alarm panel normal status,text,False,21
+tripping_system,Tripping System Checklist,TRIP,i_report_remarks,I. Report Remarks,tripping_system_starter_panel_issue,Starter panel issue,text,False,22
+tripping_system,Tripping System Checklist,TRIP,i_report_remarks,I. Report Remarks,tripping_system_equipment_failed_to_activate,Equipment failed to activate,text,False,23
+tripping_system,Tripping System Checklist,TRIP,i_report_remarks,I. Report Remarks,tripping_system_slow_activation,Slow activation,text,False,24
+tripping_system,Tripping System Checklist,TRIP,i_report_remarks,I. Report Remarks,tripping_system_wrong_panel_indication,Wrong panel indication,text,False,25
+tripping_system,Tripping System Checklist,TRIP,i_report_remarks,I. Report Remarks,tripping_system_relay_did_not_deactivate,Relay did not deactivate,text,False,26
+tripping_system,Tripping System Checklist,TRIP,i_report_remarks,I. Report Remarks,tripping_system_selector_not_restored_damaged,Selector not restored / damaged,text,False,27
+tripping_system,Tripping System Checklist,TRIP,i_report_remarks,I. Report Remarks,tripping_system_safety_concern,Safety concern,text,False,28
+tripping_system,Tripping System Checklist,TRIP,i_report_remarks,I. Report Remarks,tripping_system_parts_recommended,Parts recommended,text,False,29
+tripping_system,Tripping System Checklist,TRIP,i_report_remarks,I. Report Remarks,tripping_system_follow_up_quotation_required_yes_no,Follow-up quotation required: Yes / No,text,False,30

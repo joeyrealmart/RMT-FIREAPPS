@@ -1,0 +1,43 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*.tmp
+*.temp
+*.log
+
+# Dependencies / caches
+node_modules/
+work/__pycache__/
+*.pyc
+
+# Environment, secrets, credentials
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*service-account*.json
+*credentials*.json
+*secret*.json
+
+# Local runtime data with client/site/device information
+outputs/rmt-fire-local-data/
+
+# Generated reports, rendered QA images, and temporary working files
+output/pdf/
+tmp/
+outputs/fire-inspection-mvp/mobile-qa/
+
+# Old generated draft folders and large raw CAD/PDF working sources
+outputs/_archive-old-generated-files/
+outputs/mtb-*/
+work/mtb_mimic_pdf/
+work/mimic_pdf/
+*.dwg
+*.dxf
