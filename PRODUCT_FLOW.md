@@ -1,6 +1,6 @@
 # RMT FIREAPPS - Product Flow Audit
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 
 ## Current Objective
 
@@ -89,6 +89,7 @@ Browser localStorage keys used by the app include:
 - `rmtMimicFloors`
 - `rmtSchedules`
 - `rmtContractRules`
+- `rmtCriticalDependencyConfig`
 - `rmtCalendarMonth`
 - `rmtActiveJob`
 - `rmtJobHistory`
@@ -147,8 +148,20 @@ Major current function groups in `outputs/fire-inspection-mvp/app.js`:
 - Missing-device request and admin approval.
 - Device master import/export/save to PC.
 - Critical SOP templates and save logic.
+- Critical workflow dependency definitions, parent prerequisite gates, child-device locks, Flow Switch primary/secondary dependencies, and final restoration gates.
 - Customer report view and PC-folder inspection run save.
 - Staff tracking/audit event generation.
+
+## Critical Dependency Model
+
+Critical systems now use a data/config-driven parent -> child dependency model instead of scattered UI-only checks.
+
+- Fire Alarm: MFAP/main control panel prerequisite -> permitted fire-alarm field device checks -> final restoration/normal confirmation.
+- Pump / water-based systems: relevant pump or starter/control panel prerequisite -> permitted hose reel/sprinkler/wet riser/hydrant/flow-switch checks -> readings/results -> final restoration.
+- Gas Release / FM200 / CO2 / Wet Chemical: releasing/control panel SOP prerequisite -> downstream checklist/evidence -> final restoration/normal confirmation.
+- Flow Switch is configurable across systems. One physical Flow Switch can have a primary water-system dependency and an optional secondary MFAP indication dependency without duplicating the device.
+
+The dependency engine must block child inspection through normal navigation, mimic tapping, Save & Next, refresh, logout/login, and reopened jobs until mandatory prerequisites are complete. It must also preserve the SOP template snapshot/version used when an inspection begins.
 
 ## Known Current Direction
 
@@ -156,6 +169,7 @@ Major current function groups in `outputs/fire-inspection-mvp/app.js`:
 - Keep admin setup separate from technician work.
 - Show only assigned scope pins to technicians.
 - Critical systems are always 100% every maintenance visit.
+- Critical child devices are locked until their configured prerequisite stage is complete; final parent restoration is locked until linked child checks are complete.
 - Passive percentage selection is site-wide and must rotate without repeating until the cycle is complete.
 - Backend audit must show staff, time, duration, skipped SOP, missing evidence, failed items, and sign-off.
 - Extinguisher collection/return/loan is a separate job form, not part of normal maintenance checklist.

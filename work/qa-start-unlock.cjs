@@ -38,16 +38,15 @@ function assert(condition, message) {
   const startButton = page.locator(".tech-job-card", { hasText: "UOB" }).locator("[data-tech-start-schedule]").first();
   await startButton.click();
   await page.waitForFunction(() => Boolean(JSON.parse(localStorage.getItem("rmtActiveJob") || "null")));
-  await page.waitForSelector("#clearActiveJobBtn:not(.hidden)");
-
-  await page.click("#clearActiveJobBtn");
-  await page.waitForFunction(() => !JSON.parse(localStorage.getItem("rmtActiveJob") || "null"));
   await page.waitForFunction(() => document.querySelector("#clearActiveJobBtn")?.classList.contains("hidden"));
-
-  await startButton.click();
+  await page.reload({ waitUntil: "networkidle" });
+  await page.click("[data-demo-login='tech']");
+  await page.fill("#loginPassword", new Date().toISOString());
+  await page.click("#loginForm button[type='submit']");
+  await page.waitForSelector("#workspace.technician-mode");
   await page.waitForFunction(() => {
     const activeJob = JSON.parse(localStorage.getItem("rmtActiveJob") || "null");
-    return activeJob?.schedule?.companyName === "UOB";
+    return activeJob?.schedule?.companyName === "UOB" && activeJob.status !== "Completed";
   });
 
   const result = await page.evaluate(() => {
@@ -59,11 +58,11 @@ function assert(condition, message) {
     };
   });
 
-  assert(result.activeCompany === "UOB", "UOB job was not active after reset and restart");
-  assert(result.resetButtonHidden === false, "Unlock button should be visible after the restarted job is active");
+  assert(result.activeCompany === "UOB", "UOB job was not active after reload and technician re-login");
+  assert(result.resetButtonHidden === true, "Unlock/reset button should stay hidden for technician role");
   console.log(JSON.stringify(result, null, 2));
   await browser.close();
 })().catch((error) => {
-  console.error(error.message);
+  console.error(error.stack || error.message);
   process.exit(1);
 });

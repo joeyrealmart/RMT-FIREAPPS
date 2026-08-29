@@ -547,6 +547,106 @@ const criticalSopTemplates = [
   }
 ];
 
+const criticalDependencyDefinitions = [
+  {
+    id: "fire-alarm",
+    label: "Fire Alarm",
+    templateId: "fire-alarm-tripping-sop",
+    parentKeywords: ["mfap", "main fire alarm panel", "fire alarm panel"],
+    prerequisiteStepIndexes: [0, 1, 2, 3, 4, 5, 6],
+    finalStepIndexes: [9, 10],
+    childRules: [
+      {
+        id: "fire-alarm-field-devices",
+        relation: "primary",
+        label: "Fire alarm field-device inspection",
+        keywords: ["manual call point", "break glass", "mcp", ".mcp.", "smoke detector", ".sd.", "heat detector", ".hd.", "fire alarm bell", "bell"]
+      },
+      {
+        id: "flow-switch-mfap-indication",
+        relation: "secondary",
+        label: "Flow switch alarm / zone indication at MFAP",
+        keywords: ["flow switch", ".fs.", " fs"],
+        siteConfigKey: "flowSwitchMfapIndication",
+        defaultEnabled: true
+      },
+      {
+        id: "fire-alarm-interface",
+        relation: "secondary",
+        label: "Fire alarm interface / tripping verification",
+        keywords: ["tripping", "interface", "lift", "fan", "roller", "shutter", "smoke spill", "pressur"]
+      }
+    ]
+  },
+  {
+    id: "hose-reel-pump",
+    label: "Hose Reel Pump",
+    templateId: "hose-reel-pump-sop",
+    parentKeywords: ["hose reel panel", "hrp", ".hrp.", "hose reel pump"],
+    prerequisiteStepIndexes: [0, 1, 2, 3, 4, 5, 6],
+    finalStepIndexes: [16, 17],
+    childRules: [
+      {
+        id: "hose-reel-outlets",
+        relation: "primary",
+        label: "Hose reel point inspection",
+        keywords: ["hose reel", ".hr.", " hr"]
+      }
+    ]
+  },
+  {
+    id: "water-based-pump",
+    label: "Sprinkler / Wet Riser / Hydrant Pump",
+    templateId: "sprinkler-hydrant-pump-sop",
+    parentKeywords: ["sprinkler panel", "wet riser panel", "pressurized hydrant panel", "hydrant panel", "spp", ".spp.", "wrp", ".wrp.", "php", ".php.", "sprinkler pump", "hydrant pump", "wet riser pump"],
+    prerequisiteStepIndexes: [0, 1, 2, 3, 4, 5],
+    finalStepIndexes: [14, 15, 16],
+    childRules: [
+      {
+        id: "flow-switch-water-function",
+        relation: "primary",
+        label: "Flow switch physical / functional check",
+        keywords: ["flow switch", ".fs.", " fs"],
+        siteConfigKey: "flowSwitchWaterFunction",
+        defaultEnabled: true
+      },
+      {
+        id: "water-system-outlets",
+        relation: "primary",
+        label: "Water-based outlet inspection",
+        keywords: ["wet riser", "dry riser", "pillar hydrant", "hydrant", "landing valve", "breeching", ".wr.", ".dr."]
+      }
+    ]
+  },
+  {
+    id: "gas-release",
+    label: "Gas Release / CO2 / FM200",
+    templateId: "gas-discharge-sop",
+    parentKeywords: ["gas release", "gas discharge", "fm200", ".fm.", "co2", ".co2."],
+    prerequisiteStepIndexes: [0, 1, 2, 3, 4, 5, 6, 7],
+    finalStepIndexes: [13, 14, 15],
+    childRules: []
+  },
+  {
+    id: "wet-chemical",
+    label: "Wet Chemical",
+    templateId: "wet-chemical-sop",
+    parentKeywords: ["wet chemical", "wcc", ".wcc.", ".wc."],
+    prerequisiteStepIndexes: [0, 1, 2, 3, 4, 5],
+    finalStepIndexes: [10, 11, 12, 13, 14],
+    childRules: []
+  },
+  {
+    id: "general-fire-pump",
+    label: "Fire Pump",
+    templateId: "hose-reel-pump-sop",
+    parentKeywords: ["fire pump", "pump panel", "pump"],
+    prerequisiteStepIndexes: [0, 1, 2, 3, 4, 5, 6],
+    finalStepIndexes: [16, 17],
+    childRules: []
+  }
+];
+
 const defaultFloorAssets = {
   lv1: { title: "LV-1 First Floor", src: "assets/lv1-map.png", active: true },
   ground: { title: "Ground Floor Reference", src: "assets/ground-map.png", active: false },
@@ -680,6 +780,7 @@ const state = {
   mimicFloors: readStoredJson("rmtMimicFloors", []),
   schedules: readStoredJson("rmtSchedules", []),
   contractRules: readStoredJson("rmtContractRules", {}),
+  criticalDependencyConfig: readStoredJson("rmtCriticalDependencyConfig", {}),
   calendarMonth: readStoredJson("rmtCalendarMonth", null) || new Date().toISOString().slice(0, 7),
   editingScheduleId: null,
   currentUser: readStoredJson("rmtCurrentUser", null),
@@ -1249,7 +1350,10 @@ function getTechScopeMarkerClass(device) {
   if (!assignedIds) return "";
   const tag = device.id || device.tag;
   if (!assignedIds.has(tag)) return "";
-  return hasActiveTechnicianMaintenanceJob() ? "assigned-scope" : "assigned-scope preview-scope";
+  const schedule = getTechMarkerScopeSchedule();
+  const access = getDeviceCriticalAccessState({ ...device, id: tag, tag }, schedule);
+  const dependencyClass = access.allowed ? "" : "dependency-locked";
+  return `${hasActiveTechnicianMaintenanceJob() ? "assigned-scope" : "assigned-scope preview-scope"} ${dependencyClass}`.trim();
 }
 
 function isDeviceAllowedForTechScope(device) {
@@ -1435,10 +1539,15 @@ async function selectDevice(id, options = {}) {
       document.querySelector("#syncState").textContent = `${device.id} is not in today's admin-assigned checklist`;
       return;
     }
-    const pendingMfap = getPendingMfapPrecheckDevice(activeSchedule);
-    if (pendingMfap && (pendingMfap.id || pendingMfap.tag) !== (device.id || device.tag)) {
-      document.querySelector("#syncState").textContent = `MFAP pre-check must be completed before opening ${device.id}.`;
-      await focusTechnicianAssignedDevice(pendingMfap.id || pendingMfap.tag, { openChecklist: true });
+    ensureActiveJobCriticalWorkflows(activeSchedule);
+    const access = getDeviceCriticalAccessState(device, activeSchedule);
+    if (!access.allowed) {
+      showCriticalDependencyBlocked(device, access);
+      renderTechAssignedItemList();
+      renderMarkers();
+      if (access.parentDeviceId && access.parentDeviceId !== (device.id || device.tag)) {
+        await focusTechnicianAssignedDevice(access.parentDeviceId, { openChecklist: true });
+      }
       return;
     }
     setTechScreen("inspection");
@@ -1515,11 +1624,15 @@ function bindReliableTap(element, handler) {
   const activate = (event) => {
     const now = Date.now();
     const lastTouchActivation = Number(element.dataset.touchActivatedAt || 0);
-    if ((event.type === "click" || event.type === "touchend") && now - lastTouchActivation < 900) return;
+    if ((event.type === "click" || event.type === "touchend") && now - lastTouchActivation < 900) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (event.type === "pointerup" || event.type === "touchend") {
       if (event.pointerType === "mouse") return;
       element.dataset.touchActivatedAt = String(now);
-      event.preventDefault();
+      if (event.type === "touchend") event.preventDefault();
     }
     event.stopPropagation();
     handler(event);
@@ -1612,24 +1725,6 @@ function getCurrentFloorSetupDevices() {
     .filter((device) => isSameTagNumberScope(device, floorAsset));
 }
 
-function isCriticalSopDevice(device) {
-  return Boolean(getCriticalSopTemplateIdForDevice(device));
-}
-
-function isMfapDevice(device) {
-  const text = `${device?.id || device?.tag || ""} ${device?.type || ""}`.toLowerCase();
-  return text.includes("mfap")
-    || text.includes("main fire alarm panel")
-    || text.includes("fire alarm panel");
-}
-
-function getPendingMfapPrecheckDevice(schedule) {
-  if (!schedule) return null;
-  return getScheduledAssignedDevices(schedule).find((device) => {
-    return isMfapDevice(device) && isCriticalSopDevice(device) && isAssignedDeviceStillOpen(device);
-  }) || null;
-}
-
 function isPortableExtinguisherDevice(device) {
   const text = `${device?.id || device?.tag || ""} ${device?.type || ""}`.toLowerCase();
   return text.includes("extinguisher")
@@ -1639,40 +1734,477 @@ function isPortableExtinguisherDevice(device) {
     || text.includes("abc fire");
 }
 
+function getDeviceSearchText(device) {
+  return [
+    device?.id,
+    device?.tag,
+    device?.type,
+    device?.short
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function deviceMatchesKeywords(device, keywords = []) {
+  const text = getDeviceSearchText(device);
+  return keywords.some((keyword) => text.includes(String(keyword || "").toLowerCase()));
+}
+
+function getCriticalSopTemplate(templateId) {
+  return criticalSopTemplates.find((template) => template.id === templateId) || null;
+}
+
+function getCriticalDependencyDefinitionForParent(device) {
+  if (isPortableExtinguisherDevice(device)) return null;
+  return criticalDependencyDefinitions.find((definition) => {
+    return deviceMatchesKeywords(device, definition.parentKeywords || []);
+  }) || null;
+}
+
 function getCriticalSopTemplateIdForDevice(device) {
-  const text = `${device?.id || device?.tag || ""} ${device?.type || ""}`.toLowerCase();
-  if (!text.trim()) return "";
-  if (isPortableExtinguisherDevice(device)) return "";
-  if (text.includes("co2") || text.includes("fm200") || text.includes("gas release") || text.includes("gas discharge")) {
-    return "gas-discharge-sop";
+  return getCriticalDependencyDefinitionForParent(device)?.templateId || "";
+}
+
+function isCriticalSopDevice(device) {
+  return Boolean(getCriticalSopTemplateIdForDevice(device));
+}
+
+function isMfapDevice(device) {
+  return getCriticalDependencyDefinitionForParent(device)?.id === "fire-alarm";
+}
+
+function getPendingMfapPrecheckDevice(schedule) {
+  if (!schedule) return null;
+  const devicesForSchedule = getScheduledAssignedDevices(schedule);
+  return devicesForSchedule.find((device) => {
+    const workflow = getCriticalWorkflowRunForParentDevice(device, schedule);
+    if (workflow?.definitionId !== "fire-alarm") return false;
+    const stage = getCriticalWorkflowRunState(workflow, schedule);
+    return !stage.prerequisiteComplete || stage.prerequisiteFailed;
+  }) || null;
+}
+
+function stableJsonValue(value) {
+  if (Array.isArray(value)) return value.map(stableJsonValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.keys(value).sort().reduce((acc, key) => {
+    acc[key] = stableJsonValue(value[key]);
+    return acc;
+  }, {});
+}
+
+function hashText(value) {
+  const text = String(value || "");
+  let hash = 5381;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash << 5) + hash) + text.charCodeAt(index);
+    hash >>>= 0;
   }
-  if (text.includes("wet chemical") || text.includes(".wcc.") || text.includes(".wc.")) {
-    return "wet-chemical-sop";
+  return hash.toString(36);
+}
+
+function createCriticalSopTemplateSnapshot(template) {
+  if (!template) return null;
+  return {
+    id: template.id,
+    title: template.title,
+    danger: template.danger,
+    requiresBeforeAfterPhotos: Boolean(template.requiresBeforeAfterPhotos),
+    fastTickMode: Boolean(template.fastTickMode),
+    steps: (template.steps || []).map((step, index) => ({
+      index,
+      title: step.title,
+      detail: step.detail,
+      critical: Boolean(step.critical),
+      tickOnly: Boolean(step.tickOnly),
+      noConfirm: Boolean(step.noConfirm),
+      noRemark: Boolean(step.noRemark),
+      optionalRemark: Boolean(step.optionalRemark),
+      requiresChoice: Boolean(step.requiresChoice),
+      requiresReading: Boolean(step.requiresReading),
+      requiresRemark: Boolean(step.requiresRemark),
+      requiresPhoto: Boolean(step.requiresPhoto),
+      requiresSupervisor: Boolean(step.requiresSupervisor),
+      choiceLabel: step.choiceLabel || "",
+      readingLabel: step.readingLabel || "",
+      choices: step.choices || []
+    }))
+  };
+}
+
+function getCriticalSopTemplateVersion(template) {
+  const snapshot = createCriticalSopTemplateSnapshot(template);
+  return snapshot ? `sop-${hashText(JSON.stringify(stableJsonValue(snapshot)))}` : "sop-unknown";
+}
+
+function getCriticalDependencyConfigKey(schedule) {
+  const companyName = schedule?.companyName || state.siteProfile?.companyName || "";
+  const siteName = schedule?.siteName || state.siteProfile?.siteName || "";
+  return normalizeScopeText(`${companyName}::${siteName}`).replace(/[^a-z0-9]+/g, "-") || "default";
+}
+
+function getCriticalDependencySiteConfig(schedule) {
+  const config = state.criticalDependencyConfig || {};
+  return {
+    ...(config.default || {}),
+    ...(config[getCriticalDependencyConfigKey(schedule)] || {})
+  };
+}
+
+function isCriticalChildRuleEnabled(rule, schedule) {
+  const config = getCriticalDependencySiteConfig(schedule);
+  const overrides = config.rules || config.childRules || {};
+  if (Object.prototype.hasOwnProperty.call(overrides, rule.id)) {
+    return Boolean(overrides[rule.id]);
   }
-  if (text.includes("main fire alarm panel") || text.includes("fire alarm panel") || text.includes("mfap")) {
-    return "fire-alarm-tripping-sop";
+  if (rule.siteConfigKey && Object.prototype.hasOwnProperty.call(config, rule.siteConfigKey)) {
+    return Boolean(config[rule.siteConfigKey]);
   }
-  if (text.includes("hose reel panel") || text.includes("hrp") || text.includes("hose reel pump")) {
-    return "hose-reel-pump-sop";
+  return rule.defaultEnabled !== false;
+}
+
+function getCriticalWorkflowId(definition, parentDevice) {
+  return `${definition.id}::${getDeviceSessionKey(parentDevice)}`;
+}
+
+function getValidSopStepIndexes(template, indexes = []) {
+  const max = (template?.steps || []).length;
+  return indexes.filter((index) => Number.isInteger(index) && index >= 0 && index < max);
+}
+
+function getDeviceFloorKeys(device) {
+  return uniqueValues([
+    device?.floorId,
+    device?.floorCode,
+    device?.floorTitle,
+    device?.floor
+  ].map((value) => normalizeScopeText(value)).filter(Boolean));
+}
+
+function parentDeviceMatchesChildFloor(parentDevice, childDevice) {
+  const parentKeys = getDeviceFloorKeys(parentDevice);
+  const childKeys = getDeviceFloorKeys(childDevice);
+  return parentKeys.some((key) => childKeys.includes(key));
+}
+
+function findBestCriticalParentDevice(definition, childDevice, parentDevices = []) {
+  const candidates = parentDevices.filter((device) => getCriticalDependencyDefinitionForParent(device)?.id === definition.id);
+  if (!candidates.length) return null;
+  const sameFloor = candidates.find((device) => parentDeviceMatchesChildFloor(device, childDevice));
+  if (sameFloor) return sameFloor;
+  return candidates[0];
+}
+
+function createCriticalWorkflowRun(definition, parentDevice, schedule, existing = {}) {
+  const template = getCriticalSopTemplate(definition.templateId);
+  return {
+    workflowId: getCriticalWorkflowId(definition, parentDevice),
+    definitionId: definition.id,
+    label: definition.label,
+    scheduleId: schedule?.scheduleId || "",
+    templateId: definition.templateId,
+    templateVersion: existing.templateVersion || getCriticalSopTemplateVersion(template),
+    templateSnapshot: existing.templateSnapshot || createCriticalSopTemplateSnapshot(template),
+    parentDeviceId: getDeviceSessionKey(parentDevice),
+    parentDeviceTag: parentDevice?.tag || parentDevice?.id || "",
+    parentDeviceType: parentDevice?.type || "",
+    parentFloorId: parentDevice?.floorId || "",
+    parentFloor: parentDevice?.floorTitle || parentDevice?.floor || "",
+    location: displayDeviceLocation(parentDevice?.location || ""),
+    prerequisiteStepIndexes: existing.prerequisiteStepIndexes || getValidSopStepIndexes(template, definition.prerequisiteStepIndexes),
+    finalStepIndexes: existing.finalStepIndexes || getValidSopStepIndexes(template, definition.finalStepIndexes),
+    childDeviceIds: [],
+    secondaryChildDeviceIds: [],
+    childDependencies: {},
+    createdAt: existing.createdAt || new Date().toISOString(),
+    createdBy: existing.createdBy || getCurrentUserName(),
+    status: existing.status || "precheck_required",
+    stageLabel: existing.stageLabel || "Prerequisite required",
+    ...existing
+  };
+}
+
+function addCriticalChildDependency(run, childDevice, rule) {
+  const childId = getDeviceSessionKey(childDevice);
+  if (!childId) return;
+  const listName = rule.relation === "secondary" ? "secondaryChildDeviceIds" : "childDeviceIds";
+  run[listName] = uniqueValues([...(run[listName] || []), childId]);
+  run.childDependencies = run.childDependencies || {};
+  const existing = run.childDependencies[childId] || [];
+  if (!existing.some((item) => item.ruleId === rule.id)) {
+    run.childDependencies[childId] = [
+      ...existing,
+      {
+        ruleId: rule.id,
+        relation: rule.relation || "primary",
+        label: rule.label || run.label
+      }
+    ];
   }
-  if (
-    text.includes("sprinkler panel")
-    || text.includes("wet riser panel")
-    || text.includes("pressurized hydrant panel")
-    || text.includes("hydrant panel")
-    || text.includes("spp")
-    || text.includes("wrp")
-    || text.includes("php")
-    || text.includes("sprinkler pump")
-    || text.includes("hydrant pump")
-    || text.includes("wet riser pump")
-  ) {
-    return "sprinkler-hydrant-pump-sop";
+}
+
+function ensureActiveJobCriticalWorkflows(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  if (!state.activeJob || !schedule || state.activeJob.scheduleId !== schedule.scheduleId) return {};
+  const assignedDevices = getScheduledAssignedDevices(schedule);
+  const parentDevices = assignedDevices.filter((device) => isCriticalSopDevice(device));
+  const runs = state.activeJob.criticalWorkflowRuns || {};
+  state.activeJob.criticalWorkflowRuns = runs;
+  state.activeJob.criticalDependencyModelVersion = "critical-dependencies-v1";
+
+  parentDevices.forEach((device) => {
+    const definition = getCriticalDependencyDefinitionForParent(device);
+    if (!definition) return;
+    const workflowId = getCriticalWorkflowId(definition, device);
+    runs[workflowId] = createCriticalWorkflowRun(definition, device, schedule, runs[workflowId] || {});
+    runs[workflowId].childDeviceIds = [];
+    runs[workflowId].secondaryChildDeviceIds = [];
+    runs[workflowId].childDependencies = {};
+  });
+
+  assignedDevices.forEach((device) => {
+    if (isCriticalSopDevice(device)) return;
+    criticalDependencyDefinitions.forEach((definition) => {
+      (definition.childRules || []).forEach((rule) => {
+        if (!isCriticalChildRuleEnabled(rule, schedule)) return;
+        if (!deviceMatchesKeywords(device, rule.keywords || [])) return;
+        const parentDevice = findBestCriticalParentDevice(definition, device, parentDevices);
+        if (!parentDevice) return;
+        const workflowId = getCriticalWorkflowId(definition, parentDevice);
+        if (runs[workflowId]) {
+          addCriticalChildDependency(runs[workflowId], device, rule);
+        }
+      });
+    });
+  });
+
+  Object.values(runs)
+    .filter((run) => run.scheduleId === schedule.scheduleId)
+    .forEach((run) => updateCriticalWorkflowRunProgress(run, schedule));
+
+  return runs;
+}
+
+function getCriticalWorkflowRunsForSchedule(schedule) {
+  if (!schedule) return [];
+  const activeRuns = state.activeJob?.scheduleId === schedule.scheduleId
+    ? state.activeJob.criticalWorkflowRuns
+    : null;
+  const savedRuns = schedule.jobProgress?.activeJob?.criticalWorkflowRuns;
+  return Object.values(activeRuns || savedRuns || {}).filter((run) => run.scheduleId === schedule.scheduleId);
+}
+
+function getCriticalWorkflowRunForParentDevice(device, schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const deviceId = getDeviceSessionKey(device);
+  if (!deviceId || !schedule) return null;
+  ensureActiveJobCriticalWorkflows(schedule);
+  return getCriticalWorkflowRunsForSchedule(schedule)
+    .find((run) => run.parentDeviceId === deviceId || run.parentDeviceTag === deviceId) || null;
+}
+
+function getCriticalSopRecordForWorkflowRun(run, schedule = null) {
+  if (!run?.templateId) return null;
+  const parentId = run.parentDeviceId || run.parentDeviceTag || "";
+  const recordKey = parentId ? `${run.templateId}::${parentId}` : run.templateId;
+  const localRecords = state.criticalSops || {};
+  const scheduleRecords = schedule?.jobProgress?.criticalSops || {};
+  return localRecords[recordKey]
+    || scheduleRecords[recordKey]
+    || localRecords[run.templateId]
+    || scheduleRecords[run.templateId]
+    || null;
+}
+
+function isSopStepFailedOrUnsafe(stepState = {}) {
+  const choice = normalizeScopeText(stepState.choice || "");
+  if (!choice) return false;
+  return [
+    "fail",
+    "fault",
+    "not allowed",
+    "no water",
+    "closed",
+    "partially open",
+    "low",
+    "weak",
+    "below",
+    "above",
+    "need attention",
+    "some closed"
+  ].some((keyword) => choice.includes(keyword));
+}
+
+function getSopStageState(template, record = {}, indexes = []) {
+  const validIndexes = getValidSopStepIndexes(template, indexes);
+  if (!validIndexes.length) {
+    return { total: 0, complete: true, completed: 0, failed: false, missing: [] };
   }
-  if (text.includes("pump") || text.includes("pump panel")) {
-    return "hose-reel-pump-sop";
+  const missing = [];
+  let completed = 0;
+  let failed = false;
+  validIndexes.forEach((index) => {
+    const step = template.steps[index];
+    const stepState = record?.steps?.[index] || {};
+    if (isSopStepFailedOrUnsafe(stepState)) failed = true;
+    if (isSopStepComplete(step, stepState, template, index, record)) {
+      completed += 1;
+    } else {
+      missing.push(index);
+    }
+  });
+  return {
+    total: validIndexes.length,
+    complete: completed === validIndexes.length && !failed,
+    completed,
+    failed,
+    missing
+  };
+}
+
+function getCriticalWorkflowChildIds(run) {
+  return uniqueValues([...(run?.childDeviceIds || []), ...(run?.secondaryChildDeviceIds || [])]);
+}
+
+function isChildInspectionComplete(childId, schedule = null) {
+  const record = state.inspections?.[childId] || schedule?.jobProgress?.inspections?.[childId] || null;
+  const status = normalizeScopeText(record?.status || "");
+  return Boolean(status && status !== "pending" && status !== "partial");
+}
+
+function areCriticalWorkflowChildrenComplete(run, schedule = null) {
+  const childIds = getCriticalWorkflowChildIds(run);
+  if (!childIds.length) return true;
+  return childIds.every((childId) => isChildInspectionComplete(childId, schedule));
+}
+
+function getCriticalWorkflowRunState(run, schedule = null) {
+  const template = getCriticalSopTemplate(run?.templateId);
+  const record = getCriticalSopRecordForWorkflowRun(run, schedule) || { steps: {} };
+  const prerequisite = getSopStageState(template, record, run?.prerequisiteStepIndexes || []);
+  const final = getSopStageState(template, record, run?.finalStepIndexes || []);
+  const childIds = getCriticalWorkflowChildIds(run);
+  const childCompleteCount = childIds.filter((childId) => isChildInspectionComplete(childId, schedule)).length;
+  const childrenComplete = childCompleteCount === childIds.length;
+  const totalCompletedSteps = template ? getCriticalSopCompleteCount(template, record) : 0;
+  const sopComplete = template ? isCriticalSopRecordComplete(template, record) : false;
+  let status = "precheck_required";
+  let stageLabel = "Complete prerequisite before field testing.";
+
+  if (prerequisite.failed) {
+    status = "prerequisite_failed";
+    stageLabel = "Prerequisite has failed/unsafe result.";
+  } else if (prerequisite.complete && !childrenComplete) {
+    status = "children_open";
+    stageLabel = `Field devices unlocked (${childCompleteCount}/${childIds.length} linked done).`;
+  } else if (prerequisite.complete && childrenComplete && !final.complete) {
+    status = "final_required";
+    stageLabel = "Final restoration / normal confirmation required.";
+  } else if (prerequisite.complete && childrenComplete && final.complete && sopComplete) {
+    status = "complete";
+    stageLabel = "Critical workflow complete.";
   }
-  return "";
+
+  return {
+    status,
+    stageLabel,
+    prerequisiteComplete: prerequisite.complete,
+    prerequisiteFailed: prerequisite.failed,
+    prerequisiteMissing: prerequisite.missing,
+    finalComplete: final.complete,
+    finalFailed: final.failed,
+    finalMissing: final.missing,
+    childrenComplete,
+    childCompleteCount,
+    childTotal: childIds.length,
+    totalCompletedSteps,
+    sopComplete
+  };
+}
+
+function updateCriticalWorkflowRunProgress(run, schedule = null) {
+  if (!run) return null;
+  const stage = getCriticalWorkflowRunState(run, schedule);
+  run.status = stage.status;
+  run.stageLabel = stage.stageLabel;
+  run.prerequisiteComplete = stage.prerequisiteComplete;
+  run.prerequisiteFailed = stage.prerequisiteFailed;
+  run.finalComplete = stage.finalComplete;
+  run.childrenComplete = stage.childrenComplete;
+  run.childCompleteCount = stage.childCompleteCount;
+  run.childTotal = stage.childTotal;
+  run.totalCompletedSteps = stage.totalCompletedSteps;
+  run.updatedAt = new Date().toISOString();
+  run.updatedBy = getCurrentUserName();
+  return run;
+}
+
+function getCriticalDependenciesForDevice(device, schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const deviceId = getDeviceSessionKey(device);
+  if (!schedule || !deviceId || isCriticalSopDevice(device)) return [];
+  ensureActiveJobCriticalWorkflows(schedule);
+  return getCriticalWorkflowRunsForSchedule(schedule).flatMap((run) => {
+    const dependencies = run.childDependencies?.[deviceId] || [];
+    return dependencies.map((dependency) => ({
+      ...dependency,
+      run,
+      stage: getCriticalWorkflowRunState(run, schedule)
+    }));
+  });
+}
+
+function getDeviceCriticalAccessState(device, schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const deviceId = getDeviceSessionKey(device);
+  if (!schedule || !deviceId) return { allowed: true, status: "open", dependencies: [] };
+  if (isCriticalSopDevice(device)) {
+    const workflow = getCriticalWorkflowRunForParentDevice(device, schedule);
+    return {
+      allowed: true,
+      status: "critical_parent",
+      workflow,
+      dependencies: []
+    };
+  }
+  const dependencies = getCriticalDependenciesForDevice(device, schedule);
+  if (!dependencies.length) return { allowed: true, status: "open", dependencies: [] };
+
+  const failed = dependencies.find((dependency) => dependency.stage.prerequisiteFailed);
+  if (failed) {
+    return {
+      allowed: false,
+      status: "blocked",
+      dependencies,
+      parentDeviceId: failed.run.parentDeviceId,
+      parentDeviceTag: failed.run.parentDeviceTag,
+      reason: `${failed.run.parentDeviceTag} ${failed.run.label} prerequisite has a failed/unsafe result. Correct it before opening ${deviceId}.`
+    };
+  }
+
+  const locked = dependencies.find((dependency) => !dependency.stage.prerequisiteComplete);
+  if (locked) {
+    return {
+      allowed: false,
+      status: "locked",
+      dependencies,
+      parentDeviceId: locked.run.parentDeviceId,
+      parentDeviceTag: locked.run.parentDeviceTag,
+      reason: `${locked.run.parentDeviceTag} ${locked.run.label} prerequisite must be completed before opening ${deviceId}.`
+    };
+  }
+
+  return {
+    allowed: true,
+    status: "open",
+    dependencies,
+    dependencyLabel: dependencies.map((dependency) => dependency.label).join(" + ")
+  };
+}
+
+function showCriticalDependencyBlocked(device, access) {
+  const message = `Blocked: ${access.reason || `${device?.id || device?.tag || "Device"} has an incomplete critical prerequisite.`}`;
+  document.querySelector("#syncState").textContent = access.parentDeviceId
+    ? `${message} Opening prerequisite now.`
+    : message;
+  addJobEvent("Critical dependency blocked", message, {
+    tag: device?.id || device?.tag || "",
+    parentDevice: access.parentDeviceTag || access.parentDeviceId || ""
+  });
 }
 
 function openCriticalSopForDevice(device, options = {}) {
@@ -1763,6 +2295,14 @@ document.querySelector("#markFailBtn").addEventListener("click", async () => {
 async function saveInspection(forcedStatus, options = {}) {
   const device = findInspectionDevice(state.selectedId);
   if (!device) return;
+  if (getCurrentUserRole() === "Technician") {
+    const activeSchedule = getActiveTechnicianMaintenanceSchedule();
+    const access = getDeviceCriticalAccessState(device, activeSchedule);
+    if (!access.allowed) {
+      showCriticalDependencyBlocked(device, access);
+      return;
+    }
+  }
 
   const answers = device.questions.map((_, index) => {
     return checklistForm.querySelector(`input[name="q${index}"]:checked`)?.value || "N/A";
@@ -1832,6 +2372,7 @@ async function saveInspection(forcedStatus, options = {}) {
     floor: device.floor || ""
   });
   ensureActiveJobTeamMember();
+  ensureActiveJobCriticalWorkflows(getActiveTechnicianMaintenanceSchedule());
   syncActiveJobProgressToSchedule();
   persistActiveJob();
   renderMarkers();
@@ -2076,7 +2617,8 @@ async function startServiceJob() {
     createdAt: now.toISOString(),
     startedAt: now.toISOString(),
     serviceFrequencyPercent: frequencyPercent,
-    events: []
+    events: [],
+    criticalWorkflowRuns: {}
   };
   state.activeJob = job;
   state.activeJob.itemSessions = {};
@@ -2123,6 +2665,7 @@ async function completeActiveJobWithSignOff(signOff = {}) {
     return;
   }
   ensureActiveJobTeamMember();
+  ensureActiveJobCriticalWorkflows(getActiveTechnicianMaintenanceSchedule());
   const signedAt = new Date().toISOString();
   state.activeJob.status = "Completed";
   state.activeJob.checkedOutAt = signedAt;
@@ -2175,6 +2718,7 @@ async function saveJobProgress(showMessage = true) {
   if (getCurrentUserRole() !== "Technician") {
     state.activeJob.inspector = jobInspector.value.trim() || state.activeJob.inspector || "Demo Inspector";
   }
+  ensureActiveJobCriticalWorkflows(getActiveTechnicianMaintenanceSchedule());
   state.activeJob.serviceType = jobServiceType.value;
   state.activeJob.reference = jobReference.value.trim();
   state.activeJob.serviceFrequencyPercent = Number(state.activeJob.schedule?.contractFrequencyPercent || state.activeJob.serviceFrequencyPercent || document.querySelector("#serviceFrequency").value);
@@ -2376,6 +2920,7 @@ function clearCurrentRunData() {
   state.criticalSops = {};
   if (state.activeJob) {
     state.activeJob.itemSessions = {};
+    state.activeJob.criticalWorkflowRuns = {};
     persistActiveJob();
   }
   writeStoredJson("tmFireInspections", state.inspections);
@@ -2405,6 +2950,9 @@ function keepRunDataForSchedule(schedule) {
     })
   );
   state.systemChecks = {};
+  if (state.activeJob) {
+    ensureActiveJobCriticalWorkflows(schedule);
+  }
   writeStoredJson("tmFireInspections", state.inspections);
   writeStoredJson("rmtSystemChecks", state.systemChecks);
   writeStoredJson("rmtCriticalSops", state.criticalSops);
@@ -4372,6 +4920,7 @@ function renderTechProgressGrid(summary) {
       <span><strong>${summary.pass}</strong>Pass</span>
       <span><strong>${summary.fail}</strong>Fault</span>
       <span><strong>${summary.pending + summary.partial}</strong>Pending</span>
+      <span><strong>${summary.blocked || 0}</strong>Locked</span>
     </div>
   `;
 }
@@ -4403,7 +4952,7 @@ function renderTechWorkPanel() {
 
   const activeSummary = document.querySelector("#techActiveJobSummary");
   const activeJob = state.activeJob && state.activeJob.status !== "Completed" ? state.activeJob : null;
-  clearActiveJobBtn?.classList.toggle("hidden", !activeJob);
+  clearActiveJobBtn?.classList.add("hidden");
   if (activeSummary) {
     if (summarySchedule) {
       ensureSchedulePlannedScope(summarySchedule);
@@ -4538,7 +5087,7 @@ function compareAssignedDevicesForTech(a, b) {
   return `${a.id || ""}`.localeCompare(`${b.id || ""}`, undefined, { numeric: true, sensitivity: "base" });
 }
 
-function getAssignedDeviceCompletionStatus(device) {
+function getAssignedDeviceCompletionStatus(device, schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule()) {
   if (isCriticalSopDevice(device)) {
     const templateId = getCriticalSopTemplateIdForDevice(device);
     const deviceTag = device.id || device.tag || "";
@@ -4548,14 +5097,18 @@ function getAssignedDeviceCompletionStatus(device) {
     const template = criticalSopTemplates.find((item) => item.id === templateId);
     if (!template) return "pending";
     const completed = getCriticalSopCompleteCount(template, saved);
-    if (isCriticalSopRecordComplete(template, saved)) return "pass";
+    const workflow = getCriticalWorkflowRunForParentDevice(device, schedule);
+    const workflowState = workflow ? getCriticalWorkflowRunState(workflow, schedule) : null;
+    if (workflowState?.status === "complete" || (!workflow && isCriticalSopRecordComplete(template, saved))) return "pass";
     return completed > 0 ? "partial" : "pending";
   }
+  const access = getDeviceCriticalAccessState(device, schedule);
+  if (!access.allowed) return "locked";
   return deviceStatus(device.id);
 }
 
-function isAssignedDeviceStillOpen(device) {
-  const status = getAssignedDeviceCompletionStatus(device);
+function isAssignedDeviceStillOpen(device, schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule()) {
+  const status = getAssignedDeviceCompletionStatus(device, schedule);
   return status === "pending" || status === "partial";
 }
 
@@ -4567,7 +5120,7 @@ function getNextAssignedDeviceAfter(currentDeviceId) {
   const searchOrder = currentIndex >= 0
     ? [...assignedDevices.slice(currentIndex + 1), ...assignedDevices.slice(0, currentIndex)]
     : assignedDevices;
-  return searchOrder.find(isAssignedDeviceStillOpen) || null;
+  return searchOrder.find((device) => isAssignedDeviceStillOpen(device, schedule)) || null;
 }
 
 function getResumeTargetAssignedDevice(schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule()) {
@@ -4613,6 +5166,7 @@ function getAssignedDeviceStatusLabel(status) {
   if (status === "pass") return "Done";
   if (status === "fail") return "Fail";
   if (status === "partial") return "SOP Started";
+  if (status === "locked") return "Locked";
   if (status === "na" || status === "n/a") return "N/A";
   return "Pending";
 }
@@ -4625,17 +5179,20 @@ function getAssignedCompletionSummary(schedule) {
     pass: 0,
     fail: 0,
     partial: 0,
-    pending: 0
+    pending: 0,
+    blocked: 0
   };
   assignedDevices.forEach((device) => {
-    const status = getAssignedDeviceCompletionStatus(device);
+    const status = getAssignedDeviceCompletionStatus(device, schedule);
     if (status === "pass") summary.pass += 1;
     if (status === "fail") summary.fail += 1;
     if (status === "partial") summary.partial += 1;
+    if (status === "locked") summary.blocked += 1;
     if (status === "pending") summary.pending += 1;
     if (status !== "pending" && status !== "partial") summary.done += 1;
   });
-  summary.ready = summary.total > 0 && summary.done === summary.total && summary.partial === 0 && summary.pending === 0;
+  summary.done = Math.max(0, summary.done - summary.blocked);
+  summary.ready = summary.total > 0 && summary.done === summary.total && summary.partial === 0 && summary.pending === 0 && summary.blocked === 0;
   return summary;
 }
 
@@ -4840,6 +5397,11 @@ function setupSignaturePad(enabled = true) {
       if (!drawing) return;
       event.preventDefault();
       lastPointerEventAt = Date.now();
+      try {
+        canvas.releasePointerCapture?.(event.pointerId);
+      } catch {
+        // Pointer capture may already be released by the browser.
+      }
       stopDrawing();
     });
   });
@@ -4906,6 +5468,8 @@ function renderTechCompletionPanel(schedule, assignedDevices, isActiveSchedule) 
     ? "Start this assigned job before sign-off."
     : summary.ready
       ? "All assigned items are completed. Sign and complete the job."
+      : summary.blocked
+        ? `${summary.blocked} item(s) locked by critical prerequisites / final restoration.`
       : `${summary.pending + summary.partial} item(s) still pending / SOP started.`;
 
   techCompletionPanel.classList.remove("hidden");
@@ -4922,6 +5486,7 @@ function renderTechCompletionPanel(schedule, assignedDevices, isActiveSchedule) 
       <span><strong>${summary.fail}</strong>Fail</span>
       <span><strong>${summary.pending}</strong>Pending</span>
       <span><strong>${summary.partial}</strong>SOP Started</span>
+      <span><strong>${summary.blocked || 0}</strong>Locked</span>
     </div>
     <p class="hint">${escapeHtml(disabledReason)}</p>
     <div class="tech-sign-grid ${canComplete ? "" : "locked"}">
@@ -4959,6 +5524,36 @@ function renderTechCompletionPanel(schedule, assignedDevices, isActiveSchedule) 
   `;
 
   setupSignaturePad(canComplete);
+  const confirmRow = document.querySelector(".tech-sign-confirm");
+  const confirmInput = document.querySelector("#techSignConfirm");
+  const toggleConfirm = (event) => {
+    if (!canComplete || !confirmInput) return;
+    event.preventDefault();
+    confirmInput.checked = !confirmInput.checked;
+    confirmInput.dispatchEvent(new Event("change", { bubbles: true }));
+    confirmRow.dataset.toggledAt = String(Date.now());
+  };
+  confirmRow?.addEventListener("pointerup", (event) => {
+    if (event.pointerType === "mouse") return;
+    toggleConfirm(event);
+  });
+  confirmRow?.addEventListener("touchend", (event) => {
+    const lastToggle = Number(confirmRow.dataset.toggledAt || 0);
+    if (Date.now() - lastToggle < 700) {
+      event.preventDefault();
+      return;
+    }
+    toggleConfirm(event);
+  }, { passive: false });
+  confirmRow?.addEventListener("click", (event) => {
+    if (event.target === confirmInput) return;
+    const lastToggle = Number(confirmRow.dataset.toggledAt || 0);
+    if (Date.now() - lastToggle < 700) {
+      event.preventDefault();
+      return;
+    }
+    toggleConfirm(event);
+  });
   document.querySelector("#techCompleteJobBtn")?.addEventListener("click", completeTechnicianAssignedJob);
 }
 
@@ -4970,7 +5565,9 @@ async function completeTechnicianAssignedJob() {
   }
   const summary = getAssignedCompletionSummary(schedule);
   if (!summary.ready) {
-    document.querySelector("#syncState").textContent = `${summary.pending + summary.partial} assigned item(s) still not complete.`;
+    document.querySelector("#syncState").textContent = summary.blocked
+      ? `${summary.blocked} assigned item(s) are locked by critical prerequisites or final restoration.`
+      : `${summary.pending + summary.partial} assigned item(s) still not complete.`;
     renderTechAssignedItemList();
     return;
   }
@@ -4997,6 +5594,7 @@ function renderTechAssignedItemList() {
   }
 
   ensureSchedulePlannedScope(schedule);
+  ensureActiveJobCriticalWorkflows(schedule);
   const assignedDevices = getScheduledAssignedDevices(schedule);
   const currentFloor = getFloorAsset(floorSelect.value);
   const activeSchedule = getActiveTechnicianMaintenanceSchedule();
@@ -5015,7 +5613,7 @@ function renderTechAssignedItemList() {
     return;
   }
 
-  const floorGroups = getAssignedFloorGroups(assignedDevices);
+  const floorGroups = getAssignedFloorGroups(assignedDevices, schedule);
   const selectedFloorHasItems = assignedDevices.some((device) => device.floorId === floorSelect.value);
   const visibleFloorId = selectedFloorHasItems ? floorSelect.value : floorGroups[0]?.floorId;
   const visibleFloor = getFloorAsset(visibleFloorId);
@@ -5064,7 +5662,7 @@ function renderTechAssignedItemList() {
   });
 }
 
-function getAssignedFloorGroups(devicesForSchedule) {
+function getAssignedFloorGroups(devicesForSchedule, schedule = null) {
   const groups = new Map();
   devicesForSchedule.forEach((device) => {
     const floorId = device.floorId || "unknown-floor";
@@ -5076,7 +5674,7 @@ function getAssignedFloorGroups(devicesForSchedule) {
       done: 0
     };
     group.count += 1;
-    const status = getAssignedDeviceCompletionStatus(device);
+    const status = getAssignedDeviceCompletionStatus(device, schedule);
     if (status !== "pending" && status !== "partial") group.done += 1;
     groups.set(floorId, group);
   });
@@ -5089,10 +5687,17 @@ function getAssignedFloorGroups(devicesForSchedule) {
 }
 
 function renderTechAssignedItemCard(device, schedule = null) {
-  const status = getAssignedDeviceCompletionStatus(device);
+  const access = getDeviceCriticalAccessState(device, schedule);
+  const status = getAssignedDeviceCompletionStatus(device, schedule);
   const isActive = state.selectedId === device.id || state.activeCriticalDevice?.tag === device.id;
   const location = displayDeviceLocation(device.location || device.floorTitle || "");
   const auditLine = renderTechAssignedItemAudit(device, schedule);
+  const lockLine = !access.allowed
+    ? `<small class="tech-dependency-lock">${escapeHtml(access.reason || "Critical prerequisite required before opening this checklist.")}</small>`
+    : access.dependencyLabel
+      ? `<small class="tech-dependency-ok">Prerequisite cleared: ${escapeHtml(access.dependencyLabel)}</small>`
+      : "";
+  const buttonLabel = !access.allowed && access.parentDeviceId ? "Open Prerequisite" : "Open Checklist";
   return `
     <article class="tech-assigned-item-card ${escapeHtml(status)} ${isActive ? "active" : ""}" data-tech-item-card="${escapeHtml(device.id)}" tabindex="0" role="button" aria-label="Open checklist for ${escapeHtml(device.id)}">
       <div class="tech-item-main">
@@ -5102,11 +5707,12 @@ function renderTechAssignedItemCard(device, schedule = null) {
           <span>${escapeHtml(device.type || "Device")}</span>
           <small>${escapeHtml(device.floorTitle || device.floor || "")} | ${escapeHtml(location)}</small>
           ${auditLine}
+          ${lockLine}
         </div>
       </div>
       <span class="tech-item-status ${escapeHtml(status)}">${escapeHtml(getAssignedDeviceStatusLabel(status))}</span>
       <div class="tech-item-actions">
-        <button type="button" data-tech-open-device="${escapeHtml(device.id)}">Open Checklist</button>
+        <button type="button" data-tech-open-device="${escapeHtml(device.id)}">${escapeHtml(buttonLabel)}</button>
         <button type="button" class="secondary" data-tech-map-device="${escapeHtml(device.id)}">Map</button>
       </div>
     </article>
@@ -5124,7 +5730,18 @@ function renderTechAssignedItemAudit(device, schedule = null) {
     const template = criticalSopTemplates.find((item) => item.id === templateId);
     const savedCount = sop && template ? getCriticalSopCompleteCount(template, sop) : 0;
     const total = template?.steps?.length || 0;
+    const workflow = getCriticalWorkflowRunForParentDevice(device, schedule);
+    const workflowState = workflow ? getCriticalWorkflowRunState(workflow, schedule) : null;
     pieces.push(`Critical SOP${total ? ` ${savedCount}/${total}` : ""}`);
+    if (workflowState?.stageLabel) pieces.push(workflowState.stageLabel);
+  } else {
+    const access = getDeviceCriticalAccessState(device, schedule);
+    if (access.dependencies?.length) {
+      const dependencyText = access.allowed
+        ? `Prerequisite cleared: ${access.dependencies.map((dependency) => dependency.run.parentDeviceTag).join(" + ")}`
+        : `Locked by ${access.parentDeviceTag || access.parentDeviceId || "critical prerequisite"}`;
+      pieces.push(dependencyText);
+    }
   }
 
   if (session?.lastSavedAt) {
@@ -5308,8 +5925,10 @@ async function resumeScheduledJob(schedule, options = {}) {
     serviceFrequencyPercent: scheduleFrequencyPercent,
     schedule,
     events: savedJob.events || [],
-    itemSessions: savedJob.itemSessions || {}
+    itemSessions: savedJob.itemSessions || {},
+    criticalWorkflowRuns: savedJob.criticalWorkflowRuns || {}
   };
+  ensureActiveJobCriticalWorkflows(schedule);
   state.activeTechPreviewScheduleId = schedule.scheduleId;
   ensureActiveJobTeamMember();
   jobInspector.value = state.activeJob.inspector || getCurrentUserName();
@@ -5439,8 +6058,10 @@ async function startScheduledJob(scheduleId, options = {}) {
     serviceFrequencyPercent: scheduleFrequencyPercent,
     schedule,
     events: [],
-    itemSessions: {}
+    itemSessions: {},
+    criticalWorkflowRuns: {}
   };
+  ensureActiveJobCriticalWorkflows(schedule);
   state.activeTechPreviewScheduleId = schedule.scheduleId;
   schedule.status = "In Progress";
   schedule.startedAt = now.toISOString();
@@ -8088,6 +8709,36 @@ function sopRequirementBadges(step) {
   return badges.map((badge) => `<span>${escapeHtml(badge)}</span>`).join("");
 }
 
+function getCriticalSopStepStageBlock(template, activeDevice, index, saved = {}) {
+  const schedule = getActiveTechnicianMaintenanceSchedule();
+  const run = activeDevice ? getCriticalWorkflowRunForParentDevice(activeDevice, schedule) : null;
+  if (!run || !run.finalStepIndexes?.includes(index)) return { blocked: false };
+  const stage = getCriticalWorkflowRunState(run, schedule);
+  if (stage.childrenComplete) return { blocked: false };
+  return {
+    blocked: true,
+    reason: `Finish linked device checks first (${stage.childCompleteCount}/${stage.childTotal} completed), then return for final restoration.`
+  };
+}
+
+function renderCriticalWorkflowStageBanner(run, stage) {
+  if (!run || !stage) return "";
+  const className = stage.status === "complete"
+    ? "complete"
+    : stage.prerequisiteFailed
+      ? "blocked"
+      : stage.status === "final_required"
+        ? "warning"
+        : "";
+  return `
+    <div class="critical-workflow-stage ${className}">
+      <strong>${escapeHtml(run.label)} Sequence</strong>
+      <span>${escapeHtml(stage.stageLabel)}</span>
+      <small>Prerequisite: ${stage.prerequisiteComplete ? "Complete" : "Pending"} | Linked devices: ${stage.childCompleteCount}/${stage.childTotal} | Final restoration: ${stage.finalComplete ? "Complete" : "Pending"}</small>
+    </div>
+  `;
+}
+
 function renderCriticalSop() {
   const tabs = document.querySelector("#criticalSopTabs");
   const form = document.querySelector("#criticalSopForm");
@@ -8100,6 +8751,9 @@ function renderCriticalSop() {
   const evidence = getCriticalSopEvidenceDomState(saved);
   const evidenceMissing = getMissingCriticalSopEvidence(activeTemplate, evidence);
   const activeDevice = state.activeCriticalDevice;
+  const activeSchedule = getActiveTechnicianMaintenanceSchedule();
+  const workflowRun = activeDevice ? getCriticalWorkflowRunForParentDevice(activeDevice, activeSchedule) : null;
+  const workflowStage = workflowRun ? getCriticalWorkflowRunState(workflowRun, activeSchedule) : null;
   const heading = document.querySelector("#criticalSopPanel h2");
   if (heading) {
     heading.textContent = activeDevice
@@ -8140,6 +8794,7 @@ function renderCriticalSop() {
       <strong>${escapeHtml(activeTemplate.title)}</strong>
       <span>${escapeHtml(activeTemplate.danger)}</span>
     </div>
+    ${renderCriticalWorkflowStageBanner(workflowRun, workflowStage)}
     ${activeTemplate.requiresBeforeAfterPhotos ? `
       <div class="critical-evidence-card">
         <div class="sop-evidence-head">
@@ -8177,10 +8832,11 @@ function renderCriticalSop() {
     </div>
     ${activeTemplate.steps.map((step, index) => {
       const stepState = saved.steps?.[index] || {};
-      const isComplete = isSopStepComplete(step, stepState, activeTemplate, index, saved);
-      const disabled = locked;
+      const stageBlock = getCriticalSopStepStageBlock(activeTemplate, activeDevice, index, saved);
+      const isComplete = isSopStepComplete(step, stepState, activeTemplate, index, saved) && !stageBlock.blocked;
+      const disabled = locked || stageBlock.blocked;
       const missing = getMissingSopRequirements(step, stepState, activeTemplate, index, saved);
-      const statusText = disabled ? "Locked" : isComplete ? "Completed" : (missing.length ? `Need ${missing.join(", ")}` : "Ready to confirm");
+      const statusText = stageBlock.blocked ? "Final restoration locked" : disabled ? "Locked" : isComplete ? "Completed" : (missing.length ? `Need ${missing.join(", ")}` : "Ready to confirm");
       if (!isComplete) locked = true;
       return `
         <fieldset class="sop-step ${step.critical ? "critical" : ""} ${disabled ? "locked" : ""} ${isComplete ? "complete" : ""}">
@@ -8241,7 +8897,7 @@ function renderCriticalSop() {
               </label>
             ` : ""}
           </div>
-          ${disabled ? `<p class="locked-note">Complete previous step first.</p>` : ""}
+          ${stageBlock.blocked ? `<p class="locked-note">${escapeHtml(stageBlock.reason)}</p>` : disabled ? `<p class="locked-note">Complete previous step first.</p>` : ""}
           ${!disabled && !isComplete && missing.length ? `<p class="locked-note">Required before confirm: ${escapeHtml(missing.join(", "))}.</p>` : ""}
         </fieldset>
       `;
@@ -8326,20 +8982,31 @@ function saveCriticalSop(showMessage = true) {
   const storageKey = getCriticalSopStorageKey(template.id);
   const previous = state.criticalSops[storageKey] || state.criticalSops[template.id] || {};
   const evidence = getCriticalSopEvidenceDomState(previous);
+  const activeSchedule = getActiveTechnicianMaintenanceSchedule();
+  const workflowRun = state.activeCriticalDevice ? getCriticalWorkflowRunForParentDevice(state.activeCriticalDevice, activeSchedule) : null;
   const now = new Date().toISOString();
   const steps = {};
 
   template.steps.forEach((step, index) => {
     const stepState = getSopStepDomState(step, index, template.id);
     const missing = getMissingSopRequirements(step, stepState, template, index, evidence);
+    const stageBlock = getCriticalSopStepStageBlock(template, state.activeCriticalDevice, index, evidence);
     steps[index] = {
       ...stepState,
-      confirmed: step.noConfirm ? !missing.length : Boolean(stepState.confirmed && !missing.length)
+      confirmed: stageBlock.blocked
+        ? false
+        : step.noConfirm
+          ? !missing.length
+          : Boolean(stepState.confirmed && !missing.length)
     };
   });
 
   state.criticalSops[storageKey] = {
     templateId: template.id,
+    templateVersion: previous.templateVersion || workflowRun?.templateVersion || getCriticalSopTemplateVersion(template),
+    templateSnapshot: previous.templateSnapshot || workflowRun?.templateSnapshot || createCriticalSopTemplateSnapshot(template),
+    workflowId: workflowRun?.workflowId || "",
+    dependencyDefinitionId: workflowRun?.definitionId || "",
     title: template.title,
     deviceTag: state.activeCriticalDevice?.tag || "",
     deviceType: state.activeCriticalDevice?.type || "",
@@ -8360,6 +9027,15 @@ function saveCriticalSop(showMessage = true) {
   const savedRecord = state.criticalSops[storageKey];
   const complete = getCriticalSopCompleteCount(template, savedRecord);
   const criticalComplete = isCriticalSopRecordComplete(template, savedRecord);
+  if (workflowRun) {
+    updateCriticalWorkflowRunProgress(workflowRun, activeSchedule);
+    savedRecord.workflowStatus = workflowRun.status;
+    savedRecord.workflowStageLabel = workflowRun.stageLabel;
+    savedRecord.prerequisiteComplete = Boolean(workflowRun.prerequisiteComplete);
+    savedRecord.finalRestorationComplete = Boolean(workflowRun.finalComplete);
+    savedRecord.linkedDeviceCount = Number(workflowRun.childTotal || 0);
+    savedRecord.linkedDeviceCompleteCount = Number(workflowRun.childCompleteCount || 0);
+  }
   const auditDevice = {
     id: savedRecord.deviceTag || template.id,
     tag: savedRecord.deviceTag || template.id,
@@ -8378,6 +9054,13 @@ function saveCriticalSop(showMessage = true) {
   savedRecord.checklistTotalDurationMs = auditSession?.durationMs || 0;
   writeStoredJson("rmtCriticalSops", state.criticalSops);
   addJobEvent("Critical SOP saved", template.title);
+  if (workflowRun) {
+    addJobEvent("Critical workflow stage", `${workflowRun.parentDeviceTag}: ${workflowRun.stageLabel}`, {
+      tag: workflowRun.parentDeviceTag,
+      workflowId: workflowRun.workflowId,
+      workflowStatus: workflowRun.status
+    });
+  }
   syncActiveJobProgressToSchedule();
   persistActiveJob();
   renderTechAssignedItemList();
@@ -8396,8 +9079,11 @@ async function saveCriticalSopAndOpenNext() {
   const storageKey = getCriticalSopStorageKey(template.id);
   saveCriticalSop(true);
   const saved = state.criticalSops[storageKey];
-  if (!isCriticalSopRecordComplete(template, saved)) {
-    document.querySelector("#syncState").textContent = `${template.title} saved, but SOP is not complete yet. Complete required steps before moving next.`;
+  const activeSchedule = getActiveTechnicianMaintenanceSchedule();
+  const workflowRun = state.activeCriticalDevice ? getCriticalWorkflowRunForParentDevice(state.activeCriticalDevice, activeSchedule) : null;
+  const workflowStage = workflowRun ? getCriticalWorkflowRunState(workflowRun, activeSchedule) : null;
+  if (workflowStage?.prerequisiteFailed || (!workflowStage?.prerequisiteComplete && !isCriticalSopRecordComplete(template, saved))) {
+    document.querySelector("#syncState").textContent = `${template.title} saved, but prerequisite is not complete/safe yet. Complete it before moving next.`;
     return;
   }
   if (getCurrentUserRole() === "Technician") {

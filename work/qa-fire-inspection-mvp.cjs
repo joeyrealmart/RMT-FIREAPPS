@@ -1,5 +1,5 @@
 const { existsSync } = require("node:fs");
-const { chromium } = require("playwright");
+const { chromium } = require("C:/Users/Joey/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright");
 
 const APP_URL = "http://127.0.0.1:8026/";
 const EDGE_PATHS = [
@@ -169,10 +169,35 @@ async function login(page, role = "admin") {
   await page.goto(APP_URL, { waitUntil: "domcontentloaded" });
   if (role === "tech") {
     await page.fill("#loginEmail", "tech@rmtfire.local");
-    await page.fill("#loginPassword", new Date().toISOString());
+  } else {
+    await page.fill("#loginEmail", "admin@rmtfire.local");
   }
+  await page.fill("#loginPassword", new Date().toISOString());
   await page.click("#loginForm button[type=\"submit\"]");
   await page.waitForSelector("#workspace:not(.hidden)");
+}
+
+async function startTechSchedule(page, scheduleId = "") {
+  await page.evaluate((id) => {
+    const schedule = id || state.schedules?.[0]?.scheduleId || "";
+    if (!schedule) throw new Error("No schedule available to start");
+    return startScheduledJob(schedule);
+  }, scheduleId);
+  await page.waitForFunction((id) => {
+    const activeJob = JSON.parse(localStorage.getItem("rmtActiveJob") || "null");
+    return Boolean(activeJob && (!id || activeJob.scheduleId === id));
+  }, scheduleId);
+}
+
+async function showTechMimicFloor(page, floorId, scheduleId = "") {
+  await page.evaluate(({ floorId, scheduleId }) => {
+    const targetScheduleId = scheduleId || state.activeJob?.scheduleId || state.schedules?.[0]?.scheduleId || "";
+    if (targetScheduleId) showTechnicianScheduleOnMap(targetScheduleId, { scrollToMap: false });
+    setTechScreen("mimic");
+    focusTechnicianFloor(floorId);
+  }, { floorId, scheduleId });
+  await page.waitForSelector("#workspace.tech-screen-mimic");
+  await page.waitForTimeout(250);
 }
 
 async function saveMaintenanceSchedule(page) {
@@ -485,8 +510,7 @@ async function runTest(name, callback) {
     const generalMaintenance = makeGeneralMaintenanceSchedule();
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10, schedules: [generalMaintenance] });
     await login(page, "tech");
-    await page.selectOption("#floorSelect", "wetex-floor-05");
-    await page.waitForTimeout(250);
+    await showTechMimicFloor(page, "wetex-floor-05", "GENERAL-MAINT-QA");
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("rmtSchedules") || "[]")[0]);
     const allMarkers = await page.locator(".marker.setup-marker").count();
     const assignedMarkers = await page.locator(".marker.setup-marker.assigned-scope").count();
@@ -501,8 +525,7 @@ async function runTest(name, callback) {
     const staleSchedule = makeStaleWetexSchedule();
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10, schedules: [staleSchedule] });
     await login(page, "tech");
-    await page.selectOption("#floorSelect", "wetex-floor-05");
-    await page.waitForTimeout(250);
+    await showTechMimicFloor(page, "wetex-floor-05", "STALE-WETEX-QA");
     const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("rmtSchedules") || "[]")[0]);
     const allMarkers = await page.locator(".marker.setup-marker").count();
     const assignedMarkers = await page.locator(".marker.setup-marker.assigned-scope").count();
@@ -522,22 +545,32 @@ async function runTest(name, callback) {
 
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10, schedules: [schedule] });
     await login(page, "tech");
-    await page.selectOption("#floorSelect", "wetex-floor-05");
-    await page.waitForTimeout(250);
+    await showTechMimicFloor(page, "wetex-floor-05", schedule.scheduleId);
     const allMarkers = await page.locator(".marker.setup-marker").count();
     const assignedMarkers = await page.locator(".marker.setup-marker.assigned-scope").count();
     const previewMarkers = await page.locator(".marker.setup-marker.preview-scope").count();
     assert(allMarkers === 1 && assignedMarkers === 1 && previewMarkers === 1, `Expected 1 preview assigned marker, got ${previewMarkers}/${assignedMarkers}/${allMarkers}.`);
     await page.locator(".marker.setup-marker.assigned-scope").first().click();
-    await page.waitForSelector("#checklistForm:not(.hidden)");
+    await page.waitForFunction(() => {
+      return !document.querySelector("#checklistForm")?.classList.contains("hidden")
+        || document.querySelector("#workspace")?.classList.contains("critical-sop-active");
+    });
     const activeJob = await page.evaluate(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "{}"));
+    const opened = await page.evaluate(() => ({
+      checklistOpen: !document.querySelector("#checklistForm")?.classList.contains("hidden"),
+      criticalSopOpen: document.querySelector("#workspace")?.classList.contains("critical-sop-active"),
+      sopText: document.querySelector("#criticalSopPanel")?.innerText || ""
+    }));
     assert(activeJob.scheduleId === schedule.scheduleId, "Preview pin tap did not auto-start the assigned schedule.");
-    assert(await page.locator("#checklistForm:not(.hidden)").count() === 1, "Checklist did not open from preview pin tap.");
+    assert(opened.checklistOpen || opened.criticalSopOpen, "Preview pin tap did not open checklist or prerequisite SOP.");
+    if (opened.criticalSopOpen) {
+      assert(opened.sopText.includes("Fire Alarm / Tripping SOP"), "Dependent preview pin did not open the MFAP prerequisite SOP.");
+    }
     assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);
     await context.close();
   });
 
-  await runTest("Technician sees only assigned pins on selected floor", async () => {
+  await runTest("Technician sees only assigned pins on selected floor with job progress summary", async () => {
     const admin = await createPage(browser, { frequency: 10 });
     await login(admin.page, "admin");
     const schedule = await saveMaintenanceSchedule(admin.page);
@@ -545,15 +578,18 @@ async function runTest(name, callback) {
 
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10, schedules: [schedule] });
     await login(page, "tech");
-    await page.click("[data-tech-start-schedule]");
-    await page.selectOption("#floorSelect", "wetex-floor-05");
-    await page.waitForTimeout(250);
+    await startTechSchedule(page, schedule.scheduleId);
+    await showTechMimicFloor(page, "wetex-floor-05", schedule.scheduleId);
     const allMarkers = await page.locator(".marker.setup-marker").count();
     const assignedMarkers = await page.locator(".marker.setup-marker.assigned-scope").count();
     const activeText = await page.locator("#techActiveJobSummary").innerText();
     const counts = await page.evaluate(() => getInspectionRunCounts());
+    const floorFiveCount = schedule.plannedFloorCounts.find((item) => item.floorId === "wetex-floor-05")?.count || 0;
     assert(allMarkers === 1 && assignedMarkers === 1, `Expected 1 assigned marker on Floor 05, got ${assignedMarkers}/${allMarkers}.`);
-    assert(activeText.includes("1 assigned point(s) on WETEX - Floor 05 / 12 total site point(s)"), "Technician active job summary did not show floor/site count.");
+    assert(activeText.includes("Assigned scope:"), "Technician active job summary did not show assigned scope.");
+    assert(activeText.includes("Starting floor:"), "Technician active job summary did not show starting floor.");
+    assert(activeText.includes("Completed"), "Technician active job summary did not show progress counters.");
+    assert(floorFiveCount === 1, `Expected schedule data to assign 1 point on Floor 05, got ${floorFiveCount}.`);
     assert(counts.total === 12, `Run counts should use full site-wide schedule, got ${counts.total}.`);
     assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);
     await context.close();
@@ -567,15 +603,27 @@ async function runTest(name, callback) {
 
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10, schedules: [schedule] });
     await login(page, "tech");
-    await page.click("[data-tech-start-schedule]");
-    await page.selectOption("#floorSelect", "wetex-floor-05");
+    await startTechSchedule(page, schedule.scheduleId);
+    await showTechMimicFloor(page, "wetex-floor-05", schedule.scheduleId);
     await page.waitForSelector(".marker.setup-marker.assigned-scope");
     await page.locator(".marker.setup-marker.assigned-scope").first().click();
-    await page.waitForSelector("#checklistForm:not(.hidden)");
-    const deviceName = await page.locator("#deviceName").innerText();
-    const questionCount = await page.locator("#questionList .question").count();
-    assert(deviceName.startsWith("W5."), `Expected Floor 05 checklist, got ${deviceName}.`);
-    assert(questionCount > 0, "Assigned passive pin opened an empty checklist.");
+    await page.waitForFunction(() => {
+      return !document.querySelector("#checklistForm")?.classList.contains("hidden")
+        || document.querySelector("#workspace")?.classList.contains("critical-sop-active");
+    });
+    const opened = await page.evaluate(() => ({
+      checklistOpen: !document.querySelector("#checklistForm")?.classList.contains("hidden"),
+      criticalSopOpen: document.querySelector("#workspace")?.classList.contains("critical-sop-active"),
+      deviceName: document.querySelector("#deviceName")?.textContent.trim() || "",
+      questionCount: document.querySelectorAll("#questionList .question").length,
+      sopText: document.querySelector("#criticalSopPanel")?.innerText || ""
+    }));
+    if (opened.checklistOpen) {
+      assert(opened.deviceName.startsWith("W5."), `Expected Floor 05 checklist, got ${opened.deviceName}.`);
+      assert(opened.questionCount > 0, "Assigned passive pin opened an empty checklist.");
+    } else {
+      assert(opened.criticalSopOpen && opened.sopText.includes("Fire Alarm / Tripping SOP"), "Dependent passive pin did not open MFAP prerequisite SOP.");
+    }
     assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);
     await context.close();
   });
@@ -588,8 +636,8 @@ async function runTest(name, callback) {
 
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10, schedules: [schedule] });
     await login(page, "tech");
-    await page.click("[data-tech-start-schedule]");
-    await page.selectOption("#floorSelect", "wetex-floor-01");
+    await startTechSchedule(page, schedule.scheduleId);
+    await showTechMimicFloor(page, "wetex-floor-01", schedule.scheduleId);
     await page.waitForSelector("[data-setup-tag=\"W1.MFAP.1\"]");
     await page.click("[data-setup-tag=\"W1.MFAP.1\"]");
     await page.waitForFunction(() => document.querySelector("#workspace").classList.contains("critical-sop-active"));
@@ -621,8 +669,8 @@ async function runTest(name, callback) {
 
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10, schedules: [schedule], extraDevices: [co2Device] });
     await login(page, "tech");
-    await page.click("[data-tech-start-schedule]");
-    await page.selectOption("#floorSelect", "wetex-floor-01");
+    await startTechSchedule(page, schedule.scheduleId);
+    await showTechMimicFloor(page, "wetex-floor-01", schedule.scheduleId);
     await page.waitForSelector("[data-setup-tag=\"W1.CO2.1\"]");
     await page.click("[data-setup-tag=\"W1.CO2.1\"]");
     await page.waitForFunction(() => document.querySelector("#workspace").classList.contains("critical-sop-active"));
@@ -634,25 +682,34 @@ async function runTest(name, callback) {
     assert(!firstStepText.includes("Remark / Confirmation Detail"), "Gas SOP first step should be tick-only.");
 
     for (let index = 0; index < 14; index += 1) {
+      const reading = page.locator(`input[name="sop-reading-${index}"]`);
+      if (await reading.count()) {
+        await reading.fill(index === 10 ? "28 seconds" : "AC normal / battery 26.8V / charger normal");
+      }
       await page.locator(`input[name="sop-confirm-${index}"]`).check();
     }
-    await page.fill("input[name=\"sop-supervisor-14\"]", "Mr Safety");
-    await page.locator("input[name=\"sop-confirm-14\"]").click();
-    const blockedState = await page.evaluate(() => ({
-      checked: document.querySelector("input[name=\"sop-confirm-14\"]")?.checked,
+    const supervisorName = await page.locator("input[name^=\"sop-supervisor-\"]").last().getAttribute("name");
+    const supervisorIndex = Number(supervisorName.match(/\d+$/)?.[0]);
+    for (let index = 14; index < supervisorIndex; index += 1) {
+      await page.locator(`input[name="sop-confirm-${index}"]`).check();
+    }
+    await page.fill(`input[name="sop-supervisor-${supervisorIndex}"]`, "Mr Safety");
+    await page.locator(`input[name="sop-confirm-${supervisorIndex}"]`).click();
+    const blockedState = await page.evaluate((index) => ({
+      checked: document.querySelector(`input[name="sop-confirm-${index}"]`)?.checked,
       sync: document.querySelector("#syncState")?.textContent || ""
-    }));
+    }), supervisorIndex);
     assert(!blockedState.checked, "Final gas SOP step should stay unchecked without before/after photos.");
     assert(blockedState.sync.includes("before photo") && blockedState.sync.includes("after photo"), `Missing photo warning not shown: ${blockedState.sync}`);
 
     await page.click("[data-critical-demo-photo=\"before\"]");
     await page.click("[data-critical-demo-photo=\"after\"]");
-    await page.fill("input[name=\"sop-supervisor-14\"]", "Mr Safety");
-    await page.locator("input[name=\"sop-confirm-14\"]").check();
-    await page.waitForFunction(() => {
+    await page.fill(`input[name="sop-supervisor-${supervisorIndex}"]`, "Mr Safety");
+    await page.locator(`input[name="sop-confirm-${supervisorIndex}"]`).check();
+    await page.waitForFunction((index) => {
       const saved = JSON.parse(localStorage.getItem("rmtCriticalSops") || "{}")["gas-discharge-sop::W1.CO2.1"];
-      return Boolean(saved?.beforePhoto && saved?.afterPhoto && saved?.steps?.[14]?.confirmed && saved?.steps?.[14]?.supervisor);
-    });
+      return Boolean(saved?.beforePhoto && saved?.afterPhoto && saved?.steps?.[index]?.confirmed && saved?.steps?.[index]?.supervisor);
+    }, supervisorIndex);
     const savedSop = await page.evaluate(() => JSON.parse(localStorage.getItem("rmtCriticalSops"))["gas-discharge-sop::W1.CO2.1"]);
     assert(savedSop.filledBy === "Demo Technician", `Expected filledBy to record technician, got ${savedSop.filledBy}.`);
     assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);

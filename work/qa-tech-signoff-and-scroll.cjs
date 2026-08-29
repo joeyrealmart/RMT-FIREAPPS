@@ -46,10 +46,60 @@ function assert(condition, message) {
   await page.waitForSelector("#workspace.technician-mode");
 
   const testSchedule = await page.evaluate(() => {
-    const pool = getInspectionDevices().filter((device) => !isCriticalSopDevice(device)).slice(0, 2);
-    if (pool.length < 2) throw new Error("Not enough normal devices for QA schedule");
-    const floor = getFloorAsset(floorSelect.value);
-    const profile = getCurrentSiteIdentity();
+    const profile = {
+      companyName: "QA Signoff",
+      siteName: "QA Signoff"
+    };
+    const floor = {
+      id: "qa-signoff-l1",
+      floorId: "qa-signoff-l1",
+      title: "QA Signoff L1",
+      floorCode: "L1",
+      companyName: profile.companyName,
+      siteName: profile.siteName,
+      src: defaultFloorAssets.lv1.src,
+      cleanSrc: defaultFloorAssets.lv1.src,
+      active: true
+    };
+    const pool = [
+      {
+        tag: "QA.EL.SIGN1",
+        type: "Emergency Light",
+        short: "EL",
+        floor: floor.title,
+        floorId: floor.id,
+        floorCode: floor.floorCode,
+        companyName: profile.companyName,
+        siteName: profile.siteName,
+        location: "Lobby",
+        xPercent: 30,
+        yPercent: 40,
+        status: "Confirmed"
+      },
+      {
+        tag: "QA.EL.SIGN2",
+        type: "Emergency Light",
+        short: "EL",
+        floor: floor.title,
+        floorId: floor.id,
+        floorCode: floor.floorCode,
+        companyName: profile.companyName,
+        siteName: profile.siteName,
+        location: "Rear corridor",
+        xPercent: 60,
+        yPercent: 50,
+        status: "Confirmed"
+      }
+    ];
+    state.siteProfile = profile;
+    state.mimicFloors = [
+      floor,
+      ...state.mimicFloors.filter((item) => item.id !== floor.id)
+    ];
+    state.setupDevices = [
+      ...pool,
+      ...state.setupDevices.filter((device) => !String(device.tag || "").startsWith("QA.EL.SIGN"))
+    ];
     const schedule = {
       scheduleId: "QA-SIGNOFF",
       status: "Scheduled",
@@ -66,14 +116,17 @@ function assert(condition, message) {
       time: "09:00",
       technician: "Demo Technician",
       contractFrequencyPercent: 100,
-      plannedDeviceIds: pool.map((device) => device.id),
+      plannedDeviceIds: pool.map((device) => device.tag),
       deviceCount: pool.length,
       plannedFloorCounts: [{ floorId: floor.id, title: floor.title, count: pool.length }]
     };
     state.schedules = [schedule];
+    writeStoredJson("rmtMimicFloors", state.mimicFloors);
+    writeStoredJson("tmFireSetupDevices", state.setupDevices);
     writeStoredJson("rmtSchedules", state.schedules);
+    selectClientProfile(profile);
     renderTechWorkPanel();
-    return { firstId: pool[0].id, secondId: pool[1].id };
+    return { firstId: pool[0].tag, secondId: pool[1].tag };
   });
 
   await page.click("[data-tech-start-schedule='QA-SIGNOFF']");
@@ -112,7 +165,15 @@ function assert(condition, message) {
     renderTechAssignedItemList();
   });
 
-  await page.waitForSelector("#techCompletionPanel:not(.hidden)");
+  await page.click("[data-tech-screen='complete']");
+  await page.waitForSelector("#workspace.tech-screen-complete");
+  await page.waitForSelector("#techCompletionPanel");
+  await page.waitForFunction(() => {
+    const panel = document.querySelector("#techCompletionPanel");
+    if (!panel) return false;
+    const rect = panel.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  });
   await page.fill("#techSignSupervisor", "QA Supervisor");
   const signatureBox = await page.locator("#techSignatureCanvas").boundingBox();
   const signature = page.locator("#techSignatureCanvas");
@@ -149,8 +210,48 @@ function assert(condition, message) {
     bubbles: true
   });
   await page.waitForFunction(() => Boolean(document.querySelector("#techSignatureData")?.value));
-  await page.check("#techSignConfirm");
-  await page.click("#techCompleteJobBtn");
+  const confirmRow = page.locator(".tech-sign-confirm");
+  const confirmPoint = await confirmRow.evaluate((element) => {
+    element.scrollIntoView({ block: "center", inline: "center" });
+    const rect = element.getBoundingClientRect();
+    return {
+      x: Math.round(rect.left + 24),
+      y: Math.round(rect.top + Math.min(28, rect.height / 2)),
+      rect: {
+        top: Math.round(rect.top),
+        left: Math.round(rect.left),
+        bottom: Math.round(rect.bottom),
+        right: Math.round(rect.right),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height)
+      }
+    };
+  });
+  await page.waitForTimeout(150);
+  const confirmHit = await page.evaluate(({ x, y }) => {
+    const element = document.elementFromPoint(x, y);
+    return {
+      ok: Boolean(element?.closest(".tech-sign-confirm")),
+      description: element ? `${element.tagName}.${element.className || element.id || ""}` : "nothing"
+    };
+  }, confirmPoint);
+  assert(confirmHit.ok, `Sign-off confirm row is covered by ${confirmHit.description} at ${JSON.stringify(confirmPoint.rect)}`);
+  await page.evaluate(({ x, y }) => {
+    document.querySelector(".tech-sign-confirm")?.dispatchEvent(new PointerEvent("pointerup", {
+      pointerId: 31,
+      pointerType: "touch",
+      clientX: x,
+      clientY: y,
+      bubbles: true,
+      cancelable: true
+    }));
+  }, confirmPoint);
+  await page.waitForFunction(() => document.querySelector("#techSignConfirm")?.checked);
+  await page.evaluate(() => {
+    const button = document.querySelector("#techCompleteJobBtn");
+    if (!button || button.disabled) throw new Error("Complete Job button is not enabled");
+    button.click();
+  });
   await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.status === "Completed");
 
   const result = await page.evaluate(() => {
@@ -169,6 +270,6 @@ function assert(condition, message) {
   console.log(JSON.stringify({ beforeScroll, afterScroll, ...result }, null, 2));
   await browser.close();
 })().catch((error) => {
-  console.error(error.message);
+  console.error(error.stack || error.message);
   process.exit(1);
 });

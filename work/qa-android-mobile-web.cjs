@@ -15,6 +15,34 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+async function tapVisibleCenter(page, locator, label) {
+  await locator.evaluate((element) => element.scrollIntoView({ block: "center", inline: "center" }));
+  await page.waitForTimeout(150);
+  const tap = await locator.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const x = Math.round(rect.left + rect.width / 2);
+    const y = Math.round(rect.top + rect.height / 2);
+    const hit = document.elementFromPoint(x, y);
+    return {
+      x,
+      y,
+      rect: {
+        top: Math.round(rect.top),
+        bottom: Math.round(rect.bottom),
+        left: Math.round(rect.left),
+        right: Math.round(rect.right),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height)
+      },
+      ok: Boolean(hit && (hit === element || element.contains(hit))),
+      description: hit ? `${hit.tagName}.${hit.className || ""} ${hit.textContent.trim().replace(/\s+/g, " ").slice(0, 80)}` : "nothing"
+    };
+  });
+  assert(tap.rect.width > 0 && tap.rect.height > 0, `${label} is not visible for tapping`);
+  assert(tap.ok, `${label} is covered at tap point by ${tap.description} (${JSON.stringify(tap.rect)})`);
+  await page.touchscreen.tap(tap.x, tap.y);
+}
+
 async function clickJobButton(page, companyName, buttonName) {
   await page.locator("[data-tech-screen='jobs']").click();
   await page.waitForSelector("#workspace.tech-screen-jobs", { timeout: 15000 });
@@ -208,7 +236,7 @@ async function seedTemporaryMtbSchedule(page) {
       return inspection <= map;
     })()
   }));
-  await page.locator("[data-tech-open-device]").first().tap();
+  await tapVisibleCenter(page, page.locator("[data-tech-open-device]").first(), "First assigned Open Checklist button");
   await page.waitForFunction(() => {
     return !document.querySelector("#checklistForm")?.classList.contains("hidden")
       || document.querySelector("#workspace")?.classList.contains("critical-sop-active");
@@ -229,7 +257,7 @@ async function seedTemporaryMtbSchedule(page) {
 
   await clickJobButton(page, "WETEX", "View Items");
   await waitForAssignedPins(page, "WETEX");
-  await page.locator("[data-tech-map-device]").first().tap();
+  await tapVisibleCenter(page, page.locator("[data-tech-map-device]").first(), "First assigned Map button");
   await page.waitForSelector(".marker.map-focus-marker", { timeout: 15000 });
   const mapFocusResult = await page.evaluate(() => {
     const marker = document.querySelector(".marker.map-focus-marker");

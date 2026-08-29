@@ -46,10 +46,60 @@ function assert(condition, message) {
   await page.waitForSelector("#workspace.technician-mode");
 
   const firstDeviceId = await page.evaluate(() => {
-    const pool = getInspectionDevices().filter((device) => !isCriticalSopDevice(device)).slice(0, 2);
-    if (pool.length < 2) throw new Error("Not enough normal devices for QA schedule");
-    const floor = getFloorAsset(floorSelect.value);
-    const profile = getCurrentSiteIdentity();
+    const profile = {
+      companyName: "QA Shared Resume",
+      siteName: "QA Shared Resume"
+    };
+    const floor = {
+      id: "qa-resume-l1",
+      floorId: "qa-resume-l1",
+      title: "QA Resume L1",
+      floorCode: "L1",
+      companyName: profile.companyName,
+      siteName: profile.siteName,
+      src: defaultFloorAssets.lv1.src,
+      cleanSrc: defaultFloorAssets.lv1.src,
+      active: true
+    };
+    const pool = [
+      {
+        tag: "QA.EL.RESUME1",
+        type: "Emergency Light",
+        short: "EL",
+        floor: floor.title,
+        floorId: floor.id,
+        floorCode: floor.floorCode,
+        companyName: profile.companyName,
+        siteName: profile.siteName,
+        location: "Lobby",
+        xPercent: 30,
+        yPercent: 40,
+        status: "Confirmed"
+      },
+      {
+        tag: "QA.EL.RESUME2",
+        type: "Emergency Light",
+        short: "EL",
+        floor: floor.title,
+        floorId: floor.id,
+        floorCode: floor.floorCode,
+        companyName: profile.companyName,
+        siteName: profile.siteName,
+        location: "Rear corridor",
+        xPercent: 60,
+        yPercent: 50,
+        status: "Confirmed"
+      }
+    ];
+    state.siteProfile = profile;
+    state.mimicFloors = [
+      floor,
+      ...state.mimicFloors.filter((item) => item.id !== floor.id)
+    ];
+    state.setupDevices = [
+      ...pool,
+      ...state.setupDevices.filter((device) => !String(device.tag || "").startsWith("QA.EL.RESUME"))
+    ];
     const schedule = {
       scheduleId: "QA-RESUME",
       status: "Scheduled",
@@ -66,17 +116,20 @@ function assert(condition, message) {
       time: "09:00",
       technician: "Technician Pool",
       contractFrequencyPercent: 100,
-      plannedDeviceIds: pool.map((device) => device.id),
+      plannedDeviceIds: pool.map((device) => device.tag),
       deviceCount: pool.length,
       plannedFloorCounts: [{ floorId: floor.id, title: floor.title, count: pool.length }]
     };
     state.schedules = [schedule];
+    writeStoredJson("rmtMimicFloors", state.mimicFloors);
+    writeStoredJson("tmFireSetupDevices", state.setupDevices);
     writeStoredJson("rmtSchedules", state.schedules);
+    selectClientProfile(profile);
     renderTechWorkPanel();
-    return pool[0].id;
+    return pool[0].tag;
   });
 
-  await page.click("[data-tech-start-schedule='QA-RESUME']");
+  await page.evaluate(() => startScheduledJob("QA-RESUME"));
   await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.scheduleId === "QA-RESUME");
   await page.evaluate((deviceId) => {
     state.inspections[deviceId] = {
@@ -105,7 +158,7 @@ function assert(condition, message) {
   await page.fill("#loginPassword", new Date().toISOString());
   await page.click("#loginForm button[type='submit']");
   await page.waitForSelector("#workspace.technician-mode");
-  await page.click("[data-tech-start-schedule='QA-RESUME']");
+  await page.evaluate(() => startScheduledJob("QA-RESUME"));
   await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.scheduleId === "QA-RESUME");
 
   const result = await page.evaluate((deviceId) => {

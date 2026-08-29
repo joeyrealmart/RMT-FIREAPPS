@@ -44,11 +44,44 @@ function assert(condition, message) {
   await page.waitForSelector("#workspace.technician-mode");
 
   const deviceId = await page.evaluate(() => {
-    const pool = getInspectionDevices().filter((device) => !isCriticalSopDevice(device)).slice(0, 1);
-    if (!pool.length) throw new Error("No normal device available for audit QA");
-    const device = pool[0];
-    const floor = getFloorAsset(floorSelect.value);
-    const profile = getCurrentSiteIdentity();
+    const profile = {
+      companyName: "QA Audit Tracking",
+      siteName: "QA Audit Tracking"
+    };
+    const floor = {
+      id: "qa-audit-l1",
+      floorId: "qa-audit-l1",
+      title: "QA Audit L1",
+      floorCode: "L1",
+      companyName: profile.companyName,
+      siteName: profile.siteName,
+      src: defaultFloorAssets.lv1.src,
+      cleanSrc: defaultFloorAssets.lv1.src,
+      active: true
+    };
+    const device = {
+      tag: "QA.EL.AUDIT",
+      type: "Emergency Light",
+      short: "EL",
+      floor: floor.title,
+      floorId: floor.id,
+      floorCode: floor.floorCode,
+      companyName: profile.companyName,
+      siteName: profile.siteName,
+      location: "Lobby",
+      xPercent: 45,
+      yPercent: 45,
+      status: "Confirmed"
+    };
+    state.siteProfile = profile;
+    state.mimicFloors = [
+      floor,
+      ...state.mimicFloors.filter((item) => item.id !== floor.id)
+    ];
+    state.setupDevices = [
+      device,
+      ...state.setupDevices.filter((item) => item.tag !== device.tag)
+    ];
     const schedule = {
       scheduleId: "QA-AUDIT",
       status: "Scheduled",
@@ -65,19 +98,22 @@ function assert(condition, message) {
       time: "09:00",
       technician: "Demo Technician",
       contractFrequencyPercent: 100,
-      plannedDeviceIds: [device.id],
+      plannedDeviceIds: [device.tag],
       deviceCount: 1,
       plannedFloorCounts: [{ floorId: floor.id, title: floor.title, count: 1 }]
     };
     state.schedules = [schedule];
+    writeStoredJson("rmtMimicFloors", state.mimicFloors);
+    writeStoredJson("tmFireSetupDevices", state.setupDevices);
     writeStoredJson("rmtSchedules", state.schedules);
+    selectClientProfile(profile);
     renderTechWorkPanel();
-    return device.id;
+    return device.tag;
   });
 
   await page.click("[data-tech-start-schedule='QA-AUDIT']");
   await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.scheduleId === "QA-AUDIT");
-  await page.click(`[data-tech-open-device="${deviceId}"]`);
+  await page.evaluate((id) => focusTechnicianAssignedDevice(id, { openChecklist: true }), deviceId);
   await page.waitForSelector("#checklistForm:not(.hidden)");
   await page.waitForTimeout(250);
   await page.click("#checklistForm button[type='submit']");

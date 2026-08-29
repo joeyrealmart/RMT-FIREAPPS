@@ -1,6 +1,6 @@
 # RMT FIREAPPS - Prototype QA Checklist
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 
 ## Session Rule
 
@@ -20,51 +20,64 @@ For every important change:
 
 | Step | Acceptance Criteria | Current Status |
 | --- | --- | --- |
-| 1. Login | Admin and technician demo users can log in. | Needs regression |
-| 2. Assigned jobs | Technician sees only jobs assigned to them / technician pool. | Needs regression |
-| 3. Select client/site | Admin can schedule existing or new client without confusing fields. | Needs test |
-| 4. Select fire system / scope | Admin can set maintenance scope; passive percentage is site-wide; active critical is 100%. | Needs test |
-| 5. Start inspection | Tech can start scheduled job from assigned list. | Needs regression |
-| 6. Mimic/device location | Tech sees assigned pins only; floor selector is close to mimic; Map highlights selected pin. | Failed Android regression |
-| 7. Select device | Tech can open checklist from item list and from pin on Android/desktop. | Failed stale-phone regression |
-| 8. Perform inspection | Normal devices have fast PASS/FAULT checklist and remarks. | Needs regression |
+| 1. Login | Admin and technician demo users can log in. | Automated pass |
+| 2. Assigned jobs | Technician sees only jobs assigned to them / technician pool. | Automated pass |
+| 3. Select client/site | Admin can schedule existing or new client without confusing fields. | Automated pass / manual retest |
+| 4. Select fire system / scope | Admin can set maintenance scope; passive percentage is site-wide; active critical is 100%. | Automated pass |
+| 5. Start inspection | Tech can start scheduled job from assigned list. | Automated pass |
+| 6. Mimic/device location | Tech sees assigned pins only; floor selector is close to mimic; Map highlights selected pin. | Automated Android pass / manual retest |
+| 7. Select device | Tech can open checklist from item list and from pin on Android/desktop. | Automated pass |
+| 8. Perform inspection | Normal devices have fast PASS/FAULT checklist and remarks. | Automated pass |
 | 9. Fault flow | Failed item requires useful fault information and photo evidence. | Open |
-| 10. Critical SOP | MFAP/pumps/gas/CO2/FM200/wet chemical open step-by-step SOP with required evidence. | MFAP automated pass; all critical types need regression |
-| 11. Save | Save button is available at the end of form and saves to browser plus PC folder when server is available. | Needs test |
-| 12. Save & Next | Save & Next opens the next assigned item without forcing the user to scroll back up. | Failed QA |
-| 13. Progress | Tech can see done/pending/fail/SOP-started count. | Needs regression |
-| 14. Complete inspection | Final sign-off appears only after all assigned items/SOP are complete. | Automated pass; full journey still open |
+| 10. Critical SOP | MFAP/pumps/gas/CO2/FM200/wet chemical open step-by-step SOP with required evidence. | Automated pass for dependency engine; live-site manual audit still needed |
+| 11. Save | Save button is available at the end of form and saves to browser plus PC folder when server is available. | Automated pass |
+| 12. Save & Next | Save & Next opens the next assigned item without forcing the user to scroll back up. | Automated pass |
+| 13. Progress | Tech can see done/pending/fail/SOP-started/locked count. | Automated pass |
+| 14. Complete inspection | Final sign-off appears only after all assigned items/SOP are complete. | Automated pass / manual retest |
 | 15. Signature | Client/supervisor can sign on phone/tablet; signature is saved in job record. | Automated pass |
 | 16. Supervisor review | Admin/supervisor can review staff/time/fail/SOP red flags. | Partial |
-| 17. Customer report | Admin can generate client-friendly summary plus detailed critical data. | Partial |
+| 17. Customer report | Admin can generate client-friendly summary plus detailed critical data. | Automated pass / manual layout review |
 | 18. Backend report | Admin can view red flags, staff tracking, skipped SOP, duration, and evidence gaps. | Partial |
-| 19. Reload/resume | Browser reload keeps active job/progress correctly. | Partial pass |
-| 20. Multi-tech | Tech 1/2/3 can work without confusing who filled which item. | Needs test after Android failure |
+| 19. Reload/resume | Browser reload keeps active job/progress correctly. | Automated pass for prototype resume |
+| 20. Multi-tech | Tech 1/2/3 can work without confusing who filled which item. | Partial prototype pass; conflict-safe shared records not started |
 
-## Audit Test Results - 2026-08-28
+## Audit Test Results - 2026-08-29
 
 Passed:
 
 - `node --check outputs/fire-inspection-mvp/app.js`
-- `node --check work/serve-fire-inspection-mvp.mjs`
-- Local server reachable at `http://127.0.0.1:8026/`
-- LAN URL reported as `http://192.168.0.129:8026/`
-- `work/qa-tech-signoff-and-scroll.cjs`
+- `node --check work/qa-critical-dependency-sequence.cjs`
+- `node --check work/qa-mfap-precheck.cjs`
+- `node --check work/qa-tech-save-next.cjs`
+- `node --check work/qa-android-mobile-web.cjs`
+- `node --check work/qa-start-unlock.cjs`
+- `node --check work/qa-schedule-floor-options.cjs`
+- `node --check work/qa-audit-tracking.cjs`
+- `node --check work/qa-tech-shared-resume.cjs`
+- `node --check work/qa-fire-inspection-mvp.cjs`
+- `work/qa-critical-dependency-sequence.cjs`
 - `work/qa-mfap-precheck.cjs`
-- `work/qa-schedule-floor-options.cjs`
-- `work/qa-audit-tracking.cjs`
+- `work/qa-tech-save-next.cjs`
+- `work/qa-android-mobile-web.cjs`
 - `work/qa-start-button.cjs`
 - `work/qa-start-unlock.cjs`
+- `work/qa-schedule-floor-options.cjs`
+- `work/qa-audit-tracking.cjs`
+- `work/qa-tech-shared-resume.cjs`
+- `work/qa-fire-inspection-mvp.cjs`
+- `work/qa-tech-signoff-and-scroll.cjs`
 
 Failed:
 
-- `work/qa-android-mobile-web.cjs`: stale phone job state did not open checklist/SOP from whole item-card tap.
-- `work/qa-tech-save-next.cjs`: timed out waiting for checklist after Save & Next.
+- None in the final run.
 
 Notes:
 
-- Some passing QA scripts still report one 404 console message. Need request tracing to confirm whether this is only favicon/noise.
-- The app is not ready to call the golden path stable until the failed Android and Save & Next tests pass.
+- `work/qa-fire-inspection-mvp.cjs` was updated for stale assumptions after the technician UX/dependency changes: the active job summary wording changed, and Gas/CO2 final supervisor step is now discovered from the current SOP template instead of hard-coded.
+- Some passing QA scripts still report one 404 console message. It does not fail `missingResources`, but request tracing is still needed to confirm whether this is only favicon/noise.
+- Android coverage is Playwright mobile emulation. A real Android Chrome manual retest is still required before field use.
+- Multi-technician conflict safety is not solved by this task. `work/qa-tech-shared-resume.cjs` proves prototype resume/team recording only, not safe simultaneous shared-record writes.
+- Offline conflict handling is still not solved. Keep the next architecture task focused on authoritative shared records before claiming multi-phone/offline production readiness.
 
 ## Automated Smoke Tests
 
@@ -80,6 +93,7 @@ Use the bundled Node runtime if normal `node` is unavailable.
 - Android/mobile browser test: `node work/qa-android-mobile-web.cjs`
 - Audit/staff tracking test: `node work/qa-audit-tracking.cjs`
 - MFAP precheck test: `node work/qa-mfap-precheck.cjs`
+- Critical dependency sequence test: `node work/qa-critical-dependency-sequence.cjs`
 - Schedule floor options test: `node work/qa-schedule-floor-options.cjs`
 
 ## Manual Phone/Tablet Test

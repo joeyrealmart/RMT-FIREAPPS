@@ -47,10 +47,16 @@ async function getOptionTexts(page, selector) {
     }
   });
 
+  await page.addInitScript(() => {
+    localStorage.removeItem("rmtCurrentUser");
+  });
   await page.goto(APP_URL, { waitUntil: "networkidle" });
   if (await page.locator("#loginView:not(.hidden)").count()) {
+    await page.click("[data-demo-login='admin']");
+    await page.fill("#loginPassword", new Date().toISOString());
     await page.click("#loginForm button[type='submit']");
   }
+  await page.waitForSelector("#workspace.admin-mode");
   await page.waitForSelector("#schedulePanel");
   await page.waitForFunction(() => document.querySelector("#scheduleClientSite")?.options.length > 0);
 

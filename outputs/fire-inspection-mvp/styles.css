@@ -918,7 +918,7 @@ textarea {
 .tech-job-meta-grid,
 .tech-progress-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1074,9 +1074,12 @@ textarea {
 }
 
 .tech-floor-chip-row {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  pointer-events: none;
 }
 
 .tech-floor-chip-row button {
@@ -1090,6 +1093,7 @@ textarea {
   color: var(--blue);
   background: #fff;
   font-size: 12px;
+  pointer-events: auto;
 }
 
 .tech-floor-chip-row button.active {
@@ -1112,10 +1116,13 @@ textarea {
 }
 
 .tech-assigned-item-card {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+  scroll-margin-top: 132px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1142,6 +1149,11 @@ textarea {
 .tech-assigned-item-card.partial {
   border-color: #fde68a;
   background: #fffbeb;
+}
+
+.tech-assigned-item-card.locked {
+  border-color: #fed7aa;
+  background: #fff7ed;
 }
 
 .tech-item-main {
@@ -1175,6 +1187,22 @@ textarea {
   font-weight: 800;
 }
 
+.tech-dependency-lock,
+.tech-dependency-ok {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.tech-dependency-lock {
+  color: #9a3412;
+}
+
+.tech-dependency-ok {
+  color: #166534;
+}
+
 .tech-item-type {
   display: grid;
   flex: 0 0 42px;
@@ -1204,6 +1232,11 @@ textarea {
   background: #dcfce7;
 }
 
+.tech-item-status.locked {
+  color: #9a3412;
+  background: #ffedd5;
+}
+
 .tech-item-status.fail {
   color: #991b1b;
   background: #fee2e2;
@@ -1223,6 +1256,7 @@ textarea {
 
 .tech-item-actions button {
   min-height: 42px;
+  scroll-margin-top: 132px;
 }
 
 .tech-completion-panel {
@@ -1233,6 +1267,13 @@ textarea {
   border: 1px solid #bbf7d0;
   border-radius: 8px;
   background: #f0fdf4;
+}
+
+#techCompleteJobBtn {
+  position: relative;
+  z-index: 3;
+  scroll-margin-top: 132px;
+  touch-action: manipulation;
 }
 
 .tech-completion-head {
@@ -1248,7 +1289,7 @@ textarea {
 
 .tech-completion-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1288,15 +1329,26 @@ textarea {
 }
 
 .tech-sign-confirm {
+  position: relative;
+  z-index: 2;
+  display: grid !important;
+  min-height: 52px;
+  padding: 10px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #fff;
   grid-template-columns: auto 1fr;
   align-items: center;
+  scroll-margin-top: 132px;
   color: var(--ink);
   font-weight: 800;
+  touch-action: manipulation;
 }
 
 .tech-sign-confirm input {
   width: 20px;
   height: 20px;
+  touch-action: manipulation;
 }
 
 .tech-signature-card {
@@ -1870,6 +1922,17 @@ textarea {
 
 .marker.critical-marker.assigned-scope {
   outline: 4px solid rgba(239, 68, 68, 0.42);
+}
+
+.marker.dependency-locked {
+  outline: 4px solid rgba(245, 158, 11, 0.72);
+  filter: saturate(0.75);
+}
+
+.marker.dependency-locked::after {
+  color: #9a3412;
+  background: #fff7ed;
+  border-color: #fed7aa;
 }
 
 .marker.not-assigned-scope {
@@ -2690,6 +2753,40 @@ textarea {
   background: #fee2e2;
 }
 
+.critical-workflow-stage {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: var(--blue);
+  background: #eff6ff;
+}
+
+.critical-workflow-stage.complete {
+  border-color: #bbf7d0;
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.critical-workflow-stage.warning {
+  border-color: #fde68a;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.critical-workflow-stage.blocked {
+  border-color: #fecaca;
+  color: #991b1b;
+  background: #fef2f2;
+}
+
+.critical-workflow-stage small {
+  color: inherit;
+  font-weight: 800;
+}
+
 .critical-device-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -3483,6 +3580,17 @@ th {
 
   .tech-job-actions .primary-wide {
     grid-column: span 1;
+  }
+
+  .tech-floor-chip-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .tech-floor-chip-row button {
+    flex: 0 0 auto;
   }
 
   .map-panel {
