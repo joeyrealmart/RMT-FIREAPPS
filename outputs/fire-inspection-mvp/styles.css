@@ -237,6 +237,104 @@ textarea {
   display: none !important;
 }
 
+.workspace.technician-mode .summary-band {
+  display: none !important;
+}
+
+.tech-workflow-nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.tech-workflow-nav button {
+  display: grid;
+  min-height: 54px;
+  gap: 2px;
+  place-items: center;
+  padding: 8px 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--muted);
+  background: #f8fafc;
+  font-size: 12px;
+}
+
+.tech-workflow-nav button strong {
+  color: inherit;
+  font-size: 13px;
+}
+
+.tech-workflow-nav button span {
+  font-size: 11px;
+}
+
+.tech-workflow-nav button.active {
+  border-color: var(--blue);
+  color: #fff;
+  background: var(--blue);
+}
+
+.workspace.technician-mode.tech-screen-jobs .content-grid {
+  display: none;
+}
+
+.workspace.technician-mode.tech-screen-inspection #techWorkPanel,
+.workspace.technician-mode.tech-screen-mimic #techWorkPanel,
+.workspace.technician-mode.tech-screen-faults #techWorkPanel,
+.workspace.technician-mode.tech-screen-complete #techWorkPanel {
+  display: none;
+}
+
+.workspace.technician-mode.tech-screen-inspection .map-panel {
+  display: none;
+}
+
+.workspace.technician-mode.tech-screen-mimic .inspection-panel {
+  display: none;
+}
+
+.workspace.technician-mode.tech-screen-faults .map-panel,
+.workspace.technician-mode.tech-screen-complete .map-panel {
+  display: none;
+}
+
+.workspace.technician-mode.tech-screen-faults #techAssignedItemPanel,
+.workspace.technician-mode.tech-screen-faults #emptyState,
+.workspace.technician-mode.tech-screen-faults #checklistForm,
+.workspace.technician-mode.tech-screen-faults #criticalSopPanel {
+  display: none !important;
+}
+
+.workspace.technician-mode.tech-screen-inspection #techCompletionPanel {
+  display: none !important;
+}
+
+.workspace.technician-mode.tech-screen-faults #techFaultPanel {
+  display: grid;
+}
+
+.workspace.technician-mode.tech-screen-complete #techActiveChecklistMount,
+.workspace.technician-mode.tech-screen-complete #techAssignedItemList,
+.workspace.technician-mode.tech-screen-complete #emptyState,
+.workspace.technician-mode.tech-screen-complete #checklistForm,
+.workspace.technician-mode.tech-screen-complete #criticalSopPanel {
+  display: none !important;
+}
+
+.workspace.technician-mode.tech-screen-complete #techCompletionPanel {
+  display: grid;
+}
+
 .workspace.technician-mode .content-grid {
   grid-template-columns: 1fr;
 }
@@ -272,7 +370,9 @@ textarea {
 .workspace.technician-mode .marker,
 .workspace.technician-mode .tech-job-card button,
 .workspace.technician-mode .tech-floor-chip-row button,
-.workspace.technician-mode .tech-item-actions button {
+.workspace.technician-mode .tech-item-actions button,
+.workspace.technician-mode .tech-workflow-nav button,
+.workspace.technician-mode .tech-screen-actions button {
   touch-action: manipulation;
 }
 
@@ -800,6 +900,65 @@ textarea {
   margin-top: 12px;
 }
 
+.workspace.technician-mode .tech-current-job,
+.workspace.technician-mode .tech-job-card {
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 14px;
+}
+
+.workspace.technician-mode .tech-job-card {
+  border-left: 5px solid #dbeafe;
+}
+
+.workspace.technician-mode .tech-job-card.today {
+  border-left-color: var(--blue);
+}
+
+.tech-job-meta-grid,
+.tech-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tech-job-meta-grid span,
+.tech-progress-grid span {
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.tech-job-meta-grid strong,
+.tech-progress-grid strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.tech-job-actions,
+.tech-screen-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tech-screen-actions {
+  margin: 10px 0 12px;
+}
+
+.tech-job-actions button,
+.tech-screen-actions button {
+  min-height: 48px;
+}
+
+.tech-job-actions .primary-wide {
+  grid-column: span 2;
+}
+
 .tech-assigned-item-panel {
   margin-bottom: 18px;
   padding-bottom: 18px;
@@ -819,6 +978,39 @@ textarea {
   display: grid;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.tech-fault-panel {
+  gap: 12px;
+}
+
+.tech-fault-list {
+  display: grid;
+  gap: 10px;
+}
+
+.tech-fault-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+}
+
+.tech-fault-card strong {
+  color: #7f1d1d;
+}
+
+.tech-fault-card span,
+.tech-fault-card small {
+  color: #7f1d1d;
+}
+
+.tech-fault-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
 }
 
 .workspace.technician-mode #checklistForm {
@@ -846,6 +1038,18 @@ textarea {
   min-height: 46px;
   border-radius: 8px;
   font-weight: 900;
+}
+
+.workspace.technician-mode #checklistForm .panel-actions,
+.workspace.technician-mode #criticalSopForm .form-bottom-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin: 12px -14px -14px;
+  padding: 10px 14px 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(239, 246, 255, 0.96);
+  box-shadow: 0 -12px 24px rgba(15, 23, 42, 0.08);
 }
 
 .tech-item-job-summary,
@@ -3191,9 +3395,31 @@ th {
     flex-direction: column;
   }
 
+  .workspace {
+    padding: 12px;
+  }
+
+  .topbar-actions,
+  .topbar-actions button {
+    width: 100%;
+  }
+
+  .tech-workflow-nav {
+    grid-template-columns: repeat(5, minmax(72px, 1fr));
+    gap: 6px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+
+  .tech-workflow-nav button {
+    min-width: 72px;
+    scroll-snap-align: start;
+  }
+
   .map-floor-control,
   .mimic-view-toggle,
-  .legend {
+  .legend,
+  #techBackToInspectionBtn {
     width: 100%;
   }
 
@@ -3245,6 +3471,18 @@ th {
 
   .workspace.technician-mode .inspection-panel {
     order: 0;
+  }
+
+  .tech-job-meta-grid,
+  .tech-progress-grid,
+  .tech-job-actions,
+  .tech-screen-actions,
+  .tech-fault-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .tech-job-actions .primary-wide {
+    grid-column: span 1;
   }
 
   .map-panel {

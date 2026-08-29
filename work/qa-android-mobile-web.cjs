@@ -16,23 +16,13 @@ function assert(condition, message) {
 }
 
 async function clickJobButton(page, companyName, buttonName) {
-  await page.evaluate(({ companyName, buttonName }) => {
-    const normalizedButton = String(buttonName || "").trim().toLowerCase();
-    const card = [...document.querySelectorAll(".tech-job-card")]
-      .find((item) => item.textContent.includes(companyName));
-    if (!card) throw new Error(`No job card found for ${companyName}`);
-    const button = [...card.querySelectorAll("button")]
-      .find((item) => item.textContent.trim().toLowerCase() === normalizedButton);
-    if (!button) throw new Error(`No ${buttonName} button found for ${companyName}`);
-    if (button.dataset.techViewSchedule) {
-      showTechnicianScheduleOnMap(button.dataset.techViewSchedule, { scrollToMap: false });
-      return;
-    }
-    if (button.dataset.techStartSchedule) {
-      return startScheduledJob(button.dataset.techStartSchedule);
-    }
-    button.click();
-  }, { companyName, buttonName });
+  await page.locator("[data-tech-screen='jobs']").click();
+  await page.waitForSelector("#workspace.tech-screen-jobs", { timeout: 15000 });
+  const card = page.locator(".tech-job-card", { hasText: companyName }).first();
+  await card.waitFor({ state: "visible", timeout: 15000 });
+  const button = card.getByRole("button", { name: buttonName }).first();
+  await button.waitFor({ state: "visible", timeout: 15000 });
+  await button.click();
 }
 
 async function loginAs(page, email, password) {

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Realmart Fire Inspection App</title>
-    <link rel="stylesheet" href="styles.css?v=20260820-signature-flow">
+    <link rel="stylesheet" href="styles.css?v=20260828-tech-golden-path">
   </head>
   <body>
     <main class="app-shell">
@@ -60,6 +60,29 @@
             <button id="logoutBtn" class="secondary" type="button">Logout</button>
           </div>
         </header>
+
+        <nav class="tech-workflow-nav technician-only" id="techWorkflowNav" aria-label="Technician workflow">
+          <button type="button" data-tech-screen="jobs" class="active">
+            <strong>Jobs</strong>
+            <span>Today</span>
+          </button>
+          <button type="button" data-tech-screen="inspection">
+            <strong>Inspection</strong>
+            <span>Checklist</span>
+          </button>
+          <button type="button" data-tech-screen="mimic">
+            <strong>Mimic</strong>
+            <span>Map</span>
+          </button>
+          <button type="button" data-tech-screen="faults">
+            <strong>Faults</strong>
+            <span>Review</span>
+          </button>
+          <button type="button" data-tech-screen="complete">
+            <strong>Complete</strong>
+            <span>Sign off</span>
+          </button>
+        </nav>
 
         <section class="selector-row">
           <label class="client-selector-label">
@@ -617,7 +640,7 @@
           <div class="section-header">
             <div>
               <p class="eyebrow">Technician Work</p>
-              <h2>Today / Assigned Checklist</h2>
+              <h2>Today's Jobs / Assigned Jobs</h2>
             </div>
             <span id="techContractBadge" class="job-status-badge">No contract loaded</span>
           </div>
@@ -648,6 +671,7 @@
                 <button id="originalMimicBtn" type="button" class="secondary active">Original</button>
                 <button id="cleanMimicBtn" type="button" class="secondary">Clean</button>
               </div>
+              <button id="techBackToInspectionBtn" type="button" class="secondary technician-only">Back to Inspection</button>
               <div class="legend">
                 <span><i class="dot pending"></i> Pending</span>
                 <span><i class="dot pass"></i> Pass</span>
@@ -709,10 +733,17 @@
                 <span id="techItemProgress" class="job-status-badge">No item loaded</span>
               </div>
               <p class="hint">Open each assigned item from this list. Use Map only when you need help finding the device.</p>
+              <div id="techInspectionActions" class="tech-screen-actions">
+                <button id="techViewMimicBtn" type="button" class="secondary">View Mimic</button>
+                <button id="techViewFaultsBtn" type="button" class="secondary">View Faults</button>
+                <button id="techGoCompleteBtn" type="button" class="secondary">Complete Job</button>
+              </div>
               <div id="techActiveChecklistMount" class="tech-active-checklist-mount"></div>
               <div id="techAssignedItemList" class="tech-assigned-item-list"></div>
               <div id="techCompletionPanel" class="tech-completion-panel hidden"></div>
             </section>
+
+            <section class="tech-fault-panel technician-only hidden" id="techFaultPanel"></section>
 
             <div id="emptyState">
               <p class="eyebrow">Ready</p>
@@ -761,8 +792,8 @@
               </label>
 
               <div class="panel-actions">
-                <button type="button" id="markFailBtn" class="secondary danger">Mark Fail</button>
-                <button type="submit">Save Inspection</button>
+                <button type="button" id="markFailBtn" class="secondary danger">FAULT</button>
+                <button type="submit">PASS / Save</button>
                 <button type="button" id="saveNextInspectionBtn">Save & Next Item</button>
               </div>
             </form>
