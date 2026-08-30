@@ -8,6 +8,7 @@ const dataRoot = "C:\\Users\\Joey\\Documents\\Codex\\2026-07-09\\are-u-able-to-a
 const reportRoot = "C:\\Users\\Joey\\Documents\\Codex\\2026-07-09\\are-u-able-to-are\\output\\pdf";
 const port = 8026;
 const host = "0.0.0.0";
+const serverStartedAt = new Date().toISOString();
 const mime = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -485,6 +486,9 @@ function getNetworkUrls() {
     .filter((address) => address && address.family === "IPv4" && !address.internal)
     .map((address) => `http://${address.address}:${port}/`);
   return {
+    host,
+    port,
+    listeningAddress: `${host}:${port}`,
     localUrl: `http://127.0.0.1:${port}/`,
     lanUrls: [...new Set(addresses)]
   };
@@ -626,6 +630,28 @@ function inspectionRunToCsv(run = {}) {
 const server = http.createServer(async (req, res) => {
   const urlPath = decodeURIComponent(new URL(req.url || "/", `http://127.0.0.1:${port}`).pathname);
   const jobRoute = urlPath.match(/^\/api\/jobs\/([^/]+)\/([^/]+)$/);
+
+  if (req.method === "GET" && urlPath === "/api/diagnostics") {
+    const urls = getNetworkUrls();
+    sendJson(res, 200, {
+      ok: true,
+      app: "RMT FIREAPPS",
+      mode: "local-prototype",
+      serverMode: "online-shared-records",
+      storageMode: "local-json",
+      sharedRecords: "authoritative-per-item",
+      revisionProtection: true,
+      offlineConflictSync: false,
+      host: urls.host,
+      port: urls.port,
+      listeningAddress: urls.listeningAddress,
+      localUrl: urls.localUrl,
+      lanUrls: urls.lanUrls,
+      startedAt: serverStartedAt,
+      serverTime: new Date().toISOString()
+    });
+    return;
+  }
 
   if (jobRoute) {
     const scheduleId = decodeURIComponent(jobRoute[1]);
@@ -999,7 +1025,13 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, host, () => {
   const urls = getNetworkUrls();
-  console.log(`Fire inspection prototype running at ${urls.localUrl}`);
-  urls.lanUrls.forEach((url) => console.log(`Same-WiFi device URL: ${url}`));
+  console.log("RMT FIREAPPS local preview server is running.");
+  console.log(`Listening on ${urls.listeningAddress}`);
+  console.log(`PC browser URL: ${urls.localUrl}`);
+  if (urls.lanUrls.length) {
+    urls.lanUrls.forEach((url) => console.log(`Android phone same-WiFi URL: ${url}`));
+  } else {
+    console.log("Android phone same-WiFi URL: no LAN IPv4 address detected. Check Wi-Fi/network sharing.");
+  }
   console.log(`Local data folder: ${dataRoot}`);
 });

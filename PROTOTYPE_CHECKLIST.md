@@ -40,6 +40,7 @@ For every important change:
 | 18. Backend report | Admin can view red flags, staff tracking, skipped SOP, duration, and evidence gaps. | Partial |
 | 19. Reload/resume | Browser reload fetches latest shared records and restores active job/progress correctly. | Automated pass |
 | 20. Multi-tech | Online Tech 1/2/3 can save different devices without replacing the whole job; same-item stale saves return conflict. | Automated pass / manual field retest |
+| 21. Manual diagnostics | App shows server connection, mode, technician, active job ID, shared revision/sync state, draft count, and LAN URL for two-phone validation. | Automated Android pass / manual field retest |
 
 ## Phase 1 Shared-Record Rules
 
@@ -88,6 +89,7 @@ Notes:
 
 - `work/qa-shared-records.cjs` confirms independent per-item records, two-tech different-device saves, same-device stale conflict, duplicate-save idempotency, advisory item claims, server sign-off reject/accept, legacy `jobProgress` migration, shared critical prerequisite unlock, report-source readiness, and server-unavailable local draft blocking completion.
 - `work/qa-fire-inspection-mvp.cjs` passes after shared-record changes and still covers maintenance scheduling, percentage rotation, assigned pins, critical SOP opening, Gas/CO2 evidence rules, report scope, and extinguisher request/photo checks.
+- `work/qa-android-mobile-web.cjs` now confirms the diagnostics panel shows server connected, online shared-record mode, technician identity, LAN URL, and no horizontal page overflow on a Pixel 5 viewport.
 - Some passing QA scripts still report one 404 console message. It does not fail `missingResources`, but request tracing is still needed to confirm whether this is only favicon/noise.
 - Android coverage is Playwright mobile emulation. A real Android Chrome manual retest is still required before field use.
 - Online multi-technician conflict safety is guarded by shared-record revisions in this prototype. Production auth and real-device field testing are still required.
@@ -133,6 +135,7 @@ Manual checks:
 - Completion sign-off appears only at the correct time.
 - Signature/thumbprint-style signing works.
 - Admin can see staff, time, duration, failed items, and report buttons.
+- Diagnostics shows `Server connected`, the same-WiFi phone URL, the current technician, active job ID, shared record revision/state, and `0 unsynced drafts` before sign-off.
 
 ## Files To Maintain
 

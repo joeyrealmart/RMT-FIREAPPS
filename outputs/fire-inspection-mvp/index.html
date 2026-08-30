@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Realmart Fire Inspection App</title>
-    <link rel="stylesheet" href="styles.css?v=20260828-tech-golden-path">
+    <link rel="stylesheet" href="styles.css?v=20260830-manual-shared-test">
   </head>
   <body>
     <main class="app-shell">
@@ -60,6 +60,21 @@
             <button id="logoutBtn" class="secondary" type="button">Logout</button>
           </div>
         </header>
+
+        <section class="diagnostics-panel" id="diagnosticsPanel" aria-label="Prototype diagnostics">
+          <div class="diagnostics-header">
+            <strong>Diagnostics</strong>
+            <span id="diagServerStatus" class="diagnostics-pill">Checking server</span>
+          </div>
+          <div class="diagnostics-grid">
+            <span><b>Mode</b><em id="diagAppMode">Local prototype</em></span>
+            <span><b>Technician</b><em id="diagTechnician">-</em></span>
+            <span><b>Active Job</b><em id="diagActiveJob">-</em></span>
+            <span><b>Shared Records</b><em id="diagSharedRevision">Not loaded</em></span>
+            <span><b>Drafts</b><em id="diagDraftCount">0 unsynced</em></span>
+            <span><b>Phone URL</b><em id="diagLanUrl">Checking LAN IP</em></span>
+          </div>
+        </section>
 
         <nav class="tech-workflow-nav technician-only" id="techWorkflowNav" aria-label="Technician workflow">
           <button type="button" data-tech-screen="jobs" class="active">
@@ -1177,6 +1192,6 @@
         </div>
       </section>
     </main>
-    <script src="app.js?v=20260820-audit-tracking"></script>
+    <script src="app.js?v=20260830-manual-shared-test"></script>
   </body>
 </html>

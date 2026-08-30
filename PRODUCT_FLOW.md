@@ -14,6 +14,7 @@ The technician workflow must stay simple on phone/tablet. The assigned checklist
 
 - Login screen with demo Admin, Technician, Tech 2, and Tech 3 accounts.
 - Main workspace top bar with role badge, sync state, report/staff/admin buttons.
+- Compact diagnostics strip showing server connection, mode, current technician, active job ID, shared record revision/sync state, draft count, and same-WiFi phone URL.
 - Admin work calendar for scheduling maintenance and other site jobs.
 - Technician extinguisher collection/return/loan form.
 - Admin service job panel.
@@ -50,6 +51,7 @@ Local API endpoints in `work/serve-fire-inspection-mvp.mjs`:
 - `GET /api/schedules`
 - `GET /api/inspection-runs`
 - `GET /api/network-info`
+- `GET /api/diagnostics`
 - `GET /api/device-masters`
 - `GET /api/jobs/:scheduleId/state`
 - `GET /api/jobs/:scheduleId/progress`
@@ -155,6 +157,7 @@ Current state: online-first shared records plus partial local draft support.
 - PC-folder save, shared schedules, shared records, mimic library loading, and reports require the local Node server.
 - There is no service worker, IndexedDB queue, background sync, offline merge engine, or true offline-first conflict handling yet.
 - Phone/tablet access currently depends on same Wi-Fi and the local server listening on `0.0.0.0:8026`.
+- `/api/diagnostics` reports the current local server mode and detected LAN URLs for manual two-phone validation without exposing passwords, API keys, or local client data files.
 
 ## Existing Functions / Modules
 

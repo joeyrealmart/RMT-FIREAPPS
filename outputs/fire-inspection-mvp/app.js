@@ -782,6 +782,7 @@ const state = {
   sharedJobRecords: readStoredJson("rmtSharedJobRecords", {}),
   sharedSaveQueues: {},
   sharedSyncUnavailable: false,
+  serverDiagnostics: null,
   contractRules: readStoredJson("rmtContractRules", {}),
   criticalDependencyConfig: readStoredJson("rmtCriticalDependencyConfig", {}),
   calendarMonth: readStoredJson("rmtCalendarMonth", null) || new Date().toISOString().slice(0, 7),
@@ -815,6 +816,13 @@ const loginEmail = document.querySelector("#loginEmail");
 const loginPassword = document.querySelector("#loginPassword");
 const loginStatus = document.querySelector("#loginStatus");
 const currentUserBadge = document.querySelector("#currentUserBadge");
+const diagServerStatus = document.querySelector("#diagServerStatus");
+const diagAppMode = document.querySelector("#diagAppMode");
+const diagTechnician = document.querySelector("#diagTechnician");
+const diagActiveJob = document.querySelector("#diagActiveJob");
+const diagSharedRevision = document.querySelector("#diagSharedRevision");
+const diagDraftCount = document.querySelector("#diagDraftCount");
+const diagLanUrl = document.querySelector("#diagLanUrl");
 const logoutBtn = document.querySelector("#logoutBtn");
 const showRequestBtn = document.querySelector("#showRequestBtn");
 const markersLayer = document.querySelector("#markersLayer");
@@ -933,6 +941,8 @@ const calendarDragClient = document.querySelector("#calendarDragClient");
 const calendarDragJob = document.querySelector("#calendarDragJob");
 const calendarDragTime = document.querySelector("#calendarDragTime");
 
+let diagnosticsTimerId = null;
+
 applyCompanyBranding();
 renderFloorOptions();
 setDefaultScheduleDate();
@@ -944,6 +954,7 @@ loadMimicLibrary();
 loadSavedDeviceMasters();
 loadStaffTrackingDemo();
 bindTechNavigationControls();
+startDiagnosticsHeartbeat();
 
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -1014,6 +1025,7 @@ function startUserSession(user) {
   } else {
     refreshTechnicianAssignedPins({ scrollToMap: false });
   }
+  renderDiagnosticsPanel();
 }
 
 function applyRoleView() {
@@ -1048,6 +1060,7 @@ function applyRoleView() {
   if (showRequestBtn) {
     showRequestBtn.textContent = isTechnician ? "Pin Missing Point" : "Suggest Device";
   }
+  renderDiagnosticsPanel();
 }
 
 function placeChecklistFormForRole() {
@@ -1124,6 +1137,7 @@ function setTechScreen(screen, options = {}) {
   if (state.techScreen === "mimic") {
     renderMarkers();
   }
+  renderDiagnosticsPanel();
   if (options.scroll) {
     requestAnimationFrame(() => scrollTechScreenIntoView(state.techScreen));
   }
@@ -1162,6 +1176,118 @@ function bindTechNavigationControls() {
   bindReliableTap(techViewMimicBtn, () => setTechScreen("mimic", { scroll: true }));
   bindReliableTap(techViewFaultsBtn, () => setTechScreen("faults", { scroll: true }));
   bindReliableTap(techGoCompleteBtn, () => setTechScreen("complete", { scroll: true }));
+}
+
+function startDiagnosticsHeartbeat() {
+  renderDiagnosticsPanel();
+  refreshDiagnosticsPanel();
+  if (!diagnosticsTimerId) {
+    diagnosticsTimerId = window.setInterval(refreshDiagnosticsPanel, 15000);
+  }
+}
+
+async function refreshDiagnosticsPanel() {
+  try {
+    const response = await fetch("/api/diagnostics", { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "Diagnostics unavailable");
+    state.serverDiagnostics = {
+      ...payload,
+      connected: true,
+      checkedAt: new Date().toISOString()
+    };
+  } catch (error) {
+    state.serverDiagnostics = {
+      connected: false,
+      error: error?.message || "Server disconnected",
+      checkedAt: new Date().toISOString()
+    };
+  }
+  renderDiagnosticsPanel();
+}
+
+function getDiagnosticsSchedule() {
+  const activeSchedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule();
+  if (activeSchedule) return activeSchedule;
+  const scheduleId = state.activeJob?.scheduleId || state.activeJob?.schedule?.scheduleId || state.activeTechPreviewScheduleId || "";
+  return scheduleId ? state.schedules.find((schedule) => schedule.scheduleId === scheduleId) || null : null;
+}
+
+function countUnsyncedDrafts() {
+  const isDraft = (record) => {
+    const status = String(record?.syncStatus || "").toLowerCase();
+    return Boolean(record?.unsynced || status === "draft" || status === "conflict");
+  };
+  const inspectionDrafts = Object.values(state.inspections || {}).filter(isDraft).length;
+  const sopDrafts = Object.values(state.criticalSops || {}).filter(isDraft).length;
+  return inspectionDrafts + sopDrafts;
+}
+
+function getDiagnosticsRevisionSummary(schedule) {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId) return "No active job";
+  const cache = getSharedJobCache(scheduleId);
+  const store = cache?.store;
+  if (!store) return cache?.online === false ? "Not loaded - server unavailable" : "Not loaded yet";
+
+  const records = [
+    ...Object.values(store.inspectionRecords || {}),
+    ...Object.values(store.criticalSopRecords || {})
+  ];
+  const selectedDeviceId = state.selectedId || state.activeCriticalDevice?.tag || state.activeCriticalDevice?.id || "";
+  const selectedRecord = selectedDeviceId
+    ? getSharedInspectionRecord(selectedDeviceId, schedule) || getSharedCriticalSopRecordByDevice(selectedDeviceId, "", schedule)
+    : null;
+  const syncState = cache.online ? "synced" : "offline/cache";
+  if (selectedRecord) {
+    return `${selectedDeviceId}: rev ${Number(selectedRecord.revision || 0)} / ${selectedRecord.status || "saved"} / ${syncState}`;
+  }
+  const maxRevision = records.reduce((max, record) => Math.max(max, Number(record.revision || 0)), 0);
+  return `${records.length} record(s) / max rev ${maxRevision} / ${syncState}`;
+}
+
+function renderDiagnosticsPanel() {
+  if (!diagServerStatus) return;
+  const server = state.serverDiagnostics || {};
+  const connected = Boolean(server.connected);
+  const role = getCurrentUserRole();
+  const schedule = getDiagnosticsSchedule();
+  const scheduleId = getScheduleKey(schedule);
+  const activeJobId = state.activeJob?.jobId || "";
+  const lanUrl = Array.isArray(server.lanUrls) && server.lanUrls.length
+    ? server.lanUrls[0]
+    : connected
+      ? server.localUrl || "No LAN IP detected"
+      : "Server disconnected";
+
+  diagServerStatus.textContent = connected ? "Server connected" : "Server disconnected";
+  diagServerStatus.classList.toggle("connected", connected);
+  diagServerStatus.classList.toggle("disconnected", !connected);
+  if (diagAppMode) {
+    diagAppMode.textContent = connected
+      ? `${role} demo / ${server.mode || "local-prototype"} / ${server.serverMode || "shared records"}`
+      : `${role} demo / local draft only`;
+  }
+  if (diagTechnician) {
+    diagTechnician.textContent = state.currentUser
+      ? `${state.currentUser.name || "-"} (${role})`
+      : "Not logged in";
+  }
+  if (diagActiveJob) {
+    diagActiveJob.textContent = activeJobId && scheduleId
+      ? `${activeJobId} / ${scheduleId}`
+      : scheduleId || "No active job";
+  }
+  if (diagSharedRevision) {
+    diagSharedRevision.textContent = getDiagnosticsRevisionSummary(schedule);
+  }
+  if (diagDraftCount) {
+    const draftCount = countUnsyncedDrafts();
+    diagDraftCount.textContent = `${draftCount} unsynced draft${draftCount === 1 ? "" : "s"}`;
+  }
+  if (diagLanUrl) {
+    diagLanUrl.textContent = lanUrl;
+  }
 }
 
 function canEditMasterData() {
@@ -2387,6 +2513,7 @@ async function saveInspection(forcedStatus, options = {}) {
     renderTechAssignedItemList();
     renderTechFaultPanel();
     updateSummary();
+    renderDiagnosticsPanel();
     document.querySelector("#syncState").textContent = `${device.id} was updated by another phone. Reload the item before saving.`;
     return;
   }
@@ -2609,6 +2736,7 @@ function setSharedJobCache(scheduleId, payload = {}, { online = true } = {}) {
     [scheduleId]: next
   };
   writeStoredJson("rmtSharedJobRecords", state.sharedJobRecords);
+  renderDiagnosticsPanel();
   return next;
 }
 
@@ -2626,6 +2754,7 @@ function markSharedJobUnavailable(scheduleId, error) {
   };
   state.sharedSyncUnavailable = true;
   writeStoredJson("rmtSharedJobRecords", state.sharedJobRecords);
+  renderDiagnosticsPanel();
 }
 
 function getSharedStore(scheduleOrId = null) {
@@ -2813,6 +2942,7 @@ function syncActiveJobProgressToSchedule() {
     lastSavedAt: state.activeJob.lastSavedAt || ""
   };
   schedule.updatedAt = new Date().toISOString();
+  renderDiagnosticsPanel();
   return schedule;
 }
 
@@ -9722,6 +9852,7 @@ async function saveCriticalSop(showMessage = true) {
     writeStoredJson("rmtCriticalSops", state.criticalSops);
     renderTechAssignedItemList();
     renderTechFaultPanel();
+    renderDiagnosticsPanel();
     if (showMessage) {
       document.querySelector("#syncState").textContent = `${template.title} was updated by another phone. Reload the SOP before saving.`;
     }

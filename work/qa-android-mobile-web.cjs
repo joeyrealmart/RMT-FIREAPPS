@@ -15,6 +15,13 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function assertNoHorizontalOverflow(result, label) {
+  assert(
+    result.scrollWidth <= result.clientWidth + 2,
+    `${label} has horizontal page overflow: scrollWidth ${result.scrollWidth}, clientWidth ${result.clientWidth}.`
+  );
+}
+
 async function tapVisibleCenter(page, locator, label) {
   await locator.evaluate((element) => element.scrollIntoView({ block: "center", inline: "center" }));
   await page.waitForTimeout(150);
@@ -353,6 +360,16 @@ async function seedTemporaryMtbSchedule(page) {
   }));
   await page.screenshot({ path: join(OUTPUT_DIR, "android-mtb-view-pins.png"), fullPage: false });
 
+  const diagnosticsResult = await page.evaluate(() => ({
+    server: document.querySelector("#diagServerStatus")?.textContent.trim() || "",
+    mode: document.querySelector("#diagAppMode")?.textContent.trim() || "",
+    technician: document.querySelector("#diagTechnician")?.textContent.trim() || "",
+    activeJob: document.querySelector("#diagActiveJob")?.textContent.trim() || "",
+    sharedRecords: document.querySelector("#diagSharedRevision")?.textContent.trim() || "",
+    drafts: document.querySelector("#diagDraftCount")?.textContent.trim() || "",
+    lanUrl: document.querySelector("#diagLanUrl")?.textContent.trim() || ""
+  }));
+
   await clickJobButton(page, "MTB Reality", "View Items");
   await waitForAssignedPins(page, "MTB while WETEX active");
   const mtbWhileWetexActiveResult = await page.evaluate(() => ({
@@ -382,6 +399,12 @@ async function seedTemporaryMtbSchedule(page) {
   assert(wetexResult.assignedPins > 0, "WETEX assigned pins did not appear on Android viewport.");
   assert(uobResult.assignedPins > 0, "UOB assigned pins did not appear on Android viewport.");
   assert(mtbResult.assignedPins > 0, "MTB assigned pins did not appear on Android viewport.");
+  assertNoHorizontalOverflow(wetexResult, "WETEX Android view");
+  assertNoHorizontalOverflow(uobResult, "UOB Android view");
+  assertNoHorizontalOverflow(mtbResult, "MTB Android view");
+  assert(diagnosticsResult.server === "Server connected", `Diagnostics server status is not connected: ${JSON.stringify(diagnosticsResult)}.`);
+  assert(diagnosticsResult.mode.includes("online-shared-records"), `Diagnostics mode does not show shared-record server mode: ${JSON.stringify(diagnosticsResult)}.`);
+  assert(diagnosticsResult.technician.includes("Demo Technician"), `Diagnostics technician is wrong: ${JSON.stringify(diagnosticsResult)}.`);
   assert(listFirstResult.itemCards > 0, "Assigned item list did not render for technician.");
   assert(listFirstResult.inspectionBeforeMap, "Technician list/checklist panel is not above the map on Android.");
   assert(mapFocusResult.hasFocusClass, "Map button did not highlight the selected mimic pin.");
@@ -516,6 +539,7 @@ async function seedTemporaryMtbSchedule(page) {
     wetex: wetexResult,
     uob: uobResult,
     mtb: mtbResult,
+    diagnostics: diagnosticsResult,
     listFirst: listFirstResult,
     mapFocus: mapFocusResult,
     autoStartItem: autoStartItemResult,
