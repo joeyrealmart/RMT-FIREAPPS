@@ -12,6 +12,7 @@ ROOT = Path(r"C:\Users\Joey\Documents\Codex\2026-07-09\are-u-able-to-are")
 LIBRARY = ROOT / "outputs" / "rmt-fire-local-data" / "mimic-library"
 INDEX = LIBRARY / "mimic-library-index.csv"
 MANIFEST = LIBRARY / "mimic-library-app-data.json"
+SCHEDULE_READY_COMPANY_IDS = {"mtb-reality-sdn-bhd", "uob", "wetex"}
 
 
 def slugify(value: str) -> str:
@@ -72,11 +73,13 @@ def main() -> None:
         pages_dir = folder / "pages"
         pages = render_pdf(copied_file, pages_dir)
         company_id = slugify(company)
+        schedule_ready = company_id in SCHEDULE_READY_COMPANY_IDS
 
         company_entry = {
             "id": company_id,
             "companyName": company,
             "siteName": company,
+            "scheduleReady": schedule_ready,
             "folder": str(folder),
             "pdfFile": copied_file.name,
             "pageCount": len(pages),
@@ -95,6 +98,7 @@ def main() -> None:
                 "floorCode": floor_code,
                 "floorName": page["title"],
                 "title": f"{company} - {page['title']}",
+                "scheduleReady": schedule_ready,
                 "src": page["src"],
                 "fileName": page["fileName"],
                 "sourcePdf": copied_file.name,
@@ -108,6 +112,7 @@ def main() -> None:
                     "floorId": floor_id,
                     "pageNumber": page["pageNumber"],
                     "title": page["title"],
+                    "scheduleReady": schedule_ready,
                     "src": page["src"],
                 }
             )

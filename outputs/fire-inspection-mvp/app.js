@@ -670,6 +670,12 @@ const floorCodes = {
   production: "P"
 };
 
+const scheduleReadySiteProfiles = [
+  { companyName: "WETEX", siteName: "WETEX", scheduleReady: true },
+  { companyName: "MTB Reality Sdn Bhd", siteName: "Bandar Hilir", aliases: ["MTB"], scheduleReady: true },
+  { companyName: "UOB", siteName: "UOB", scheduleReady: true }
+];
+
 const tagStartProfiles = [
   {
     name: "MTB Level 1",
@@ -3519,30 +3525,67 @@ function renderScheduleClientSiteOptions(preferredProfile = null) {
 
 function collectScheduleSiteOptions(extraProfile = null) {
   const map = new Map();
-  const add = (companyName, siteName) => {
+  const add = (companyName, siteName, options = {}) => {
     const company = String(companyName || "").trim();
     const site = String(siteName || "").trim();
     if (!company && !site) return;
-    const profile = {
+    const key = makeScheduleSiteValue(company || site, site || company);
+    const existing = map.get(key) || {};
+    const profile = applyScheduleReadyFlag({
+      ...existing,
       companyName: company || site,
-      siteName: site || company
-    };
-    map.set(makeScheduleSiteValue(profile.companyName, profile.siteName), profile);
+      siteName: site || company,
+      ...(typeof options.scheduleReady === "boolean" ? { scheduleReady: options.scheduleReady } : {})
+    });
+    map.set(key, profile);
   };
 
-  if (extraProfile) add(extraProfile.companyName, extraProfile.siteName);
-  add(state.siteProfile?.companyName, state.siteProfile?.siteName);
+  if (extraProfile) add(extraProfile.companyName, extraProfile.siteName, extraProfile);
+  add(state.siteProfile?.companyName, state.siteProfile?.siteName, state.siteProfile);
   const selectedProfile = getSelectedClientProfile();
   add(selectedProfile.companyName, selectedProfile.siteName);
   add(document.querySelector("#mimicCompany")?.value, document.querySelector("#mimicSite")?.value);
-  state.mimicFloors.forEach((floor) => add(floor.companyName, floor.siteName));
-  state.libraryCompanies.forEach((company) => add(company.companyName, company.siteName));
-  state.setupDevices.forEach((device) => add(device.companyName, device.siteName));
-  state.schedules.forEach((schedule) => add(schedule.companyName, schedule.siteName));
+  state.mimicFloors.forEach((floor) => add(floor.companyName, floor.siteName, floor));
+  state.libraryCompanies.forEach((company) => add(company.companyName, company.siteName, company));
+  state.setupDevices.forEach((device) => add(device.companyName, device.siteName, device));
+  state.schedules.forEach((schedule) => add(schedule.companyName, schedule.siteName, schedule));
 
-  return [...map.values()].sort((a, b) => {
+  return [...map.values()].filter(isScheduleReadyProfile).sort((a, b) => {
     return a.companyName.localeCompare(b.companyName) || a.siteName.localeCompare(b.siteName);
   });
+}
+
+function applyScheduleReadyFlag(profile = {}) {
+  const normalized = normalizeClientProfile(profile);
+  return {
+    ...normalized,
+    ...profile,
+    scheduleReady: isScheduleReadyProfile(profile)
+  };
+}
+
+function isScheduleReadyProfile(profile = {}) {
+  if (profile.scheduleReady === true) return true;
+  if (profile.scheduleReady === false) return false;
+  const normalized = normalizeClientProfile(profile);
+  const company = normalizeScopeText(normalized.companyName);
+  const site = normalizeScopeText(normalized.siteName);
+  return scheduleReadySiteProfiles.some((readyProfile) => {
+    const ready = normalizeClientProfile(readyProfile);
+    const readyCompany = normalizeScopeText(ready.companyName);
+    const readySite = normalizeScopeText(ready.siteName);
+    const aliases = (readyProfile.aliases || []).map(normalizeScopeText);
+    return (company === readyCompany && site === readySite)
+      || aliases.includes(company)
+      || aliases.includes(site);
+  });
+}
+
+function isScheduleVisibleInAdminPlanner(schedule = {}) {
+  if (!isMaintenanceServiceType(schedule.serviceType)) {
+    return true;
+  }
+  return isScheduleReadyProfile(schedule);
 }
 
 function makeScheduleSiteValue(companyName, siteName) {
@@ -4674,6 +4717,7 @@ function shiftCalendarMonth(delta) {
 
 function getSchedulesForDate(dateText) {
   return state.schedules
+    .filter(isScheduleVisibleInAdminPlanner)
     .filter((schedule) => schedule.date === dateText)
     .sort((a, b) => String(a.time || "").localeCompare(String(b.time || "")));
 }
@@ -5224,12 +5268,13 @@ function buildSchedulePayload() {
 function renderScheduleRows() {
   const rows = document.querySelector("#scheduleRows");
   if (!rows) return;
-  if (!state.schedules.length) {
+  const visibleSchedules = state.schedules.filter(isScheduleVisibleInAdminPlanner);
+  if (!visibleSchedules.length) {
     rows.innerHTML = `<p class="hint">No schedule yet. Save one to create the admin work plan.</p>`;
     return;
   }
 
-  rows.innerHTML = state.schedules.slice(0, 12).map((schedule) => {
+  rows.innerHTML = visibleSchedules.slice(0, 12).map((schedule) => {
     const isSiteWide = schedule.scopeSelectionMode === "site-wide";
     const areaLabel = isSiteWide
       ? `Whole site, start at ${schedule.startFloorTitle || getFloorAsset(schedule.floorId).title}`

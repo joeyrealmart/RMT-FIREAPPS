@@ -58,9 +58,23 @@ async function getOptionTexts(page, selector) {
   }
   await page.waitForSelector("#workspace.admin-mode");
   await page.waitForSelector("#schedulePanel");
-  await page.waitForFunction(() => document.querySelector("#scheduleClientSite")?.options.length > 0);
+  await page.waitForFunction(() => {
+    const labels = [...(document.querySelector("#scheduleClientSite")?.options || [])]
+      .map((option) => option.textContent.trim().toLowerCase());
+    return labels.some((label) => label.includes("wetex"))
+      && labels.some((label) => label.includes("uob"))
+      && labels.some((label) => label.includes("mtb"));
+  });
 
   await setSelectValue(page, "#scheduleClientMode", "existing");
+  const scheduleClientOptions = await getOptionTexts(page, "#scheduleClientSite");
+  assert(scheduleClientOptions.some((text) => text.includes("WETEX")), "Schedule clients should include WETEX");
+  assert(scheduleClientOptions.some((text) => text.includes("UOB")), "Schedule clients should include UOB");
+  assert(scheduleClientOptions.some((text) => text.toLowerCase().includes("mtb")), "Schedule clients should include MTB");
+  assert(!scheduleClientOptions.some((text) => /themofisher|wetex parade|qa shared records|umb-1|tokura/i.test(text)), "Schedule clients should hide incomplete/demo clients");
+  const schedulePageText = await page.locator("#schedulePanel").textContent();
+  assert(!/QA Shared Records/i.test(schedulePageText), "Schedule page should hide QA/demo maintenance schedules");
+
   await setSelectByText(page, "#scheduleClientSite", "WETEX");
   await setSelectByText(page, "#scheduleServiceType", "Maintenance");
   await setSelectValue(page, "#scheduleScope", "full-maintenance");
@@ -72,6 +86,11 @@ async function getOptionTexts(page, selector) {
   const uobFloors = await getOptionTexts(page, "#scheduleFloor");
   assert(uobFloors.length >= 1, "UOB should have at least one floor choice");
   assert(!uobFloors.every((text) => text.toLowerCase().includes("wetex")), "UOB floor options must not stay as WETEX only");
+
+  await setSelectByText(page, "#scheduleClientSite", "MTB");
+  const mtbFloors = await getOptionTexts(page, "#scheduleFloor");
+  assert(mtbFloors.length > 1, "MTB should have multiple floor choices");
+  assert(mtbFloors.some((text) => text.toLowerCase().includes("mtb")), "MTB floor options should mention MTB");
 
   await setSelectValue(page, "#scheduleClientMode", "new");
   await page.fill("#scheduleManualClient", "One Time Customer");
@@ -89,6 +108,7 @@ async function getOptionTexts(page, selector) {
   console.log(JSON.stringify({
     wetexFloors: wetexFloors.slice(0, 5),
     uobFloors: uobFloors.slice(0, 5),
+    mtbFloors: mtbFloors.slice(0, 5),
     newClientFloors,
     extinguisherFloors,
     consoleErrors,
