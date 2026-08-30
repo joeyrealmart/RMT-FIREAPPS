@@ -789,6 +789,7 @@ const state = {
   sharedSaveQueues: {},
   sharedSyncUnavailable: false,
   serverDiagnostics: null,
+  scheduleStartInProgressId: null,
   contractRules: readStoredJson("rmtContractRules", {}),
   criticalDependencyConfig: readStoredJson("rmtCriticalDependencyConfig", {}),
   calendarMonth: readStoredJson("rmtCalendarMonth", null) || new Date().toISOString().slice(0, 7),
@@ -5299,7 +5300,7 @@ function renderScheduleRows() {
         ${renderScheduleTrackingSummary(schedule)}
         <div class="panel-actions">
           <button type="button" class="secondary edit-schedule-btn" data-schedule-id="${escapeHtml(schedule.scheduleId)}">Load / Update Tally</button>
-          <button type="button" class="secondary start-schedule-btn" data-schedule-id="${escapeHtml(schedule.scheduleId)}">Start This Job</button>
+          <button type="button" class="secondary start-schedule-btn" data-schedule-id="${escapeHtml(schedule.scheduleId)}" ${state.scheduleStartInProgressId ? "disabled" : ""}>${state.scheduleStartInProgressId === schedule.scheduleId ? "Starting..." : "Start This Job"}</button>
           <button type="button" class="secondary danger delete-schedule-btn" data-schedule-id="${escapeHtml(schedule.scheduleId)}">Delete</button>
         </div>
       </article>
@@ -5310,12 +5311,34 @@ function renderScheduleRows() {
     button.addEventListener("click", () => loadScheduleIntoForm(button.dataset.scheduleId));
   });
   rows.querySelectorAll(".start-schedule-btn").forEach((button) => {
-    button.addEventListener("click", () => startScheduledJob(button.dataset.scheduleId));
+    button.addEventListener("click", () => handleScheduleStartClick(button));
   });
   rows.querySelectorAll(".delete-schedule-btn").forEach((button) => {
     button.addEventListener("click", () => deleteSchedule(button.dataset.scheduleId));
   });
   bindScheduleDragHandlers(rows);
+}
+
+function setScheduleStartBusy(scheduleId, isBusy) {
+  state.scheduleStartInProgressId = isBusy ? scheduleId : null;
+  const reportButton = document.querySelector("#showReportBtn");
+  if (reportButton) reportButton.disabled = isBusy;
+  document.querySelectorAll(".start-schedule-btn").forEach((button) => {
+    const isActive = isBusy && button.dataset.scheduleId === scheduleId;
+    button.disabled = isBusy;
+    button.textContent = isActive ? "Starting..." : "Start This Job";
+  });
+}
+
+async function handleScheduleStartClick(button) {
+  const scheduleId = button?.dataset?.scheduleId;
+  if (!scheduleId || state.scheduleStartInProgressId) return false;
+  setScheduleStartBusy(scheduleId, true);
+  try {
+    return await startScheduledJob(scheduleId);
+  } finally {
+    setScheduleStartBusy(scheduleId, false);
+  }
 }
 
 function renderScheduleTrackingSummary(schedule) {
@@ -8526,6 +8549,10 @@ function escapeHtml(value) {
 }
 
 async function showReport() {
+  if (state.scheduleStartInProgressId) {
+    document.querySelector("#syncState").textContent = "Please wait until the scheduled job finishes loading before generating the report.";
+    return;
+  }
   const reportScheduleId = state.activeJob?.scheduleId || state.activeJob?.schedule?.scheduleId || "";
   const reportSchedule = reportScheduleId
     ? state.schedules.find((item) => item.scheduleId === reportScheduleId) || state.activeJob?.schedule
