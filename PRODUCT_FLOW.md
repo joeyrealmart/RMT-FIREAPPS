@@ -1,6 +1,6 @@
 # RMT FIREAPPS - Product Flow Audit
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 
 ## Current Objective
 
@@ -51,6 +51,13 @@ Local API endpoints in `work/serve-fire-inspection-mvp.mjs`:
 - `GET /api/inspection-runs`
 - `GET /api/network-info`
 - `GET /api/device-masters`
+- `GET /api/jobs/:scheduleId/state`
+- `GET /api/jobs/:scheduleId/progress`
+- `POST /api/jobs/:scheduleId/migrate`
+- `POST /api/jobs/:scheduleId/inspection-records`
+- `POST /api/jobs/:scheduleId/critical-sop-records`
+- `POST /api/jobs/:scheduleId/item-claims`
+- `POST /api/jobs/:scheduleId/signoff`
 
 ## Authentication / Roles
 
@@ -92,6 +99,7 @@ Browser localStorage keys used by the app include:
 - `rmtCriticalDependencyConfig`
 - `rmtCalendarMonth`
 - `rmtActiveJob`
+- `rmtSharedJobRecords`
 - `rmtJobHistory`
 - `rmtMimicViewMode`
 - `rmtSiteProfile`
@@ -104,8 +112,28 @@ Local PC folder data:
 - `outputs/rmt-fire-local-data/schedules/service-schedules.csv`
 - `outputs/rmt-fire-local-data/inspection-runs/*-inspection-run.json`
 - `outputs/rmt-fire-local-data/inspection-runs/*-inspection-results.csv`
+- `outputs/rmt-fire-local-data/shared-records/jobs/*`
 - `outputs/rmt-fire-local-data/mimic-library/mimic-library-app-data.json`
 - mimic images and photo proof folders under `outputs/rmt-fire-local-data`
+
+## Shared-Record Architecture
+
+Phase 1 online multi-tech safety is now based on authoritative shared records stored by the local Node server.
+
+- One scheduled job maps to one shared-record store under `outputs/rmt-fire-local-data/shared-records/jobs/`.
+- Each normal device save writes one independent inspection record.
+- Each critical SOP save writes one independent critical-SOP record.
+- One item save must not replace the whole schedule or whole job snapshot.
+- Every shared item/SOP/sign-off write includes an expected revision.
+- If another phone has already saved a newer revision for the same item, the server returns conflict and does not overwrite it.
+- Different devices can be saved by different technicians without clashing because they are different records.
+- Item claims are advisory only. They warn that another technician has opened an item, but revision checks remain the authority.
+- Progress is aggregated from shared item/SOP records, not from whichever phone last wrote a cached job object.
+- Critical dependency gates read shared SOP/item state, so a prerequisite completed on Phone A can unlock the child checklist on Phone B after refresh/shared-state load.
+- Final sign-off is server validated and is rejected if shared progress is incomplete.
+- Shared JSON writes use a temp file and rename to reduce partial-write corruption risk.
+- `schedule.jobProgress` is now legacy fallback/migration only. It should not be rewritten during normal item saves.
+- Browser `localStorage` keeps cache/resume/draft data only for active inspection work.
 
 Current known loaded master data:
 
@@ -119,12 +147,13 @@ The local data folder contains real client/site/device information and must not 
 
 ## Offline Functionality
 
-Current state: partial only.
+Current state: online-first shared records plus partial local draft support.
 
-- The app saves many answers to browser localStorage.
-- If the page is already loaded, some work can continue temporarily without the local server.
-- PC-folder save, shared schedules, shared inspection runs, mimic library loading, and reports require the local Node server.
-- There is no service worker, IndexedDB queue, background sync, conflict handling, or true offline-first database yet.
+- When the local server is available, technician item/SOP saves go to authoritative shared records with revision checks.
+- If the page is already loaded and the server becomes unavailable, the technician can save a local draft in browser `localStorage`.
+- A server-unavailable/local draft cannot be completed or signed off.
+- PC-folder save, shared schedules, shared records, mimic library loading, and reports require the local Node server.
+- There is no service worker, IndexedDB queue, background sync, offline merge engine, or true offline-first conflict handling yet.
 - Phone/tablet access currently depends on same Wi-Fi and the local server listening on `0.0.0.0:8026`.
 
 ## Existing Functions / Modules
@@ -137,7 +166,7 @@ Major current function groups in `outputs/fire-inspection-mvp/app.js`:
 - Mimic library loading and map rendering.
 - Marker rendering and tap handling.
 - Device selection and checklist rendering.
-- Inspection save and Save & Next.
+- Inspection save, shared-record sync, revision-conflict handling, and Save & Next.
 - Device history.
 - Admin schedule calendar, drag/drop jobs, delete/load schedules.
 - Contract frequency and site-wide rotating scope.
@@ -170,6 +199,10 @@ The dependency engine must block child inspection through normal navigation, mim
 - Show only assigned scope pins to technicians.
 - Critical systems are always 100% every maintenance visit.
 - Critical child devices are locked until their configured prerequisite stage is complete; final parent restoration is locked until linked child checks are complete.
+- Shared per-item records are authoritative for online technician progress.
+- `schedule.jobProgress` is retained for legacy migration/fallback only.
+- Same-item stale saves must show conflict rather than silently overwriting newer work.
+- Server-unavailable saves are local drafts only and must block final completion.
 - Passive percentage selection is site-wide and must rotate without repeating until the cycle is complete.
 - Backend audit must show staff, time, duration, skipped SOP, missing evidence, failed items, and sign-off.
 - Extinguisher collection/return/loan is a separate job form, not part of normal maintenance checklist.

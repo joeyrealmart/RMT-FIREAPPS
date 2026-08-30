@@ -116,76 +116,92 @@ async function waitForAssignedPins(page, label) {
 
 async function seedTemporaryMtbSchedule(page) {
   const seeded = await page.evaluate(() => {
-    const profile = {
-      companyName: "MTB Reality Sdn Bhd",
-      siteName: "Bandar Hilir"
-    };
-    const floor = {
-      id: "qa-mtb-lv1",
-      floorId: "qa-mtb-lv1",
-      title: "MTB Reality QA L1",
-      floorCode: "L1",
-      companyName: profile.companyName,
-      siteName: profile.siteName,
-      src: defaultFloorAssets.lv1.src,
-      cleanSrc: defaultFloorAssets.lv1.src,
-      active: true
-    };
+    const specs = [
+      { scheduleId: "QA-MOBILE-WETEX", companyName: "WETEX", siteName: "WETEX", floorId: "qa-wetex-lv1", floorTitle: "WETEX QA L1", prefix: "WETEX.QA", time: "09:00" },
+      { scheduleId: "QA-MOBILE-UOB", companyName: "UOB", siteName: "UOB", floorId: "qa-uob-lv1", floorTitle: "UOB QA Ground Floor", prefix: "UOB.QA", time: "10:00" },
+      { scheduleId: "QA-MOBILE-MTB", companyName: "MTB Reality Sdn Bhd", siteName: "Bandar Hilir", floorId: "qa-mtb-lv1", floorTitle: "MTB Reality QA L1", prefix: "MTB.QA", time: "10:30" }
+    ];
+    const seedDevices = devices.slice(0, 6);
+    if (!seedDevices.length) return false;
+    const floors = [];
+    const allDevices = [];
+    const schedules = [];
+    const today = formatDateValue(new Date());
+    specs.forEach((spec) => {
+      const profile = {
+        companyName: spec.companyName,
+        siteName: spec.siteName
+      };
+      const floor = {
+        id: spec.floorId,
+        floorId: spec.floorId,
+        title: spec.floorTitle,
+        floorCode: "L1",
+        companyName: profile.companyName,
+        siteName: profile.siteName,
+        src: defaultFloorAssets.lv1.src,
+        cleanSrc: defaultFloorAssets.lv1.src,
+        active: true
+      };
+      const pool = seedDevices.map((device, index) => ({
+        tag: `${spec.prefix}.${index + 1}`,
+        type: device.type,
+        short: device.short,
+        floor: floor.title,
+        floorId: floor.id,
+        floorCode: floor.floorCode,
+        companyName: profile.companyName,
+        siteName: profile.siteName,
+        location: device.location,
+        xPercent: device.x,
+        yPercent: device.y,
+        status: "Confirmed"
+      }));
+      floors.push(floor);
+      allDevices.push(...pool);
+      schedules.push({
+        scheduleId: spec.scheduleId,
+        status: "Scheduled",
+        companyName: profile.companyName,
+        siteName: profile.siteName,
+        clientSource: "Existing Client",
+        floorId: floor.id,
+        floorTitle: floor.title,
+        floorCode: floor.floorCode,
+        startFloorId: floor.id,
+        startFloorTitle: floor.title,
+        date: today,
+        time: spec.time,
+        technician: "Technician Pool",
+        serviceType: "Maintenance / Inspection",
+        scope: "fire-alarm",
+        scopeLabel: `QA ${spec.companyName} Phone Pins`,
+        scopeSelectionMode: "selected-floor",
+        contractFrequencyPercent: 100,
+        plannedDeviceIds: pool.map((device) => device.tag),
+        plannedFloorCounts: [{ floorId: floor.id, floorTitle: floor.title, count: pool.length }],
+        priority: "Normal",
+        notes: "Temporary Android QA schedule only.",
+        deviceCount: pool.length,
+        totalFloorDeviceCount: pool.length,
+        passiveCount: pool.filter((device) => isPassiveScopeDevice(device)).length,
+        activeCount: pool.filter((device) => isActiveSystem(device.type)).length,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    });
     state.mimicFloors = [
-      floor,
-      ...state.mimicFloors.filter((item) => item.id !== floor.id)
+      ...floors,
+      ...state.mimicFloors.filter((item) => !floors.some((floor) => floor.id === item.id))
     ];
-    const pool = devices.slice(0, 6).map((device, index) => ({
-      tag: `MTB.QA.${index + 1}`,
-      type: device.type,
-      short: device.short,
-      floor: floor.title,
-      floorId: floor.id,
-      floorCode: floor.floorCode,
-      companyName: profile.companyName,
-      siteName: profile.siteName,
-      location: device.location,
-      xPercent: device.x,
-      yPercent: device.y,
-      status: "Confirmed"
-    }));
-    if (!pool.length) return false;
     state.setupDevices = [
-      ...pool,
-      ...state.setupDevices.filter((device) => !String(device.tag || "").startsWith("MTB.QA."))
+      ...allDevices,
+      ...state.setupDevices.filter((device) => !specs.some((spec) => String(device.tag || "").startsWith(`${spec.prefix}.`)))
     ];
-    const schedule = {
-      scheduleId: "QA-MOBILE-MTB",
-      status: "Scheduled",
-      companyName: profile.companyName,
-      siteName: profile.siteName,
-      clientSource: "Existing Client",
-      floorId: floor.id,
-      floorTitle: floor.title,
-      floorCode: floor.floorCode,
-      startFloorId: floor.id,
-      startFloorTitle: floor.title,
-      date: "2026-08-20",
-      time: "10:30",
-      technician: "Technician Pool",
-      serviceType: "Maintenance / Inspection",
-      scope: "fire-alarm",
-      scopeLabel: "QA MTB Phone Pins",
-      scopeSelectionMode: "selected-floor",
-      contractFrequencyPercent: 100,
-      plannedDeviceIds: pool.map((device) => device.tag),
-      plannedFloorCounts: [{ floorId: floor.id, floorTitle: floor.title, count: pool.length }],
-      priority: "Normal",
-      notes: "Temporary Android QA schedule only.",
-      deviceCount: pool.length,
-      totalFloorDeviceCount: pool.length,
-      passiveCount: pool.filter((device) => isPassiveScopeDevice(device)).length,
-      activeCount: pool.filter((device) => isActiveSystem(device.type)).length,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    state.schedules = [schedule, ...state.schedules.filter((item) => item.scheduleId !== schedule.scheduleId)].slice(0, 100);
+    state.schedules = schedules;
     writeStoredJson("rmtSchedules", state.schedules);
+    writeStoredJson("rmtMimicFloors", state.mimicFloors);
+    writeStoredJson("tmFireSetupDevices", state.setupDevices);
     renderTechWorkPanel();
     return true;
   });

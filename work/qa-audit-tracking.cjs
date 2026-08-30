@@ -123,22 +123,26 @@ function assert(condition, message) {
     const job = JSON.parse(localStorage.getItem("rmtActiveJob") || "null");
     const inspections = JSON.parse(localStorage.getItem("tmFireInspections") || "{}");
     const schedule = JSON.parse(localStorage.getItem("rmtSchedules") || "[]").find((item) => item.scheduleId === "QA-AUDIT");
+    const sharedRecord = getSharedInspectionRecord(id, schedule);
     const cardText = document.querySelector(`[data-tech-item-card="${CSS.escape(id)}"]`)?.textContent || "";
     return {
       inspectedBy: inspections[id]?.inspectedBy,
       durationMs: inspections[id]?.checklistTotalDurationMs || 0,
       sessionBy: job?.itemSessions?.[id]?.savedBy,
       sessionDurationMs: job?.itemSessions?.[id]?.durationMs || 0,
-      scheduleSessionBy: schedule?.jobProgress?.activeJob?.itemSessions?.[id]?.savedBy,
+      sharedRecordBy: sharedRecord?.technicianName,
+      sharedRecordRevision: sharedRecord?.revision || 0,
+      scheduleJobProgressWritten: Boolean(schedule?.jobProgress),
       cardText,
       reportButtonText: document.querySelector("#showReportBtn")?.textContent.trim()
     };
   }, deviceId);
 
   assert(result.inspectedBy === "Demo Technician", `Inspection saved wrong tech: ${result.inspectedBy}`);
-  assert(result.sessionBy === "Demo Technician", `Item session saved wrong tech: ${result.sessionBy}`);
-  assert(result.scheduleSessionBy === "Demo Technician", "Schedule progress did not receive item audit session");
-  assert(result.durationMs >= 0 && result.sessionDurationMs >= 0, "Duration fields were not saved");
+  assert(result.sharedRecordBy === "Demo Technician", "Shared inspection record did not receive item audit technician");
+  assert(result.sharedRecordRevision > 0, "Shared inspection record revision was not saved");
+  assert(result.scheduleJobProgressWritten === false, "Schedule jobProgress should remain read-only during shared-record save");
+  assert(result.durationMs >= 0, "Inspection duration field was not saved");
   assert(result.cardText.includes("Filled by Demo Technician"), "Tech item card does not show filled-by audit line");
   assert(result.reportButtonText === "Generate Report", "Admin report button label was not updated");
 

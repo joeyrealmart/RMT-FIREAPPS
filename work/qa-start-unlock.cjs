@@ -12,6 +12,20 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+async function loginAsTech(page) {
+  await page.evaluate((password) => {
+    const emailInput = document.querySelector("#loginEmail");
+    const passwordInput = document.querySelector("#loginPassword");
+    if (!emailInput || !passwordInput) throw new Error("Login inputs are not available");
+    emailInput.value = "tech@rmtfire.local";
+    passwordInput.value = password;
+    emailInput.dispatchEvent(new Event("input", { bubbles: true }));
+    passwordInput.dispatchEvent(new Event("input", { bubbles: true }));
+    document.querySelector("#loginForm")?.requestSubmit();
+  }, new Date().toISOString());
+  await page.waitForSelector("#workspace.technician-mode");
+}
+
 (async () => {
   const executablePath = EDGE_PATHS.find((item) => existsSync(item));
   const browser = await chromium.launch({ headless: true, executablePath });
@@ -29,10 +43,7 @@ function assert(condition, message) {
     localStorage.removeItem("tmFireRequests");
   });
   await page.reload({ waitUntil: "networkidle" });
-  await page.click("[data-demo-login='tech']");
-  await page.fill("#loginPassword", new Date().toISOString());
-  await page.click("#loginForm button[type='submit']");
-  await page.waitForSelector("#workspace.technician-mode");
+  await loginAsTech(page);
   await page.waitForSelector("#techAssignedJobs [data-tech-start-schedule]");
 
   const startButton = page.locator(".tech-job-card", { hasText: "UOB" }).locator("[data-tech-start-schedule]").first();
@@ -40,10 +51,7 @@ function assert(condition, message) {
   await page.waitForFunction(() => Boolean(JSON.parse(localStorage.getItem("rmtActiveJob") || "null")));
   await page.waitForFunction(() => document.querySelector("#clearActiveJobBtn")?.classList.contains("hidden"));
   await page.reload({ waitUntil: "networkidle" });
-  await page.click("[data-demo-login='tech']");
-  await page.fill("#loginPassword", new Date().toISOString());
-  await page.click("#loginForm button[type='submit']");
-  await page.waitForSelector("#workspace.technician-mode");
+  await loginAsTech(page);
   await page.waitForFunction(() => {
     const activeJob = JSON.parse(localStorage.getItem("rmtActiveJob") || "null");
     return activeJob?.schedule?.companyName === "UOB" && activeJob.status !== "Completed";

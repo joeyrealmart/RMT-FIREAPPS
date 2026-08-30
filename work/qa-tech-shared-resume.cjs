@@ -131,7 +131,9 @@ function assert(condition, message) {
 
   await page.evaluate(() => startScheduledJob("QA-RESUME"));
   await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.scheduleId === "QA-RESUME");
-  await page.evaluate((deviceId) => {
+  await page.evaluate(async (deviceId) => {
+    const schedule = getActiveTechnicianMaintenanceSchedule();
+    const device = getScheduledAssignedDevices(schedule).find((item) => item.id === deviceId);
     state.inspections[deviceId] = {
       status: "pass",
       answers: ["Pass"],
@@ -143,6 +145,7 @@ function assert(condition, message) {
       inspectedBy: getCurrentUserName(),
       inspectedRole: getCurrentUserRole()
     };
+    await saveSharedInspectionRecord(device, state.inspections[deviceId], schedule);
     writeStoredJson("tmFireInspections", state.inspections);
     syncActiveJobProgressToSchedule();
     persistActiveJob();

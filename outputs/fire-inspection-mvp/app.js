@@ -779,6 +779,9 @@ const state = {
   pinHistory: readStoredJson("tmFirePinHistory", []),
   mimicFloors: readStoredJson("rmtMimicFloors", []),
   schedules: readStoredJson("rmtSchedules", []),
+  sharedJobRecords: readStoredJson("rmtSharedJobRecords", {}),
+  sharedSaveQueues: {},
+  sharedSyncUnavailable: false,
   contractRules: readStoredJson("rmtContractRules", {}),
   criticalDependencyConfig: readStoredJson("rmtCriticalDependencyConfig", {}),
   calendarMonth: readStoredJson("rmtCalendarMonth", null) || new Date().toISOString().slice(0, 7),
@@ -1290,6 +1293,9 @@ originalMimicBtn.addEventListener("click", () => setMimicViewMode("original"));
 cleanMimicBtn.addEventListener("click", () => setMimicViewMode("clean"));
 
 function deviceStatus(id) {
+  const schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule();
+  const sharedRecord = schedule ? getSharedInspectionRecord(id, schedule) : null;
+  if (sharedRecord?.status) return sharedRecord.status;
   return state.inspections[id]?.status || "pending";
 }
 
@@ -2002,6 +2008,8 @@ function getCriticalWorkflowRunForParentDevice(device, schedule = getActiveTechn
 function getCriticalSopRecordForWorkflowRun(run, schedule = null) {
   if (!run?.templateId) return null;
   const parentId = run.parentDeviceId || run.parentDeviceTag || "";
+  const sharedRecord = parentId ? getSharedCriticalSopRecordByDevice(parentId, run.templateId, schedule) : null;
+  if (sharedRecord) return sharedRecord;
   const recordKey = parentId ? `${run.templateId}::${parentId}` : run.templateId;
   const localRecords = state.criticalSops || {};
   const scheduleRecords = schedule?.jobProgress?.criticalSops || {};
@@ -2063,7 +2071,10 @@ function getCriticalWorkflowChildIds(run) {
 }
 
 function isChildInspectionComplete(childId, schedule = null) {
-  const record = state.inspections?.[childId] || schedule?.jobProgress?.inspections?.[childId] || null;
+  const record = getSharedInspectionRecord(childId, schedule)
+    || state.inspections?.[childId]
+    || schedule?.jobProgress?.inspections?.[childId]
+    || null;
   const status = normalizeScopeText(record?.status || "");
   return Boolean(status && status !== "pending" && status !== "partial");
 }
@@ -2256,8 +2267,8 @@ function renderCriticalSopPreservingScroll() {
   });
 }
 
-function getCriticalSopStorageKey(templateId = state.activeCriticalSopId) {
-  const deviceTag = state.activeCriticalDevice?.tag || "";
+function getCriticalSopStorageKey(templateId = state.activeCriticalSopId, explicitDeviceTag = "") {
+  const deviceTag = explicitDeviceTag || state.activeCriticalDevice?.tag || "";
   return deviceTag ? `${templateId}::${deviceTag}` : templateId;
 }
 
@@ -2360,6 +2371,30 @@ async function saveInspection(forcedStatus, options = {}) {
   };
   state.history[device.id] = [historyItem, ...(state.history[device.id] || [])].slice(0, 8);
 
+  const activeScheduleForSave = getActiveTechnicianMaintenanceSchedule();
+  const sharedSave = getCurrentUserRole() === "Technician"
+    ? await saveSharedInspectionRecord(device, state.inspections[device.id], activeScheduleForSave)
+    : { ok: true, localOnly: true };
+  if (sharedSave.conflict) {
+    state.inspections[device.id] = {
+      ...(state.inspections[device.id] || {}),
+      syncStatus: "conflict",
+      unsynced: true,
+      conflictAt: new Date().toISOString()
+    };
+    writeStoredJson("tmFireInspections", state.inspections);
+    renderMarkers();
+    renderTechAssignedItemList();
+    renderTechFaultPanel();
+    updateSummary();
+    document.querySelector("#syncState").textContent = `${device.id} was updated by another phone. Reload the item before saving.`;
+    return;
+  }
+  if (sharedSave.offline) {
+    state.inspections[device.id].syncStatus = "draft";
+    state.inspections[device.id].unsynced = true;
+  }
+
   const inspectionSaved = writeStoredJson("tmFireInspections", state.inspections);
   if (!inspectionSaved) {
     state.inspections[device.id].beforePhotoData = "";
@@ -2385,7 +2420,12 @@ async function saveInspection(forcedStatus, options = {}) {
     const openedNext = await openNextAssignedItemAfter(device.id);
     if (openedNext) return;
   }
-  document.querySelector("#syncState").textContent = inspectionSaved ? "Saved locally" : "Saved locally without embedded photo data";
+  const sharedMessage = sharedSave.offline
+    ? "Saved as local draft only. Server sync is unavailable and job completion is blocked."
+    : sharedSave.localOnly
+      ? "Saved locally"
+      : "Saved to shared job record";
+  document.querySelector("#syncState").textContent = inspectionSaved ? sharedMessage : `${sharedMessage} without embedded photo data`;
 }
 
 function readFileData(file) {
@@ -2527,6 +2567,211 @@ function stripInspectionPhotoData(inspections = {}) {
   }));
 }
 
+function getCurrentUserId() {
+  return state.currentUser?.email || getCurrentUserName();
+}
+
+function getScheduleKey(scheduleOrId = null) {
+  if (typeof scheduleOrId === "string") return scheduleOrId;
+  return scheduleOrId?.scheduleId
+    || state.activeJob?.scheduleId
+    || state.activeJob?.schedule?.scheduleId
+    || "";
+}
+
+function getInspectionRecordId(scheduleId, deviceId) {
+  return `inspection::${scheduleId}::${deviceId}`;
+}
+
+function getCriticalSopSharedRecordId(scheduleId, templateId, deviceId) {
+  return `critical-sop::${scheduleId}::${templateId}::${deviceId || templateId}`;
+}
+
+function getSharedJobCache(scheduleOrId = null) {
+  const scheduleId = getScheduleKey(scheduleOrId);
+  if (!scheduleId) return null;
+  return state.sharedJobRecords?.[scheduleId] || null;
+}
+
+function setSharedJobCache(scheduleId, payload = {}, { online = true } = {}) {
+  if (!scheduleId) return null;
+  const store = payload.store || payload;
+  const next = {
+    ...(state.sharedJobRecords?.[scheduleId] || {}),
+    store,
+    progress: payload.progress || calculateLocalSharedProgress(store),
+    online,
+    loadedAt: new Date().toISOString(),
+    error: ""
+  };
+  state.sharedJobRecords = {
+    ...(state.sharedJobRecords || {}),
+    [scheduleId]: next
+  };
+  writeStoredJson("rmtSharedJobRecords", state.sharedJobRecords);
+  return next;
+}
+
+function markSharedJobUnavailable(scheduleId, error) {
+  if (!scheduleId) return;
+  const previous = state.sharedJobRecords?.[scheduleId] || {};
+  state.sharedJobRecords = {
+    ...(state.sharedJobRecords || {}),
+    [scheduleId]: {
+      ...previous,
+      online: false,
+      error: error?.message || String(error || "Server unavailable"),
+      loadedAt: new Date().toISOString()
+    }
+  };
+  state.sharedSyncUnavailable = true;
+  writeStoredJson("rmtSharedJobRecords", state.sharedJobRecords);
+}
+
+function getSharedStore(scheduleOrId = null) {
+  return getSharedJobCache(scheduleOrId)?.store || null;
+}
+
+function getSharedProgress(scheduleOrId = null) {
+  return getSharedJobCache(scheduleOrId)?.progress || null;
+}
+
+function isSharedStoreOnline(scheduleOrId = null) {
+  const cache = getSharedJobCache(scheduleOrId);
+  return Boolean(cache?.online);
+}
+
+function getSharedInspectionRecord(deviceId, schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule()) {
+  const scheduleId = getScheduleKey(schedule);
+  const store = getSharedStore(scheduleId);
+  if (!scheduleId || !store?.inspectionRecords) return null;
+  const recordId = getInspectionRecordId(scheduleId, deviceId);
+  return store.inspectionRecords[recordId]
+    || Object.values(store.inspectionRecords).find((record) => record.deviceId === deviceId || record.checklistItemId === deviceId)
+    || null;
+}
+
+function getSharedCriticalSopRecordByDevice(deviceId, templateId = "", schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule()) {
+  const scheduleId = getScheduleKey(schedule);
+  const store = getSharedStore(scheduleId);
+  if (!scheduleId || !store?.criticalSopRecords) return null;
+  if (templateId) {
+    const recordId = getCriticalSopSharedRecordId(scheduleId, templateId, deviceId);
+    if (store.criticalSopRecords[recordId]) return store.criticalSopRecords[recordId];
+  }
+  return Object.values(store.criticalSopRecords).find((record) => {
+    return record.parentDeviceId === deviceId || record.deviceId === deviceId || record.deviceTag === deviceId;
+  }) || null;
+}
+
+function inspectionRecordToLocal(record = {}) {
+  return {
+    status: record.status || "pending",
+    answers: record.answers || [],
+    notes: record.notes || "",
+    action: record.action || "",
+    beforePhoto: record.beforePhoto || record.beforePhotoRef || "",
+    afterPhoto: record.afterPhoto || record.afterPhotoRef || "",
+    inspectedAt: record.inspectedAt || record.updatedAt || "",
+    inspectedBy: record.technicianName || record.inspectedBy || "",
+    inspectedRole: record.technicianRole || record.inspectedRole || "",
+    checklistStartedAt: record.checklistStartedAt || "",
+    checklistDurationMs: record.checklistDurationMs || 0,
+    checklistTotalDurationMs: record.checklistTotalDurationMs || 0,
+    sharedRecordId: record.recordId || "",
+    sharedRevision: Number(record.revision || 0),
+    syncStatus: "synced"
+  };
+}
+
+function applySharedRecordsToLocalState(store, schedule = null) {
+  if (!store) return;
+  const plannedIds = new Set(schedule?.plannedDeviceIds || store.scheduleSnapshot?.plannedDeviceIds || []);
+  Object.values(store.inspectionRecords || {}).forEach((record) => {
+    if (!record.deviceId || (plannedIds.size && !plannedIds.has(record.deviceId))) return;
+    state.inspections[record.deviceId] = {
+      ...(state.inspections[record.deviceId] || {}),
+      ...inspectionRecordToLocal(record)
+    };
+  });
+  Object.values(store.criticalSopRecords || {}).forEach((record) => {
+    const key = getCriticalSopStorageKey(record.templateId, record.parentDeviceId || record.deviceId || record.deviceTag);
+    state.criticalSops[key] = {
+      ...(state.criticalSops[key] || {}),
+      ...record,
+      sharedRecordId: record.recordId || "",
+      sharedRevision: Number(record.revision || 0),
+      syncStatus: "synced"
+    };
+  });
+  writeStoredJson("tmFireInspections", state.inspections);
+  writeStoredJson("rmtCriticalSops", state.criticalSops);
+}
+
+function getScheduleSnapshotForSharedApi(schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule()) {
+  if (!schedule) return null;
+  const { jobProgress, photoProof, ...snapshot } = schedule;
+  return {
+    ...snapshot,
+    plannedDeviceIds: Array.isArray(schedule.plannedDeviceIds) ? schedule.plannedDeviceIds : [],
+    plannedFloorCounts: Array.isArray(schedule.plannedFloorCounts) ? schedule.plannedFloorCounts : []
+  };
+}
+
+async function requestSharedJobState(schedule, { migrate = true, apply = true } = {}) {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId) return null;
+  try {
+    if (migrate) {
+      await fetch(`/api/jobs/${encodeURIComponent(scheduleId)}/migrate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ schedule: getScheduleSnapshotForSharedApi(schedule), legacyJobProgress: schedule?.jobProgress || null })
+      });
+    }
+    const response = await fetch(`/api/jobs/${encodeURIComponent(scheduleId)}/state`, { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to load shared job records");
+    const cache = setSharedJobCache(scheduleId, payload, { online: true });
+    state.sharedSyncUnavailable = false;
+    if (apply) applySharedRecordsToLocalState(cache.store, schedule);
+    return cache;
+  } catch (error) {
+    console.warn("Shared job records unavailable", error);
+    markSharedJobUnavailable(scheduleId, error);
+    return null;
+  }
+}
+
+function calculateLocalSharedProgress(store = null) {
+  if (!store) return null;
+  const planned = store.scheduleSnapshot?.plannedDeviceIds || [];
+  const summary = { total: planned.length, done: 0, pass: 0, fail: 0, partial: 0, pending: 0, blocked: 0, ready: false };
+  planned.forEach((deviceId) => {
+    const sop = Object.values(store.criticalSopRecords || {}).find((record) => {
+      return record.parentDeviceId === deviceId || record.deviceId === deviceId || record.deviceTag === deviceId;
+    });
+    const inspection = store.inspectionRecords?.[getInspectionRecordId(store.scheduleId, deviceId)]
+      || Object.values(store.inspectionRecords || {}).find((record) => record.deviceId === deviceId);
+    const status = String(sop?.status || inspection?.status || "pending").toLowerCase();
+    if (status === "pass" || status === "done" || status === "completed") {
+      summary.pass += 1;
+      summary.done += 1;
+    } else if (status === "fail" || status === "fault") {
+      summary.fail += 1;
+      summary.done += 1;
+    } else if (status === "locked" || status === "blocked") {
+      summary.blocked += 1;
+    } else if (status === "partial" || status === "started" || status === "in-progress") {
+      summary.partial += 1;
+    } else {
+      summary.pending += 1;
+    }
+  });
+  summary.ready = summary.total > 0 && summary.done === summary.total && !summary.pending && !summary.partial && !summary.blocked;
+  return summary;
+}
+
 function ensureActiveJobTeamMember() {
   if (!state.activeJob || getCurrentUserRole() !== "Technician") return;
   const current = getCurrentUserName();
@@ -2554,9 +2799,20 @@ function syncActiveJobProgressToSchedule() {
   if (!scheduleId) return null;
   const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
   if (!schedule) return null;
-  schedule.jobProgress = buildScheduleProgressSnapshot();
+  const sharedProgress = getSharedProgress(schedule) || calculateLocalSharedProgress(getSharedStore(schedule));
+  if (sharedProgress) {
+    schedule.sharedProgress = clonePlain(sharedProgress, {});
+    schedule.sharedRecordsUpdatedAt = new Date().toISOString();
+  }
+  schedule.activeJobSummary = {
+    jobId: state.activeJob.jobId,
+    status: state.activeJob.status,
+    inspector: state.activeJob.inspector,
+    teamMembers: state.activeJob.teamMembers || [],
+    lastDeviceId: state.activeJob.lastDeviceId || "",
+    lastSavedAt: state.activeJob.lastSavedAt || ""
+  };
   schedule.updatedAt = new Date().toISOString();
-  persistSchedules();
   return schedule;
 }
 
@@ -2566,6 +2822,11 @@ function isScheduleResumeAvailable(schedule) {
 }
 
 function loadScheduleProgressSnapshot(schedule) {
+  const sharedCache = getSharedJobCache(schedule);
+  if (sharedCache?.store && sharedCache.online) {
+    applySharedRecordsToLocalState(sharedCache.store, schedule);
+    return;
+  }
   const progress = schedule?.jobProgress || {};
   const localInspections = clonePlain(state.inspections, {});
   const localCriticalSops = clonePlain(state.criticalSops, {});
@@ -2662,10 +2923,28 @@ async function checkOutServiceJob() {
 async function completeActiveJobWithSignOff(signOff = {}) {
   if (!state.activeJob) {
     document.querySelector("#syncState").textContent = "No active job to check out";
-    return;
+    return false;
   }
   ensureActiveJobTeamMember();
-  ensureActiveJobCriticalWorkflows(getActiveTechnicianMaintenanceSchedule());
+  const activeSchedule = getActiveTechnicianMaintenanceSchedule();
+  ensureActiveJobCriticalWorkflows(activeSchedule);
+  if (activeSchedule) {
+    const sharedSignOff = await submitSharedJobSignOff(signOff, activeSchedule);
+    if (!sharedSignOff.ok) {
+      if (sharedSignOff.offline) {
+        document.querySelector("#syncState").textContent = "Cannot complete job: shared server is unavailable. Your work remains as local draft/cache.";
+      } else if (sharedSignOff.blocked) {
+        const progress = sharedSignOff.payload?.progress;
+        document.querySelector("#syncState").textContent = `Cannot complete job: server still sees ${progress?.pending || 0} pending, ${progress?.partial || 0} SOP started, ${progress?.blocked || 0} locked.`;
+      } else if (sharedSignOff.conflict) {
+        document.querySelector("#syncState").textContent = "Cannot complete job: sign-off was updated elsewhere. Reload before signing.";
+      } else {
+        document.querySelector("#syncState").textContent = "Cannot complete job: shared sign-off validation failed.";
+      }
+      renderTechAssignedItemList();
+      return false;
+    }
+  }
   const signedAt = new Date().toISOString();
   state.activeJob.status = "Completed";
   state.activeJob.checkedOutAt = signedAt;
@@ -2694,6 +2973,7 @@ async function completeActiveJobWithSignOff(signOff = {}) {
   renderMarkers();
   updateSummary();
   document.querySelector("#syncState").textContent = `${state.activeJob.jobId} checked out and saved`;
+  return true;
 }
 
 function completeActiveSchedule() {
@@ -2787,16 +3067,53 @@ function getItemSessionForDevice(deviceOrId, schedule = null) {
   if (!key) return null;
   const activeMatchesSchedule = state.activeJob
     && (!schedule?.scheduleId || state.activeJob.scheduleId === schedule.scheduleId);
-  if (activeMatchesSchedule && state.activeJob.itemSessions?.[key]) {
-    return state.activeJob.itemSessions[key];
+  const activeSession = activeMatchesSchedule ? state.activeJob.itemSessions?.[key] : null;
+  if (activeSession?.lastSavedAt) return activeSession;
+  const sharedInspection = getSharedInspectionRecord(key, schedule);
+  if (sharedInspection) {
+    return {
+      tag: key,
+      type: sharedInspection.deviceType || "",
+      floor: sharedInspection.floor || "",
+      location: sharedInspection.location || "",
+      status: sharedInspection.status || "saved",
+      savedAt: sharedInspection.inspectedAt || sharedInspection.updatedAt || "",
+      lastSavedAt: sharedInspection.inspectedAt || sharedInspection.updatedAt || "",
+      savedBy: sharedInspection.technicianName || sharedInspection.inspectedBy || "",
+      savedRole: sharedInspection.technicianRole || "Technician",
+      lastStartedAt: sharedInspection.checklistStartedAt || "",
+      lastDurationMs: sharedInspection.checklistDurationMs || 0,
+      durationMs: sharedInspection.checklistTotalDurationMs || sharedInspection.checklistDurationMs || 0
+    };
   }
-  return schedule?.jobProgress?.activeJob?.itemSessions?.[key] || null;
+  const templateId = typeof deviceOrId === "object" ? getCriticalSopTemplateIdForDevice(deviceOrId) : "";
+  const sharedSop = getSharedCriticalSopRecordByDevice(key, templateId, schedule);
+  if (sharedSop) {
+    return {
+      tag: key,
+      type: sharedSop.deviceType || "",
+      floor: sharedSop.floor || "",
+      location: sharedSop.location || "",
+      critical: true,
+      status: sharedSop.status || sharedSop.workflowStatus || "saved",
+      savedAt: sharedSop.savedAt || sharedSop.updatedAt || "",
+      lastSavedAt: sharedSop.savedAt || sharedSop.updatedAt || "",
+      savedBy: sharedSop.technicianName || sharedSop.savedBy || sharedSop.filledBy || "",
+      savedRole: sharedSop.technicianRole || sharedSop.filledRole || "Technician",
+      lastStartedAt: sharedSop.checklistStartedAt || "",
+      lastDurationMs: sharedSop.checklistDurationMs || 0,
+      durationMs: sharedSop.checklistTotalDurationMs || sharedSop.checklistDurationMs || 0
+    };
+  }
+  return activeSession || schedule?.jobProgress?.activeJob?.itemSessions?.[key] || null;
 }
 
 function getCriticalSopRecordForDevice(device, schedule = null) {
   const templateId = getCriticalSopTemplateIdForDevice(device);
   const deviceTag = getDeviceSessionKey(device);
   if (!templateId) return null;
+  const sharedRecord = getSharedCriticalSopRecordByDevice(deviceTag, templateId, schedule);
+  if (sharedRecord) return sharedRecord;
   const deviceKey = deviceTag ? `${templateId}::${deviceTag}` : templateId;
   const scheduleRecords = schedule?.jobProgress?.criticalSops || {};
   const localRecords = state.criticalSops || {};
@@ -2852,6 +3169,7 @@ function markAssignedItemOpened(device, { critical = false, logEvent = false } =
   }
   syncActiveJobProgressToSchedule();
   persistActiveJob();
+  claimSharedInspectionItem(device, getActiveTechnicianMaintenanceSchedule());
   return sessions[key];
 }
 
@@ -5091,7 +5409,8 @@ function getAssignedDeviceCompletionStatus(device, schedule = getActiveTechnicia
   if (isCriticalSopDevice(device)) {
     const templateId = getCriticalSopTemplateIdForDevice(device);
     const deviceTag = device.id || device.tag || "";
-    const saved = state.criticalSops[deviceTag ? `${templateId}::${deviceTag}` : templateId]
+    const saved = getSharedCriticalSopRecordByDevice(deviceTag, templateId, schedule)
+      || state.criticalSops[deviceTag ? `${templateId}::${deviceTag}` : templateId]
       || state.criticalSops[templateId]
       || { steps: {} };
     const template = criticalSopTemplates.find((item) => item.id === templateId);
@@ -5198,7 +5517,7 @@ function getAssignedCompletionSummary(schedule) {
 
 function getStoredInspectionForDevice(device, schedule = null) {
   const key = device?.id || device?.tag || "";
-  return schedule?.jobProgress?.inspections?.[key] || state.inspections[key] || null;
+  return getSharedInspectionRecord(key, schedule) || schedule?.jobProgress?.inspections?.[key] || state.inspections[key] || null;
 }
 
 function getAssignedDeviceFaultInfo(device, schedule = null) {
@@ -5576,7 +5895,8 @@ async function completeTechnicianAssignedJob() {
     document.querySelector("#syncState").textContent = "Fill technician name, witness name, signature, and final confirmation.";
     return;
   }
-  await completeActiveJobWithSignOff(signOff);
+  const completed = await completeActiveJobWithSignOff(signOff);
+  if (!completed) return;
   checklistForm?.classList.add("hidden");
   emptyState?.classList.remove("hidden");
   setTechScreen("jobs", { scroll: true });
@@ -5692,6 +6012,10 @@ function renderTechAssignedItemCard(device, schedule = null) {
   const isActive = state.selectedId === device.id || state.activeCriticalDevice?.tag === device.id;
   const location = displayDeviceLocation(device.location || device.floorTitle || "");
   const auditLine = renderTechAssignedItemAudit(device, schedule);
+  const claim = getActiveSharedClaim(device.id, schedule);
+  const claimLine = claim
+    ? `<small class="tech-item-warning">Opened by ${escapeHtml(claim.claimedByName || claim.claimedBy || "another technician")} - saving stale changes will be rejected.</small>`
+    : "";
   const lockLine = !access.allowed
     ? `<small class="tech-dependency-lock">${escapeHtml(access.reason || "Critical prerequisite required before opening this checklist.")}</small>`
     : access.dependencyLabel
@@ -5707,6 +6031,7 @@ function renderTechAssignedItemCard(device, schedule = null) {
           <span>${escapeHtml(device.type || "Device")}</span>
           <small>${escapeHtml(device.floorTitle || device.floor || "")} | ${escapeHtml(location)}</small>
           ${auditLine}
+          ${claimLine}
           ${lockLine}
         </div>
       </div>
@@ -5896,7 +6221,12 @@ function ensureSchedulePlannedScope(schedule) {
 }
 
 async function resumeScheduledJob(schedule, options = {}) {
-  loadScheduleProgressSnapshot(schedule);
+  const sharedCache = await requestSharedJobState(schedule);
+  if (sharedCache) {
+    applySharedRecordsToLocalState(sharedCache.store, schedule);
+  } else {
+    loadScheduleProgressSnapshot(schedule);
+  }
   const savedJob = schedule.jobProgress?.activeJob || {};
   selectClientProfile({
     companyName: schedule.companyName,
@@ -5971,6 +6301,7 @@ async function startScheduledJob(scheduleId, options = {}) {
     return false;
   }
   ensureSchedulePlannedScope(schedule);
+  await requestSharedJobState(schedule);
   if ((!state.activeJob || state.activeJob.status === "Completed") && isScheduleResumeAvailable(schedule)) {
     return resumeScheduledJob(schedule, options);
   }
@@ -6271,7 +6602,7 @@ document.querySelector("#showStaffTrackingBtn").addEventListener("click", () => 
 });
 document.querySelector("#regenerateScopeBtn").addEventListener("click", () => generateServiceScope({ commitHistory: true }));
 document.querySelector("#saveSystemCheckBtn").addEventListener("click", saveSystemChecklist);
-document.querySelector("#saveCriticalSopBtn").addEventListener("click", saveCriticalSop);
+document.querySelector("#saveCriticalSopBtn").addEventListener("click", () => saveCriticalSop(true));
 document.querySelector("#resetCriticalSopBtn").addEventListener("click", resetCriticalSop);
 document.querySelector("#mimicUpload").addEventListener("change", async (event) => {
   const file = event.target.files[0];
@@ -8019,7 +8350,14 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-function showReport() {
+async function showReport() {
+  const reportScheduleId = state.activeJob?.scheduleId || state.activeJob?.schedule?.scheduleId || "";
+  const reportSchedule = reportScheduleId
+    ? state.schedules.find((item) => item.scheduleId === reportScheduleId) || state.activeJob?.schedule
+    : getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule();
+  if (reportSchedule) {
+    await requestSharedJobState(reportSchedule, { migrate: false });
+  }
   const inspectionDevices = getInspectionDevicesForRun();
   const profile = getCurrentSiteIdentity();
   applyCompanyBranding();
@@ -8035,7 +8373,7 @@ function showReport() {
   document.querySelector("#reportSaveStatus").textContent = "Ready to save";
 
   const rows = inspectionDevices.map((device) => {
-    const inspection = state.inspections[device.id];
+    const inspection = getStoredInspectionForDevice(device, reportSchedule);
     const status = inspection?.status || "pending";
     return `
       <tr>
@@ -8107,6 +8445,329 @@ async function postInspectionRun(payload) {
     throw new Error(result.error || "Unable to save inspection run");
   }
   return result;
+}
+
+function createClientSharedStore(schedule) {
+  const scheduleId = getScheduleKey(schedule);
+  return {
+    schemaVersion: "shared-records-v1",
+    scheduleId,
+    scheduleSnapshot: getScheduleSnapshotForSharedApi(schedule),
+    inspectionRecords: {},
+    criticalSopRecords: {},
+    systemCheckRecords: {},
+    itemClaims: {},
+    signOff: null
+  };
+}
+
+function ensureSharedCacheForSchedule(schedule) {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId) return null;
+  const cache = getSharedJobCache(scheduleId);
+  if (cache?.store) return cache;
+  return setSharedJobCache(scheduleId, createClientSharedStore(schedule), { online: false });
+}
+
+function updateSharedCacheWithRecord(schedule, collectionName, record, progress = null) {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId || !record?.recordId) return;
+  const cache = ensureSharedCacheForSchedule(schedule);
+  const store = {
+    ...cache.store,
+    [collectionName]: {
+      ...(cache.store?.[collectionName] || {}),
+      [record.recordId]: record
+    }
+  };
+  setSharedJobCache(scheduleId, {
+    store,
+    progress: progress || calculateLocalSharedProgress(store)
+  }, { online: true });
+}
+
+function getExpectedInspectionRevision(deviceId, schedule) {
+  const shared = getSharedInspectionRecord(deviceId, schedule);
+  if (shared) return Number(shared.revision || 0);
+  return Number(state.inspections?.[deviceId]?.sharedRevision || 0);
+}
+
+function getExpectedCriticalSopRevision(record, schedule) {
+  const shared = getSharedCriticalSopRecordByDevice(record.parentDeviceId || record.deviceId || record.deviceTag, record.templateId, schedule);
+  if (shared) return Number(shared.revision || 0);
+  return Number(record.sharedRevision || 0);
+}
+
+function enqueueSharedSave(queueKey, task) {
+  if (!queueKey) return task();
+  const previous = state.sharedSaveQueues[queueKey] || Promise.resolve();
+  const run = previous.catch(() => {}).then(task);
+  const guard = run.catch(() => {});
+  state.sharedSaveQueues[queueKey] = guard;
+  return run.finally(() => {
+    if (state.sharedSaveQueues[queueKey] === guard) {
+      delete state.sharedSaveQueues[queueKey];
+    }
+  });
+}
+
+function buildSharedInspectionRecord(device, inspection, schedule) {
+  const scheduleId = getScheduleKey(schedule);
+  const deviceId = device.id || device.tag;
+  const checklistQuestions = device.questions || getChecklistQuestions(device.type);
+  return {
+    recordId: getInspectionRecordId(scheduleId, deviceId),
+    jobId: state.activeJob?.jobId || `JOB-${scheduleId}`,
+    scheduleId,
+    deviceId,
+    checklistItemId: deviceId,
+    checklistTemplateId: device.type || "Device Checklist",
+    checklistQuestionCount: checklistQuestions.length,
+    companyName: state.activeJob?.companyName || schedule?.companyName || "",
+    siteName: state.activeJob?.siteName || schedule?.siteName || "",
+    floor: device.floor || device.floorTitle || "",
+    location: displayDeviceLocation(device.location || ""),
+    deviceType: device.type || "",
+    technicianId: getCurrentUserId(),
+    technicianName: getCurrentUserName(),
+    technicianRole: getCurrentUserRole(),
+    status: inspection.status || "pending",
+    answers: inspection.answers || [],
+    notes: inspection.notes || "",
+    action: inspection.action || "",
+    beforePhoto: inspection.beforePhoto || "",
+    afterPhoto: inspection.afterPhoto || "",
+    evidenceRefs: [
+      inspection.beforePhoto ? { type: "before", name: inspection.beforePhoto } : null,
+      inspection.afterPhoto ? { type: "after", name: inspection.afterPhoto } : null
+    ].filter(Boolean),
+    inspectedAt: inspection.inspectedAt || new Date().toISOString(),
+    checklistStartedAt: inspection.checklistStartedAt || "",
+    checklistDurationMs: inspection.checklistDurationMs || 0,
+    checklistTotalDurationMs: inspection.checklistTotalDurationMs || 0
+  };
+}
+
+async function saveSharedInspectionRecord(device, inspection, schedule) {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId) return { ok: false, localOnly: true, reason: "No scheduled job" };
+  const queueKey = `inspection::${scheduleId}::${device.id || device.tag}`;
+  return enqueueSharedSave(queueKey, async () => {
+    const record = buildSharedInspectionRecord(device, inspection, schedule);
+    const expectedRevision = getExpectedInspectionRevision(record.deviceId, schedule);
+    try {
+      const response = await fetch(`/api/jobs/${encodeURIComponent(scheduleId)}/inspection-records`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expectedRevision,
+          schedule: getScheduleSnapshotForSharedApi(schedule),
+          record
+        })
+      });
+      const payload = await response.json();
+      if (response.status === 409 && payload.conflict) {
+        const current = payload.current;
+        if (current?.deviceId) {
+          updateSharedCacheWithRecord(schedule, "inspectionRecords", current);
+          state.inspections[current.deviceId] = {
+            ...(state.inspections[current.deviceId] || {}),
+            ...inspectionRecordToLocal(current)
+          };
+        }
+        return { ok: false, conflict: true, current, payload };
+      }
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to save shared inspection record");
+      updateSharedCacheWithRecord(schedule, "inspectionRecords", payload.record, payload.progress);
+      state.inspections[payload.record.deviceId] = {
+        ...(state.inspections[payload.record.deviceId] || {}),
+        ...inspectionRecordToLocal(payload.record)
+      };
+      return { ok: true, record: payload.record, progress: payload.progress };
+    } catch (error) {
+      console.warn("Shared inspection record unavailable", error);
+      markSharedJobUnavailable(scheduleId, error);
+      return { ok: false, offline: true, error };
+    }
+  });
+}
+
+function buildSharedCriticalSopRecord(record, schedule) {
+  const scheduleId = getScheduleKey(schedule);
+  const parentDeviceId = record.deviceTag || record.parentDeviceId || record.deviceId || record.templateId;
+  return {
+    ...record,
+    recordId: getCriticalSopSharedRecordId(scheduleId, record.templateId, parentDeviceId),
+    jobId: state.activeJob?.jobId || `JOB-${scheduleId}`,
+    scheduleId,
+    parentDeviceId,
+    deviceId: parentDeviceId,
+    technicianId: getCurrentUserId(),
+    technicianName: getCurrentUserName(),
+    technicianRole: getCurrentUserRole(),
+    status: record.workflowStatus === "complete" || record.finalRestorationComplete ? "pass" : getCriticalSopCompleteCount(getCriticalSopTemplate(record.templateId), record) > 0 ? "partial" : "pending",
+    evidenceRefs: [
+      record.beforePhoto ? { type: "before", name: record.beforePhoto } : null,
+      record.afterPhoto ? { type: "after", name: record.afterPhoto } : null
+    ].filter(Boolean)
+  };
+}
+
+async function saveSharedCriticalSopRecord(record, schedule) {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId) return { ok: false, localOnly: true, reason: "No scheduled job" };
+  const parentDeviceId = record.deviceTag || record.parentDeviceId || record.deviceId || record.templateId;
+  const queueKey = `critical-sop::${scheduleId}::${record.templateId}::${parentDeviceId}`;
+  return enqueueSharedSave(queueKey, async () => {
+    const sharedRecord = buildSharedCriticalSopRecord(record, schedule);
+    const expectedRevision = getExpectedCriticalSopRevision(sharedRecord, schedule);
+    try {
+      const response = await fetch(`/api/jobs/${encodeURIComponent(scheduleId)}/critical-sop-records`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expectedRevision,
+          schedule: getScheduleSnapshotForSharedApi(schedule),
+          record: sharedRecord
+        })
+      });
+      const payload = await response.json();
+      if (response.status === 409 && payload.conflict) {
+        const current = payload.current;
+        if (current?.recordId) {
+          updateSharedCacheWithRecord(schedule, "criticalSopRecords", current);
+          const key = getCriticalSopStorageKey(current.templateId, current.parentDeviceId || current.deviceId || current.deviceTag);
+          state.criticalSops[key] = {
+            ...(state.criticalSops[key] || {}),
+            ...current,
+            sharedRevision: Number(current.revision || 0),
+            syncStatus: "synced"
+          };
+        }
+        return { ok: false, conflict: true, current, payload };
+      }
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to save shared critical SOP record");
+      updateSharedCacheWithRecord(schedule, "criticalSopRecords", payload.record, payload.progress);
+      const key = getCriticalSopStorageKey(payload.record.templateId, payload.record.parentDeviceId || payload.record.deviceId || payload.record.deviceTag);
+      state.criticalSops[key] = {
+        ...(state.criticalSops[key] || {}),
+        ...payload.record,
+        sharedRevision: Number(payload.record.revision || 0),
+        syncStatus: "synced"
+      };
+      return { ok: true, record: payload.record, progress: payload.progress };
+    } catch (error) {
+      console.warn("Shared critical SOP record unavailable", error);
+      markSharedJobUnavailable(scheduleId, error);
+      return { ok: false, offline: true, error };
+    }
+  });
+}
+
+function getActiveSharedClaim(deviceId, schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule()) {
+  const scheduleId = getScheduleKey(schedule);
+  const store = getSharedStore(scheduleId);
+  if (!scheduleId || !store?.itemClaims) return null;
+  const recordId = `claim::${scheduleId}::${deviceId}`;
+  const claim = store.itemClaims[recordId] || Object.values(store.itemClaims).find((item) => item.itemId === deviceId || item.deviceId === deviceId);
+  if (!claim || claim.claimedBy === getCurrentUserId()) return null;
+  const expiresAt = claim.expiresAt ? new Date(claim.expiresAt).getTime() : 0;
+  if (expiresAt && expiresAt < Date.now()) return null;
+  return claim;
+}
+
+function updateSharedCacheWithClaim(schedule, claim) {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId || !claim?.recordId) return;
+  const cache = ensureSharedCacheForSchedule(schedule);
+  const store = {
+    ...cache.store,
+    itemClaims: {
+      ...(cache.store?.itemClaims || {}),
+      [claim.recordId]: claim
+    }
+  };
+  setSharedJobCache(scheduleId, { store, progress: cache.progress || calculateLocalSharedProgress(store) }, { online: true });
+}
+
+async function claimSharedInspectionItem(device, schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const scheduleId = getScheduleKey(schedule);
+  const itemId = getDeviceSessionKey(device);
+  if (!scheduleId || !itemId || getCurrentUserRole() !== "Technician") return null;
+  const otherClaim = getActiveSharedClaim(itemId, schedule);
+  if (otherClaim) {
+    document.querySelector("#syncState").textContent = `${itemId} is currently opened by ${otherClaim.claimedByName || otherClaim.claimedBy}. You can view it, but stale saves may be rejected.`;
+  }
+  try {
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const response = await fetch(`/api/jobs/${encodeURIComponent(scheduleId)}/item-claims`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schedule: getScheduleSnapshotForSharedApi(schedule),
+        itemId,
+        deviceId: itemId,
+        claimedBy: getCurrentUserId(),
+        claimedByName: getCurrentUserName(),
+        expiresAt,
+        status: "active"
+      })
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to claim item");
+    updateSharedCacheWithClaim(schedule, payload.claim);
+    return payload.claim;
+  } catch (error) {
+    console.warn("Unable to update shared item claim", error);
+    markSharedJobUnavailable(scheduleId, error);
+    return null;
+  }
+}
+
+async function submitSharedJobSignOff(signOff, schedule) {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId) return { ok: false, localOnly: true };
+  const latest = await requestSharedJobState(schedule, { migrate: false });
+  if (!latest?.online) {
+    return { ok: false, offline: true, reason: "Shared server is unavailable. Completion is blocked until sync is restored." };
+  }
+  const expectedRevision = Number(latest.store?.signOff?.revision || 0);
+  try {
+    const response = await fetch(`/api/jobs/${encodeURIComponent(scheduleId)}/signoff`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expectedRevision,
+        schedule: getScheduleSnapshotForSharedApi(schedule),
+        signOff: {
+          ...signOff,
+          jobId: state.activeJob?.jobId || `JOB-${scheduleId}`,
+          scheduleId,
+          signedBy: getCurrentUserName(),
+          signedById: getCurrentUserId(),
+          signedRole: getCurrentUserRole()
+        }
+      })
+    });
+    const payload = await response.json();
+    if (response.status === 409) {
+      return { ok: false, conflict: Boolean(payload.conflict), blocked: Boolean(payload.blocked), payload };
+    }
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to complete shared job");
+    const cache = ensureSharedCacheForSchedule(schedule);
+    const store = {
+      ...cache.store,
+      signOff: payload.signOff,
+      status: "Completed",
+      completedAt: payload.signOff?.signedAt || new Date().toISOString()
+    };
+    setSharedJobCache(scheduleId, { store, progress: payload.progress }, { online: true });
+    return { ok: true, signOff: payload.signOff, progress: payload.progress };
+  } catch (error) {
+    console.warn("Shared sign-off unavailable", error);
+    markSharedJobUnavailable(scheduleId, error);
+    return { ok: false, offline: true, error };
+  }
 }
 
 function buildInspectionRunPayload() {
@@ -8912,11 +9573,11 @@ function renderCriticalSop() {
     </div>
   `;
 
-  document.querySelector("#saveCriticalSopBottomBtn")?.addEventListener("click", saveCriticalSop);
+  document.querySelector("#saveCriticalSopBottomBtn")?.addEventListener("click", () => saveCriticalSop(true));
   document.querySelector("#saveCriticalSopNextBtn")?.addEventListener("click", saveCriticalSopAndOpenNext);
 
   form.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
-    checkbox.addEventListener("change", () => {
+    checkbox.addEventListener("change", async () => {
       const index = Number(checkbox.name.replace("sop-confirm-", ""));
       const step = activeTemplate.steps[index];
       const stepState = getSopStepDomState(step, index, activeTemplate.id);
@@ -8926,58 +9587,58 @@ function renderCriticalSop() {
         document.querySelector("#syncState").textContent = `Cannot confirm Step ${index + 1}: missing ${missing.join(", ")}`;
         return;
       }
-      saveCriticalSop(false);
+      await saveCriticalSop(false);
       renderCriticalSopPreservingScroll();
     });
   });
 
   form.querySelectorAll("select[name^='sop-choice-']").forEach((select) => {
-    select.addEventListener("change", () => {
-      saveCriticalSop(false);
+    select.addEventListener("change", async () => {
+      await saveCriticalSop(false);
       renderCriticalSopPreservingScroll();
     });
   });
 
   form.querySelectorAll(".sop-demo-photo").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const index = button.dataset.sopDemoPhoto;
       const demoPhotoName = `DEMO photo captured - ${new Date().toLocaleString()}`;
       const input = document.querySelector(`input[name="sop-photo-demo-${index}"]`);
       const label = document.querySelector(`#sop-photo-name-${index}`);
       if (input) input.value = demoPhotoName;
       if (label) label.textContent = demoPhotoName;
-      saveCriticalSop(false);
+      await saveCriticalSop(false);
       document.querySelector("#syncState").textContent = `Demo photo added for Step ${Number(index) + 1}`;
     });
   });
 
   form.querySelectorAll("[data-critical-demo-photo]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const type = button.dataset.criticalDemoPhoto;
       const demoPhotoName = `DEMO ${type} photo captured - ${new Date().toLocaleString()}`;
       const input = document.querySelector(type === "before" ? "#criticalBeforePhotoDemo" : "#criticalAfterPhotoDemo");
       const label = document.querySelector(type === "before" ? "#criticalBeforePhotoName" : "#criticalAfterPhotoName");
       if (input) input.value = demoPhotoName;
       if (label) label.textContent = demoPhotoName;
-      saveCriticalSop(false);
+      await saveCriticalSop(false);
       renderCriticalSopPreservingScroll();
       document.querySelector("#syncState").textContent = `${type === "before" ? "Before" : "After"} photo added for ${activeTemplate.title}`;
     });
   });
 
   form.querySelectorAll("#criticalBeforePhoto, #criticalAfterPhoto").forEach((input) => {
-    input.addEventListener("change", () => {
+    input.addEventListener("change", async () => {
       const fileName = input.files?.[0]?.name || "";
       const label = document.querySelector(input.id === "criticalBeforePhoto" ? "#criticalBeforePhotoName" : "#criticalAfterPhotoName");
       if (label && fileName) label.textContent = fileName;
-      saveCriticalSop(false);
+      await saveCriticalSop(false);
       renderCriticalSopPreservingScroll();
       document.querySelector("#syncState").textContent = `${input.id === "criticalBeforePhoto" ? "Before" : "After"} photo recorded`;
     });
   });
 }
 
-function saveCriticalSop(showMessage = true) {
+async function saveCriticalSop(showMessage = true) {
   const template = criticalSopTemplates.find((item) => item.id === state.activeCriticalSopId) || criticalSopTemplates[0];
   const storageKey = getCriticalSopStorageKey(template.id);
   const previous = state.criticalSops[storageKey] || state.criticalSops[template.id] || {};
@@ -9052,6 +9713,27 @@ function saveCriticalSop(showMessage = true) {
   savedRecord.checklistStartedAt = auditSession?.lastStartedAt || auditSession?.firstOpenedAt || "";
   savedRecord.checklistDurationMs = auditSession?.lastDurationMs || 0;
   savedRecord.checklistTotalDurationMs = auditSession?.durationMs || 0;
+  const sharedSave = getCurrentUserRole() === "Technician"
+    ? await saveSharedCriticalSopRecord(savedRecord, activeSchedule)
+    : { ok: true, localOnly: true };
+  if (sharedSave.conflict) {
+    savedRecord.syncStatus = "conflict";
+    savedRecord.unsynced = true;
+    writeStoredJson("rmtCriticalSops", state.criticalSops);
+    renderTechAssignedItemList();
+    renderTechFaultPanel();
+    if (showMessage) {
+      document.querySelector("#syncState").textContent = `${template.title} was updated by another phone. Reload the SOP before saving.`;
+    }
+    return { ok: false, conflict: true };
+  }
+  if (sharedSave.offline) {
+    savedRecord.syncStatus = "draft";
+    savedRecord.unsynced = true;
+  } else if (!sharedSave.localOnly) {
+    savedRecord.syncStatus = "synced";
+    savedRecord.sharedRevision = Number(sharedSave.record?.revision || savedRecord.sharedRevision || 0);
+  }
   writeStoredJson("rmtCriticalSops", state.criticalSops);
   addJobEvent("Critical SOP saved", template.title);
   if (workflowRun) {
@@ -9069,15 +9751,18 @@ function saveCriticalSop(showMessage = true) {
     renderCriticalSop();
     renderJobPanel();
     const missingEvidence = getMissingCriticalSopEvidence(template, state.criticalSops[storageKey]);
-    document.querySelector("#syncState").textContent = `${template.title} SOP saved (${complete}/${template.steps.length}${missingEvidence.length ? `, missing ${missingEvidence.join(", ")}` : ""})`;
+    const syncNote = sharedSave.offline ? ", local draft only - server unavailable" : "";
+    document.querySelector("#syncState").textContent = `${template.title} SOP saved (${complete}/${template.steps.length}${missingEvidence.length ? `, missing ${missingEvidence.join(", ")}` : ""}${syncNote})`;
   }
+  return { ok: true, offline: Boolean(sharedSave.offline), record: sharedSave.record || savedRecord };
 }
 
 async function saveCriticalSopAndOpenNext() {
   const template = criticalSopTemplates.find((item) => item.id === state.activeCriticalSopId) || criticalSopTemplates[0];
   const currentDeviceTag = state.activeCriticalDevice?.tag || "";
   const storageKey = getCriticalSopStorageKey(template.id);
-  saveCriticalSop(true);
+  const saveResult = await saveCriticalSop(true);
+  if (saveResult?.conflict) return;
   const saved = state.criticalSops[storageKey];
   const activeSchedule = getActiveTechnicianMaintenanceSchedule();
   const workflowRun = state.activeCriticalDevice ? getCriticalWorkflowRunForParentDevice(state.activeCriticalDevice, activeSchedule) : null;

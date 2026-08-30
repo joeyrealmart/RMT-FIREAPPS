@@ -145,7 +145,7 @@ function assert(condition, message) {
 
   await page.evaluate(async () => {
     const schedule = state.schedules[0];
-    getScheduledAssignedDevices(schedule).forEach((device) => {
+    for (const device of getScheduledAssignedDevices(schedule)) {
       state.inspections[device.id] = {
         status: "pass",
         answers: (device.questions || []).map(() => "Pass"),
@@ -157,7 +157,8 @@ function assert(condition, message) {
         inspectedBy: getCurrentUserName(),
         inspectedRole: getCurrentUserRole()
       };
-    });
+      await saveSharedInspectionRecord(device, state.inspections[device.id], schedule);
+    }
     writeStoredJson("tmFireInspections", state.inspections);
     syncActiveJobProgressToSchedule();
     persistActiveJob();

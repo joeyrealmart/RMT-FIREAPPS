@@ -1,5 +1,5 @@
 import http from "node:http";
-import { createReadStream, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { networkInterfaces } from "node:os";
 
@@ -33,6 +33,7 @@ mkdirSync(join(dataRoot, "device-master"), { recursive: true });
 mkdirSync(join(dataRoot, "inspection-runs"), { recursive: true });
 mkdirSync(join(dataRoot, "schedules"), { recursive: true });
 mkdirSync(join(dataRoot, "schedules", "photo-proof"), { recursive: true });
+mkdirSync(join(dataRoot, "shared-records", "jobs"), { recursive: true });
 mkdirSync(reportRoot, { recursive: true });
 
 function sendJson(res, status, payload) {
@@ -81,6 +82,328 @@ function readRequestJson(req) {
     });
     req.on("error", reject);
   });
+}
+
+function readJsonFile(filePath, fallback) {
+  try {
+    if (!existsSync(filePath)) return fallback;
+    return JSON.parse(readFileSync(filePath, "utf8"));
+  } catch (error) {
+    console.warn(`Unable to read JSON file ${filePath}`, error);
+    return fallback;
+  }
+}
+
+function atomicWriteJson(filePath, payload) {
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  writeFileSync(tempPath, JSON.stringify(payload, null, 2));
+  renameSync(tempPath, filePath);
+}
+
+function stableJsonValue(value) {
+  if (Array.isArray(value)) return value.map(stableJsonValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.keys(value).sort().reduce((acc, key) => {
+    if (["revision", "expectedRevision", "createdAt", "updatedAt", "savedAt", "serverReceivedAt"].includes(key)) {
+      return acc;
+    }
+    acc[key] = stableJsonValue(value[key]);
+    return acc;
+  }, {});
+}
+
+function equivalentRecordPayload(current, incoming) {
+  if (!current || !incoming) return false;
+  return JSON.stringify(stableJsonValue(current)) === JSON.stringify(stableJsonValue(incoming));
+}
+
+function getSharedJobPath(scheduleId) {
+  return join(dataRoot, "shared-records", "jobs", `${slugify(scheduleId)}.json`);
+}
+
+function getInspectionRecordId(scheduleId, deviceId) {
+  return `inspection::${scheduleId}::${deviceId}`;
+}
+
+function getCriticalSopRecordId(scheduleId, templateId, deviceId) {
+  return `critical-sop::${scheduleId}::${templateId}::${deviceId || templateId}`;
+}
+
+function getItemClaimId(scheduleId, itemId) {
+  return `claim::${scheduleId}::${itemId}`;
+}
+
+function createEmptySharedJobStore(scheduleId) {
+  const now = new Date().toISOString();
+  return {
+    schemaVersion: "shared-records-v1",
+    scheduleId,
+    createdAt: now,
+    updatedAt: now,
+    scheduleSnapshot: null,
+    migration: {
+      migratedFromJobProgress: false,
+      migratedAt: ""
+    },
+    inspectionRecords: {},
+    criticalSopRecords: {},
+    systemCheckRecords: {},
+    itemClaims: {},
+    signOff: null
+  };
+}
+
+function readSavedSchedules() {
+  const schedulePath = join(dataRoot, "schedules", "service-schedules.json");
+  const payload = readJsonFile(schedulePath, { schedules: [] });
+  return Array.isArray(payload.schedules) ? payload.schedules : [];
+}
+
+function findSavedSchedule(scheduleId) {
+  return readSavedSchedules().find((schedule) => schedule.scheduleId === scheduleId) || null;
+}
+
+function readSharedJobStore(scheduleId) {
+  const store = readJsonFile(getSharedJobPath(scheduleId), null) || createEmptySharedJobStore(scheduleId);
+  store.schemaVersion = store.schemaVersion || "shared-records-v1";
+  store.scheduleId = store.scheduleId || scheduleId;
+  store.inspectionRecords = store.inspectionRecords || {};
+  store.criticalSopRecords = store.criticalSopRecords || {};
+  store.systemCheckRecords = store.systemCheckRecords || {};
+  store.itemClaims = store.itemClaims || {};
+  store.migration = store.migration || { migratedFromJobProgress: false, migratedAt: "" };
+  return store;
+}
+
+function writeSharedJobStore(store) {
+  store.updatedAt = new Date().toISOString();
+  atomicWriteJson(getSharedJobPath(store.scheduleId), store);
+}
+
+function normalizeScheduleSnapshot(schedule = null) {
+  if (!schedule || typeof schedule !== "object") return null;
+  const { jobProgress, photoProof, ...snapshot } = schedule;
+  return {
+    ...snapshot,
+    plannedDeviceIds: Array.isArray(schedule.plannedDeviceIds) ? schedule.plannedDeviceIds : [],
+    plannedFloorCounts: Array.isArray(schedule.plannedFloorCounts) ? schedule.plannedFloorCounts : [],
+    deviceCount: Number(schedule.deviceCount || schedule.plannedDeviceIds?.length || 0),
+    activeCount: Number(schedule.activeCount || 0),
+    passiveCount: Number(schedule.passiveCount || 0)
+  };
+}
+
+function migrateLegacyProgressToSharedStore(store, schedule = null) {
+  const legacy = schedule?.jobProgress || null;
+  const hasRecords = Object.keys(store.inspectionRecords || {}).length
+    || Object.keys(store.criticalSopRecords || {}).length
+    || Object.keys(store.systemCheckRecords || {}).length;
+  if (!legacy || typeof legacy !== "object" || !Object.keys(legacy).length || hasRecords || store.migration?.migratedFromJobProgress) return store;
+
+  const now = new Date().toISOString();
+  const jobId = legacy.activeJob?.jobId || schedule?.jobId || `JOB-${store.scheduleId}`;
+  Object.entries(legacy.inspections || {}).forEach(([deviceId, inspection]) => {
+    const recordId = getInspectionRecordId(store.scheduleId, deviceId);
+    store.inspectionRecords[recordId] = {
+      recordId,
+      jobId,
+      scheduleId: store.scheduleId,
+      deviceId,
+      checklistItemId: deviceId,
+      technicianId: inspection.inspectedBy || legacy.updatedBy || "legacy",
+      technicianName: inspection.inspectedBy || legacy.updatedBy || "Legacy Import",
+      status: inspection.status || "pending",
+      answers: inspection.answers || [],
+      notes: inspection.notes || "",
+      action: inspection.action || "",
+      evidenceRefs: [],
+      source: "legacy-jobProgress",
+      originalSnapshot: inspection,
+      revision: 1,
+      createdAt: inspection.inspectedAt || legacy.updatedAt || now,
+      updatedAt: inspection.inspectedAt || legacy.updatedAt || now
+    };
+  });
+
+  Object.entries(legacy.criticalSops || {}).forEach(([key, sop]) => {
+    const deviceId = sop.deviceTag || key.split("::").pop() || sop.templateId || "critical";
+    const templateId = sop.templateId || key.split("::")[0] || "critical-sop";
+    const recordId = getCriticalSopRecordId(store.scheduleId, templateId, deviceId);
+    store.criticalSopRecords[recordId] = {
+      ...sop,
+      recordId,
+      jobId,
+      scheduleId: store.scheduleId,
+      parentDeviceId: deviceId,
+      deviceId,
+      technicianId: sop.filledBy || sop.savedBy || legacy.updatedBy || "legacy",
+      technicianName: sop.filledBy || sop.savedBy || legacy.updatedBy || "Legacy Import",
+      status: sop.workflowStatus === "complete" ? "pass" : "partial",
+      source: "legacy-jobProgress",
+      revision: 1,
+      createdAt: sop.savedAt || legacy.updatedAt || now,
+      updatedAt: sop.savedAt || legacy.updatedAt || now
+    };
+  });
+
+  Object.entries(legacy.systemChecks || {}).forEach(([templateId, check]) => {
+    const recordId = `system-check::${store.scheduleId}::${templateId}`;
+    store.systemCheckRecords[recordId] = {
+      ...check,
+      recordId,
+      jobId,
+      scheduleId: store.scheduleId,
+      templateId,
+      technicianId: check.savedBy || legacy.updatedBy || "legacy",
+      technicianName: check.savedBy || legacy.updatedBy || "Legacy Import",
+      revision: 1,
+      createdAt: check.savedAt || legacy.updatedAt || now,
+      updatedAt: check.savedAt || legacy.updatedAt || now
+    };
+  });
+
+  store.migration = {
+    migratedFromJobProgress: true,
+    migratedAt: now,
+    legacyUpdatedAt: legacy.updatedAt || ""
+  };
+  return store;
+}
+
+function getOrCreateSharedJobStore(scheduleId, schedule = null) {
+  const store = readSharedJobStore(scheduleId);
+  const scheduleSnapshot = normalizeScheduleSnapshot(schedule) || normalizeScheduleSnapshot(findSavedSchedule(scheduleId));
+  if (scheduleSnapshot) {
+    store.scheduleSnapshot = {
+      ...(store.scheduleSnapshot || {}),
+      ...scheduleSnapshot
+    };
+  }
+  migrateLegacyProgressToSharedStore(store, schedule || findSavedSchedule(scheduleId));
+  return store;
+}
+
+function normalizeSharedInspectionRecord(scheduleId, incoming = {}) {
+  const deviceId = incoming.deviceId || incoming.checklistItemId || incoming.itemId || "";
+  return {
+    ...incoming,
+    recordId: incoming.recordId || getInspectionRecordId(scheduleId, deviceId),
+    scheduleId,
+    deviceId,
+    checklistItemId: incoming.checklistItemId || deviceId,
+    status: incoming.status || "pending",
+    evidenceRefs: Array.isArray(incoming.evidenceRefs) ? incoming.evidenceRefs : []
+  };
+}
+
+function normalizeSharedCriticalSopRecord(scheduleId, incoming = {}) {
+  const templateId = incoming.templateId || "critical-sop";
+  const deviceId = incoming.parentDeviceId || incoming.deviceId || incoming.deviceTag || templateId;
+  return {
+    ...incoming,
+    recordId: incoming.recordId || getCriticalSopRecordId(scheduleId, templateId, deviceId),
+    scheduleId,
+    templateId,
+    parentDeviceId: incoming.parentDeviceId || deviceId,
+    deviceId,
+    status: incoming.status || (incoming.workflowStatus === "complete" ? "pass" : "partial"),
+    evidenceRefs: Array.isArray(incoming.evidenceRefs) ? incoming.evidenceRefs : []
+  };
+}
+
+function saveRevisionedRecord(store, collectionName, incomingRecord, expectedRevision) {
+  const collection = store[collectionName] || {};
+  const current = collection[incomingRecord.recordId] || null;
+  const currentRevision = Number(current?.revision || 0);
+  const expected = Number(expectedRevision ?? incomingRecord.expectedRevision ?? 0);
+  const now = new Date().toISOString();
+  const candidate = {
+    ...(current || {}),
+    ...incomingRecord,
+    expectedRevision: undefined,
+    revision: currentRevision + 1,
+    createdAt: current?.createdAt || incomingRecord.createdAt || now,
+    updatedAt: now,
+    serverReceivedAt: now
+  };
+
+  if (expected !== currentRevision) {
+    if (current && equivalentRecordPayload(current, candidate)) {
+      return {
+        ok: true,
+        idempotent: true,
+        record: current,
+        currentRevision
+      };
+    }
+    return {
+      ok: false,
+      conflict: true,
+      current,
+      expectedRevision: expected,
+      currentRevision
+    };
+  }
+
+  collection[incomingRecord.recordId] = candidate;
+  store[collectionName] = collection;
+  return {
+    ok: true,
+    record: candidate,
+    currentRevision: candidate.revision
+  };
+}
+
+function getSharedInspectionByDevice(store, deviceId) {
+  return Object.values(store.inspectionRecords || {}).find((record) => record.deviceId === deviceId || record.checklistItemId === deviceId) || null;
+}
+
+function getSharedCriticalSopByDevice(store, deviceId) {
+  return Object.values(store.criticalSopRecords || {}).find((record) => {
+    return record.parentDeviceId === deviceId || record.deviceId === deviceId || record.deviceTag === deviceId;
+  }) || null;
+}
+
+function calculateSharedProgress(store, schedule = null) {
+  const scheduleSnapshot = normalizeScheduleSnapshot(schedule) || store.scheduleSnapshot || {};
+  const plannedDeviceIds = Array.isArray(scheduleSnapshot.plannedDeviceIds) ? scheduleSnapshot.plannedDeviceIds : [];
+  const summary = {
+    total: plannedDeviceIds.length,
+    done: 0,
+    pass: 0,
+    fail: 0,
+    partial: 0,
+    pending: 0,
+    blocked: 0,
+    ready: false,
+    updatedAt: store.updatedAt || ""
+  };
+
+  plannedDeviceIds.forEach((deviceId) => {
+    const sopRecord = getSharedCriticalSopByDevice(store, deviceId);
+    const inspectionRecord = getSharedInspectionByDevice(store, deviceId);
+    const status = String(sopRecord?.status || inspectionRecord?.status || "pending").toLowerCase();
+    if (status === "pass" || status === "done" || status === "completed") {
+      summary.pass += 1;
+      summary.done += 1;
+    } else if (status === "fail" || status === "fault") {
+      summary.fail += 1;
+      summary.done += 1;
+    } else if (status === "locked" || status === "blocked") {
+      summary.blocked += 1;
+    } else if (status === "partial" || status === "started" || status === "in-progress") {
+      summary.partial += 1;
+    } else {
+      summary.pending += 1;
+    }
+  });
+
+  summary.ready = summary.total > 0
+    && summary.done === summary.total
+    && summary.pending === 0
+    && summary.partial === 0
+    && summary.blocked === 0;
+  return summary;
 }
 
 function dataUrlToFile(dataUrl, fallbackExt = "png") {
@@ -302,6 +625,190 @@ function inspectionRunToCsv(run = {}) {
 
 const server = http.createServer(async (req, res) => {
   const urlPath = decodeURIComponent(new URL(req.url || "/", `http://127.0.0.1:${port}`).pathname);
+  const jobRoute = urlPath.match(/^\/api\/jobs\/([^/]+)\/([^/]+)$/);
+
+  if (jobRoute) {
+    const scheduleId = decodeURIComponent(jobRoute[1]);
+    const action = jobRoute[2];
+    try {
+      if (req.method === "GET" && (action === "state" || action === "progress")) {
+        const store = getOrCreateSharedJobStore(scheduleId);
+        writeSharedJobStore(store);
+        const progress = calculateSharedProgress(store);
+        sendJson(res, 200, { ok: true, scheduleId, store, progress });
+        return;
+      }
+
+      if (req.method === "POST" && action === "migrate") {
+        const payload = await readRequestJson(req);
+        const schedule = payload.schedule || {};
+        if (payload.legacyJobProgress && !schedule.jobProgress) {
+          schedule.jobProgress = payload.legacyJobProgress;
+        }
+        const store = getOrCreateSharedJobStore(scheduleId, schedule);
+        writeSharedJobStore(store);
+        sendJson(res, 200, {
+          ok: true,
+          scheduleId,
+          migrated: Boolean(store.migration?.migratedFromJobProgress),
+          store,
+          progress: calculateSharedProgress(store, schedule)
+        });
+        return;
+      }
+
+      if (req.method === "POST" && action === "inspection-records") {
+        const payload = await readRequestJson(req);
+        const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
+        const record = normalizeSharedInspectionRecord(scheduleId, payload.record || payload);
+        const result = saveRevisionedRecord(store, "inspectionRecords", record, payload.expectedRevision);
+        if (!result.ok) {
+          sendJson(res, 409, {
+            ok: false,
+            conflict: true,
+            type: "inspection",
+            scheduleId,
+            recordId: record.recordId,
+            expectedRevision: result.expectedRevision,
+            currentRevision: result.currentRevision,
+            current: result.current
+          });
+          return;
+        }
+        writeSharedJobStore(store);
+        sendJson(res, 200, {
+          ok: true,
+          scheduleId,
+          record: result.record,
+          idempotent: Boolean(result.idempotent),
+          progress: calculateSharedProgress(store, payload.schedule || null)
+        });
+        return;
+      }
+
+      if (req.method === "POST" && action === "critical-sop-records") {
+        const payload = await readRequestJson(req);
+        const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
+        const record = normalizeSharedCriticalSopRecord(scheduleId, payload.record || payload);
+        const result = saveRevisionedRecord(store, "criticalSopRecords", record, payload.expectedRevision);
+        if (!result.ok) {
+          sendJson(res, 409, {
+            ok: false,
+            conflict: true,
+            type: "critical-sop",
+            scheduleId,
+            recordId: record.recordId,
+            expectedRevision: result.expectedRevision,
+            currentRevision: result.currentRevision,
+            current: result.current
+          });
+          return;
+        }
+        writeSharedJobStore(store);
+        sendJson(res, 200, {
+          ok: true,
+          scheduleId,
+          record: result.record,
+          idempotent: Boolean(result.idempotent),
+          progress: calculateSharedProgress(store, payload.schedule || null)
+        });
+        return;
+      }
+
+      if (req.method === "POST" && action === "item-claims") {
+        const payload = await readRequestJson(req);
+        const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
+        const itemId = payload.itemId || payload.deviceId || payload.record?.itemId || "";
+        const recordId = getItemClaimId(scheduleId, itemId);
+        const current = store.itemClaims[recordId] || {};
+        const now = new Date().toISOString();
+        const incomingClaimedBy = payload.claimedBy || payload.record?.claimedBy || "";
+        const currentExpiresAt = current.expiresAt ? Date.parse(current.expiresAt) : 0;
+        const currentStillActive = current.status === "active"
+          && current.claimedBy
+          && current.claimedBy !== incomingClaimedBy
+          && (!currentExpiresAt || currentExpiresAt > Date.now());
+        if (currentStillActive) {
+          sendJson(res, 200, {
+            ok: true,
+            warning: true,
+            scheduleId,
+            claim: current,
+            activeClaim: current,
+            progress: calculateSharedProgress(store, payload.schedule || null)
+          });
+          return;
+        }
+        const claim = {
+          ...current,
+          ...(payload.record || {}),
+          recordId,
+          scheduleId,
+          itemId,
+          deviceId: payload.deviceId || payload.record?.deviceId || itemId,
+          claimedBy: incomingClaimedBy,
+          claimedByName: payload.claimedByName || payload.record?.claimedByName || "",
+          claimedAt: current.claimedAt || now,
+          lastSeenAt: now,
+          expiresAt: payload.expiresAt || payload.record?.expiresAt || "",
+          status: payload.status || payload.record?.status || "active",
+          revision: Number(current.revision || 0) + 1
+        };
+        store.itemClaims[recordId] = claim;
+        writeSharedJobStore(store);
+        sendJson(res, 200, { ok: true, scheduleId, claim, progress: calculateSharedProgress(store, payload.schedule || null) });
+        return;
+      }
+
+      if (req.method === "POST" && action === "signoff") {
+        const payload = await readRequestJson(req);
+        const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
+        const progress = calculateSharedProgress(store, payload.schedule || null);
+        if (!progress.ready) {
+          sendJson(res, 409, {
+            ok: false,
+            blocked: true,
+            reason: "Shared job progress is incomplete. Sign-off rejected by server.",
+            progress
+          });
+          return;
+        }
+        const currentRevision = Number(store.signOff?.revision || 0);
+        const expectedRevision = Number(payload.expectedRevision ?? payload.signOff?.expectedRevision ?? 0);
+        if (expectedRevision !== currentRevision) {
+          sendJson(res, 409, {
+            ok: false,
+            conflict: true,
+            type: "signoff",
+            expectedRevision,
+            currentRevision,
+            current: store.signOff
+          });
+          return;
+        }
+        const now = new Date().toISOString();
+        store.signOff = {
+          ...(payload.signOff || {}),
+          recordId: `signoff::${scheduleId}`,
+          scheduleId,
+          revision: currentRevision + 1,
+          signedAt: payload.signOff?.signedAt || now,
+          updatedAt: now,
+          serverReceivedAt: now,
+          progress
+        };
+        store.status = "Completed";
+        store.completedAt = store.signOff.signedAt;
+        store.completedBy = store.signOff.signedBy || store.signOff.technicianName || "";
+        writeSharedJobStore(store);
+        sendJson(res, 200, { ok: true, scheduleId, signOff: store.signOff, progress });
+        return;
+      }
+    } catch (error) {
+      sendJson(res, 500, { ok: false, error: error.message });
+      return;
+    }
+  }
 
   if (req.method === "POST" && urlPath === "/api/save-mimic-floor") {
     try {
