@@ -192,7 +192,12 @@ async function startTechSchedule(page, scheduleId = "") {
 async function showTechMimicFloor(page, floorId, scheduleId = "") {
   await page.evaluate(({ floorId, scheduleId }) => {
     const targetScheduleId = scheduleId || state.activeJob?.scheduleId || state.schedules?.[0]?.scheduleId || "";
-    if (targetScheduleId) showTechnicianScheduleOnMap(targetScheduleId, { scrollToMap: false });
+    if (targetScheduleId) {
+      return showTechnicianScheduleOnMap(targetScheduleId, { scrollToMap: false }).then(() => {
+        setTechScreen("mimic");
+        focusTechnicianFloor(floorId);
+      });
+    }
     setTechScreen("mimic");
     focusTechnicianFloor(floorId);
   }, { floorId, scheduleId });
@@ -511,11 +516,11 @@ async function runTest(name, callback) {
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10, schedules: [generalMaintenance] });
     await login(page, "tech");
     await showTechMimicFloor(page, "wetex-floor-05", "GENERAL-MAINT-QA");
-    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("rmtSchedules") || "[]")[0]);
+    const activeSchedule = await page.evaluate(() => state.schedules[0]);
     const allMarkers = await page.locator(".marker.setup-marker").count();
     const assignedMarkers = await page.locator(".marker.setup-marker.assigned-scope").count();
-    assert(stored.scope === "full-maintenance", `Expected general maintenance schedule to upgrade to full-maintenance, got ${stored.scope}.`);
-    assert(stored.plannedDeviceIds.length === 12, `Expected upgraded schedule to have 12 planned devices, got ${stored.plannedDeviceIds.length}.`);
+    assert(activeSchedule.scope === "full-maintenance", `Expected general maintenance schedule to upgrade to full-maintenance, got ${activeSchedule.scope}.`);
+    assert(activeSchedule.plannedDeviceIds.length === 12, `Expected upgraded schedule to have 12 planned devices, got ${activeSchedule.plannedDeviceIds.length}.`);
     assert(allMarkers === 1 && assignedMarkers === 1, `Expected 1 assigned mimic pin from upgraded schedule, got ${assignedMarkers}/${allMarkers}.`);
     assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);
     await context.close();
@@ -526,12 +531,12 @@ async function runTest(name, callback) {
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10, schedules: [staleSchedule] });
     await login(page, "tech");
     await showTechMimicFloor(page, "wetex-floor-05", "STALE-WETEX-QA");
-    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("rmtSchedules") || "[]")[0]);
+    const activeSchedule = await page.evaluate(() => state.schedules[0]);
     const allMarkers = await page.locator(".marker.setup-marker").count();
     const assignedMarkers = await page.locator(".marker.setup-marker.assigned-scope").count();
-    assert(stored.scopeSelectionMode === "site-wide", "Stale schedule did not stay site-wide after rebuild.");
-    assert(stored.plannedDeviceIds.length === 12, `Expected stale WETEX schedule to rebuild to 12 planned devices, got ${stored.plannedDeviceIds.length}.`);
-    assert(!stored.plannedDeviceIds.includes("LV1-HR-1"), "Stale legacy demo ID was kept in WETEX planned devices.");
+    assert(activeSchedule.scopeSelectionMode === "site-wide", "Stale schedule did not stay site-wide after rebuild.");
+    assert(activeSchedule.plannedDeviceIds.length === 12, `Expected stale WETEX schedule to rebuild to 12 planned devices, got ${activeSchedule.plannedDeviceIds.length}.`);
+    assert(!activeSchedule.plannedDeviceIds.includes("LV1-HR-1"), "Stale legacy demo ID was kept in WETEX planned devices.");
     assert(allMarkers === 1 && assignedMarkers === 1, `Expected rebuilt assigned WETEX pin on Floor 05, got ${assignedMarkers}/${allMarkers}.`);
     assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);
     await context.close();

@@ -770,36 +770,37 @@ const state = {
   draggingSetupTag: null,
   draggingDeviceId: null,
   dragMoved: false,
-  inspections: readStoredJson("tmFireInspections", {}),
-  systemChecks: readStoredJson("rmtSystemChecks", {}),
+  inspections: {},
+  systemChecks: {},
   activeSystemCheckId: "uob-fire-alarm-system",
-  criticalSops: readStoredJson("rmtCriticalSops", {}),
+  criticalSops: {},
   activeCriticalSopId: "gas-discharge-sop",
   activeCriticalDevice: null,
-  history: readStoredJson("tmFireHistory", null) || seededHistory,
-  requests: readStoredJson("tmFireRequests", []),
-  scopeHistory: readStoredJson("tmFireScopeHistory", {}),
-  scopeCycle: readStoredJson("rmtScopeCycle", {}),
-  setupDevices: readStoredJson("tmFireSetupDevices", []),
-  devicePins: readStoredJson("tmFireDevicePins", {}),
-  pinHistory: readStoredJson("tmFirePinHistory", []),
-  mimicFloors: readStoredJson("rmtMimicFloors", []),
-  schedules: readStoredJson("rmtSchedules", []),
-  sharedJobRecords: readStoredJson("rmtSharedJobRecords", {}),
+  history: seededHistory,
+  requests: [],
+  scopeHistory: {},
+  scopeCycle: {},
+  setupDevices: [],
+  devicePins: {},
+  pinHistory: [],
+  mimicFloors: [],
+  schedules: [],
+  sharedJobRecords: {},
   sharedSaveQueues: {},
   sharedSyncUnavailable: false,
   serverDiagnostics: null,
   scheduleStartInProgressId: null,
-  contractRules: readStoredJson("rmtContractRules", {}),
-  criticalDependencyConfig: readStoredJson("rmtCriticalDependencyConfig", {}),
+  contractRules: {},
+  criticalDependencyConfig: {},
   calendarMonth: readStoredJson("rmtCalendarMonth", null) || new Date().toISOString().slice(0, 7),
   editingScheduleId: null,
   currentUser: readStoredJson("rmtCurrentUser", null),
   activeJob: readStoredJson("rmtActiveJob", null),
-  jobHistory: readStoredJson("rmtJobHistory", []),
+  jobHistory: [],
   techScreen: "jobs",
-  activeTechPreviewScheduleId: null,
-  activeTechSystemKey: "",
+  activeTechPreviewScheduleId: localStorage.getItem("rmtActiveTechPreviewScheduleId") || null,
+  activeTechSystemKey: localStorage.getItem("rmtActiveTechSystemKey") || "",
+  activeTechFloorId: localStorage.getItem("rmtActiveTechFloorId") || "",
   staffRun: null,
   mimicViewMode: localStorage.getItem("rmtMimicViewMode") === "original" ? "original" : "clean",
   libraryFloors: [],
@@ -814,8 +815,155 @@ const state = {
 state.activeTechExtPhotoProof = null;
 state.techSignOffSignatureData = "";
 
-normalizeSetupDevices();
-migrateConfiguredTagStarts();
+const browserDataState = {
+  planningLoaded: false,
+  runLoaded: false,
+  fieldLoaded: false,
+  adminHistoryLoaded: false,
+  savedSchedulesLoaded: false,
+  mimicLibraryLoaded: false,
+  deviceMastersLoaded: false,
+  staffTrackingLoaded: false,
+  loadedDeviceMasterProfiles: new Set()
+};
+
+function invalidateRuntimeCaches() {
+  state.runtimeCaches = null;
+}
+
+function getRuntimeCaches() {
+  if (!state.runtimeCaches) {
+    state.runtimeCaches = {
+      scopeEnsured: new Map(),
+      assignedIdSets: new Map(),
+      scheduledDevices: new Map(),
+      fireSystemGroups: new Map(),
+      completionSummaries: new Map(),
+      workflowPrepared: new Map(),
+      workflowStates: new Map(),
+      criticalAccess: new Map(),
+      sharedRecordVersions: new Map(),
+      activeMaintenanceSchedule: null,
+      techMarkerScopeSchedule: null
+    };
+  }
+  return state.runtimeCaches;
+}
+
+function getScheduleVersionKey(schedule) {
+  return [
+    getScheduleKey(schedule),
+    schedule?.scope || "",
+    schedule?.scopeSelectionMode || "",
+    schedule?.contractFrequencyPercent || "",
+    schedule?.plannedDeviceIds?.join("|") || "",
+    state.setupDevices.length,
+    state.libraryFloors.length
+  ].join("::");
+}
+
+function getSharedRecordVersionKey(scheduleOrId = null) {
+  const scheduleId = getScheduleKey(scheduleOrId);
+  if (!scheduleId) return "no-schedule";
+  const cache = getRuntimeCaches();
+  if (cache.sharedRecordVersions.has(scheduleId)) {
+    return cache.sharedRecordVersions.get(scheduleId);
+  }
+  const store = getSharedStore(scheduleId);
+  const progress = getSharedProgress(scheduleId) || {};
+  const inspectionRecords = Object.values(store?.inspectionRecords || {});
+  const criticalRecords = Object.values(store?.criticalSopRecords || {});
+  const revisionTotal = [...inspectionRecords, ...criticalRecords]
+    .reduce((total, record) => total + Number(record?.revision || 0), 0);
+  const version = [
+    progress.updatedAt || "",
+    progress.total || "",
+    progress.done || "",
+    progress.pending || "",
+    progress.partial || "",
+    progress.blocked || "",
+    inspectionRecords.length,
+    criticalRecords.length,
+    revisionTotal
+  ].join(":");
+  cache.sharedRecordVersions.set(scheduleId, version);
+  return version;
+}
+
+function persistTechnicianActiveContext(scheduleId = state.activeTechPreviewScheduleId || "", systemKey = state.activeTechSystemKey || "", floorId = state.activeTechFloorId || floorSelect?.value || "") {
+  state.activeTechPreviewScheduleId = scheduleId || null;
+  state.activeTechSystemKey = systemKey || "";
+  state.activeTechFloorId = floorId || "";
+  if (scheduleId) {
+    localStorage.setItem("rmtActiveTechPreviewScheduleId", scheduleId);
+  } else {
+    localStorage.removeItem("rmtActiveTechPreviewScheduleId");
+  }
+  if (systemKey) {
+    localStorage.setItem("rmtActiveTechSystemKey", systemKey);
+  } else {
+    localStorage.removeItem("rmtActiveTechSystemKey");
+  }
+  if (floorId) {
+    localStorage.setItem("rmtActiveTechFloorId", floorId);
+  } else {
+    localStorage.removeItem("rmtActiveTechFloorId");
+  }
+  if (state.activeJob && scheduleId && state.activeJob.scheduleId === scheduleId) {
+    state.activeJob.activeTechSystemKey = systemKey || "";
+    state.activeJob.activeFloorId = floorId || "";
+    persistActiveJob();
+  }
+}
+
+function setTechnicianMapFloor(floorId, profile = null) {
+  const targetProfile = profile || state.siteProfile;
+  const targetFloorId = floorExists(floorId)
+    ? floorId
+    : getFirstFloorIdForProfile(targetProfile) || floorSelect.value || "lv1";
+  renderFloorOptions(targetFloorId, targetProfile, { renderSchedule: false });
+  state.activeTechFloorId = floorSelect.value;
+  return floorSelect.value;
+}
+
+function loadStoredPlanningState() {
+  if (browserDataState.planningLoaded) return;
+  state.requests = readStoredJson("tmFireRequests", []);
+  state.scopeHistory = readStoredJson("tmFireScopeHistory", {});
+  state.scopeCycle = readStoredJson("rmtScopeCycle", {});
+  state.schedules = readStoredJson("rmtSchedules", []);
+  state.contractRules = readStoredJson("rmtContractRules", {});
+  state.criticalDependencyConfig = readStoredJson("rmtCriticalDependencyConfig", {});
+  state.calendarMonth = readStoredJson("rmtCalendarMonth", null) || state.calendarMonth;
+  browserDataState.planningLoaded = true;
+}
+
+function loadStoredRunState() {
+  if (browserDataState.runLoaded) return;
+  state.inspections = readStoredJson("tmFireInspections", {});
+  state.systemChecks = readStoredJson("rmtSystemChecks", {});
+  state.criticalSops = readStoredJson("rmtCriticalSops", {});
+  browserDataState.runLoaded = true;
+}
+
+function loadStoredFieldState() {
+  if (browserDataState.fieldLoaded) return;
+  state.setupDevices = readStoredJson("tmFireSetupDevices", []);
+  state.devicePins = readStoredJson("tmFireDevicePins", {});
+  state.pinHistory = readStoredJson("tmFirePinHistory", []);
+  state.mimicFloors = readStoredJson("rmtMimicFloors", []);
+  normalizeSetupDevices();
+  migrateConfiguredTagStarts();
+  invalidateRuntimeCaches();
+  browserDataState.fieldLoaded = true;
+}
+
+function loadStoredAdminHistoryState() {
+  if (browserDataState.adminHistoryLoaded) return;
+  state.history = readStoredJson("tmFireHistory", null) || seededHistory;
+  state.jobHistory = readStoredJson("rmtJobHistory", []);
+  browserDataState.adminHistoryLoaded = true;
+}
 
 const loginView = document.querySelector("#loginView");
 const workspace = document.querySelector("#workspace");
@@ -951,20 +1099,7 @@ const calendarDragTime = document.querySelector("#calendarDragTime");
 
 let diagnosticsTimerId = null;
 
-applyCompanyBranding();
-renderFloorOptions();
-setDefaultScheduleDate();
-loadSavedSchedules();
-syncScheduleClientMode();
-renderSchedulePanel();
-renderJobPanel();
-loadMimicLibrary();
-loadSavedDeviceMasters();
-loadStaffTrackingDemo();
-bindTechNavigationControls();
-startDiagnosticsHeartbeat();
-
-loginForm.addEventListener("submit", (event) => {
+loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const user = authenticateDemoUser(loginEmail.value, loginPassword.value);
   if (!user) {
@@ -972,7 +1107,8 @@ loginForm.addEventListener("submit", (event) => {
     loginStatus.classList.add("login-error");
     return;
   }
-  startUserSession(user);
+  loginStatus.textContent = "Opening your assigned jobs...";
+  await startUserSession(user);
 });
 
 document.querySelectorAll("[data-demo-login]").forEach((button) => {
@@ -988,12 +1124,37 @@ document.querySelectorAll("[data-demo-login]").forEach((button) => {
 
 logoutBtn.addEventListener("click", () => {
   state.currentUser = null;
+  state.activeTechSystemKey = "";
+  state.activeTechPreviewScheduleId = null;
+  state.activeTechFloorId = "";
   writeStoredJson("rmtCurrentUser", null);
+  localStorage.removeItem("rmtActiveTechSystemKey");
+  localStorage.removeItem("rmtActiveTechPreviewScheduleId");
+  localStorage.removeItem("rmtActiveTechFloorId");
   workspace.classList.add("hidden");
   loginView.classList.remove("hidden");
   loginStatus.textContent = "Logged out. Choose Admin or Technician demo account.";
   loginStatus.classList.remove("login-error");
 });
+
+function initializeAppShell() {
+  applyCompanyBranding();
+  setDefaultScheduleDate();
+  bindTechNavigationControls();
+  if (state.currentUser?.email && state.currentUser?.role) {
+    loginStatus.textContent = "Restoring saved session...";
+    startUserSession(state.currentUser, { restore: true }).catch((error) => {
+      console.warn("Unable to restore saved session", error);
+      loginView.classList.remove("hidden");
+      workspace.classList.add("hidden");
+      loginStatus.textContent = "Saved session could not be restored. Please login again.";
+      loginStatus.classList.add("login-error");
+    });
+    return;
+  }
+  loginView.classList.remove("hidden");
+  workspace.classList.add("hidden");
+}
 
 function authenticateDemoUser(email, password) {
   const normalizedEmail = String(email || "").trim().toLowerCase();
@@ -1002,38 +1163,90 @@ function authenticateDemoUser(email, password) {
   return demoAccounts.find((account) => account.email === normalizedEmail) || null;
 }
 
-function startUserSession(user) {
+async function startUserSession(user, options = {}) {
   state.currentUser = {
     name: user.name,
     role: user.role,
     email: user.email,
-    loggedInAt: new Date().toISOString()
+    loggedInAt: options.restore ? user.loggedInAt || new Date().toISOString() : new Date().toISOString()
   };
   writeStoredJson("rmtCurrentUser", state.currentUser);
   loginView.classList.add("hidden");
   workspace.classList.remove("hidden");
   applyRoleView();
   if (getCurrentUserRole() === "Technician") {
-    state.techScreen = "jobs";
-    setTechScreen("jobs");
-    const profile = getSelectedClientProfile();
-    renderFloorOptions(getFirstFloorIdForProfile(profile), profile);
+    await startTechnicianSession(options);
+  } else {
+    await startAdminSession();
   }
+  renderDiagnosticsPanel();
+}
+
+async function startTechnicianSession(options = {}) {
+  loadStoredPlanningState();
+  await loadSavedSchedules({ render: false, refreshTech: false });
+  const activeSchedule = getActiveTechnicianMaintenanceSchedule();
+  if (activeSchedule) {
+    loadStoredRunState();
+    await restoreTechnicianActiveJobView(activeSchedule);
+    return;
+  }
+  state.techScreen = "jobs";
+  state.activeTechSystemKey = "";
+  state.activeTechPreviewScheduleId = null;
+  state.activeTechFloorId = "";
+  persistTechnicianActiveContext("", "", "");
+  renderTechWorkPanel();
+  setTechScreen("jobs");
+  document.querySelector("#syncState").textContent = options.restore
+    ? "Technician session restored. Open an assigned job."
+    : "Technician mode: open an assigned job.";
+}
+
+async function startAdminSession() {
+  loadStoredPlanningState();
+  loadStoredRunState();
+  loadStoredFieldState();
+  loadStoredAdminHistoryState();
+  renderFloorOptions();
+  syncScheduleClientMode();
+  renderSchedulePanel();
+  renderJobPanel();
+  await loadSavedSchedules({ render: true, refreshTech: false });
+  await loadMimicLibrary({ render: true });
+  await loadSavedDeviceMasters({ render: true });
+  await loadStaffTrackingDemo();
   renderMarkers();
   updateSummary();
   renderRequests();
   renderSetupDevices();
-  if (getCurrentUserRole() !== "Technician") {
-    generateServiceScope();
-    renderSystemChecklist();
-    renderCriticalSop();
-    renderStaffTracking();
-    renderSchedulePanel();
-    renderJobPanel();
-  } else {
-    refreshTechnicianAssignedPins({ scrollToMap: false });
-  }
-  renderDiagnosticsPanel();
+  generateServiceScope();
+  renderSystemChecklist();
+  renderCriticalSop();
+  renderStaffTracking();
+  startDiagnosticsHeartbeat();
+}
+
+async function restoreTechnicianActiveJobView(activeSchedule) {
+  loadStoredRunState();
+  await ensureTechnicianFieldDataLoaded(activeSchedule);
+  await requestSharedJobState(activeSchedule, { migrate: false, apply: true });
+  state.activeTechPreviewScheduleId = activeSchedule.scheduleId;
+  state.activeTechSystemKey = state.activeTechSystemKey || state.activeJob?.activeTechSystemKey || "";
+  const profile = { companyName: activeSchedule.companyName, siteName: activeSchedule.siteName };
+  const targetFloorId = state.activeTechFloorId
+    || state.activeJob?.activeFloorId
+    || getBestSchedulePreviewFloorId(activeSchedule, profile)
+    || activeSchedule.floorId
+    || activeSchedule.startFloorId;
+  setTechnicianMapFloor(targetFloorId, profile);
+  persistTechnicianActiveContext(activeSchedule.scheduleId, state.activeTechSystemKey, floorSelect.value);
+  renderTechWorkPanel();
+  renderMarkers();
+  setTechScreen(state.activeTechSystemKey ? "mimic" : "jobs", { renderMarkers: false });
+  document.querySelector("#syncState").textContent = state.activeTechSystemKey
+    ? "Technician session restored. Continue from the mimic."
+    : "Technician session restored. Choose a fire system.";
 }
 
 function applyRoleView() {
@@ -1142,7 +1355,7 @@ function setTechScreen(screen, options = {}) {
   if (state.techScreen === "complete") {
     renderTechAssignedItemList();
   }
-  if (state.techScreen === "mimic") {
+  if (state.techScreen === "mimic" && options.renderMarkers !== false) {
     renderMarkers();
   }
   renderDiagnosticsPanel();
@@ -1185,6 +1398,8 @@ function bindTechNavigationControls() {
   bindReliableTap(techViewFaultsBtn, () => setTechScreen("faults", { scroll: true }));
   bindReliableTap(techGoCompleteBtn, () => setTechScreen("complete", { scroll: true }));
 }
+
+initializeAppShell();
 
 function shouldUpdateDiagnosticsForCurrentUser() {
   return getCurrentUserRole() !== "Technician" || workspace?.classList.contains("show-tech-diagnostics");
@@ -1373,13 +1588,19 @@ function refreshSelectedFloorView({ autoOpenFirst = false } = {}) {
   workspace.classList.remove("critical-sop-active");
   checklistForm.classList.add("hidden");
   emptyState.classList.remove("hidden");
+  if (getCurrentUserRole() === "Technician") {
+    state.activeTechFloorId = floorSelect.value;
+    persistTechnicianActiveContext(state.activeTechPreviewScheduleId || state.activeJob?.scheduleId || "", state.activeTechSystemKey, floorSelect.value);
+    renderMarkers();
+    renderTechAssignedItemList();
+    renderLibraryPageTabs();
+    return;
+  }
   renderMarkers();
   updateSummary();
-  if (getCurrentUserRole() !== "Technician") {
-    generateServiceScope();
-    renderSystemChecklist();
-    renderCriticalSop();
-  }
+  generateServiceScope();
+  renderSystemChecklist();
+  renderCriticalSop();
   updateTagPaletteHint();
   renderLibraryPageTabs();
   renderJobPanel();
@@ -1431,30 +1652,40 @@ siteSelect.addEventListener("change", () => {
 originalMimicBtn.addEventListener("click", () => setMimicViewMode("original"));
 cleanMimicBtn.addEventListener("click", () => setMimicViewMode("clean"));
 
-function deviceStatus(id) {
-  const schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule();
+function deviceStatus(id, schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule()) {
   const sharedRecord = schedule ? getSharedInspectionRecord(id, schedule) : null;
   if (sharedRecord?.status) return sharedRecord.status;
   return state.inspections[id]?.status || "pending";
 }
 
-function getActiveTechAssignedDeviceIds() {
+function getActiveTechAssignedDeviceIds(schedule = getTechMarkerScopeSchedule()) {
   if (getCurrentUserRole() !== "Technician") return null;
-  const schedule = getTechMarkerScopeSchedule();
   const ids = schedule?.plannedDeviceIds;
   if (!Array.isArray(ids) || !ids.length) return new Set();
-  return new Set(ids);
+  const cache = getRuntimeCaches();
+  const key = `${getScheduleVersionKey(schedule)}::assigned-ids`;
+  if (!cache.assignedIdSets.has(key)) {
+    cache.assignedIdSets.set(key, new Set(ids));
+  }
+  return cache.assignedIdSets.get(key);
 }
 
 function getActiveTechnicianMaintenanceSchedule() {
   if (!hasActiveTechnicianMaintenanceJob()) return null;
   const scheduleId = state.activeJob.scheduleId || state.activeJob.schedule?.scheduleId || "";
+  const cache = getRuntimeCaches();
+  const cacheKey = `${scheduleId}::${state.activeJob?.status || ""}::${state.currentUser?.email || ""}::${state.schedules.length}`;
+  if (cache.activeMaintenanceSchedule?.key === cacheKey) {
+    return cache.activeMaintenanceSchedule.value;
+  }
   const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
   if (!schedule || schedule.status === "Completed" || !isScheduleAssignedToCurrentTechnician(schedule)) {
+    cache.activeMaintenanceSchedule = { key: cacheKey, value: null };
     return null;
   }
   ensureSchedulePlannedScope(schedule);
   state.activeJob.schedule = schedule;
+  cache.activeMaintenanceSchedule = { key: cacheKey, value: schedule };
   return schedule;
 }
 
@@ -1474,6 +1705,18 @@ function isActiveTechnicianJobResolvable() {
 
 function getTechMarkerScopeSchedule() {
   if (getCurrentUserRole() !== "Technician") return null;
+  const cache = getRuntimeCaches();
+  const cacheKey = [
+    state.activeTechPreviewScheduleId || "",
+    state.activeJob?.scheduleId || state.activeJob?.schedule?.scheduleId || "",
+    state.activeJob?.status || "",
+    state.currentUser?.email || "",
+    state.schedules.length,
+    state.schedules.map((schedule) => `${schedule.scheduleId}:${schedule.status}:${schedule.plannedDeviceIds?.length || 0}`).join("|")
+  ].join("::");
+  if (cache.techMarkerScopeSchedule?.key === cacheKey) {
+    return cache.techMarkerScopeSchedule.value;
+  }
   const jobs = getTechnicianMaintenanceSchedules(Infinity);
   const activeSchedule = getActiveTechnicianMaintenanceSchedule();
   const previewSchedule = jobs.find((schedule) => schedule.scheduleId === state.activeTechPreviewScheduleId)
@@ -1481,43 +1724,55 @@ function getTechMarkerScopeSchedule() {
     || activeSchedule
     || jobs[0];
   if (previewSchedule) ensureSchedulePlannedScope(previewSchedule);
+  cache.techMarkerScopeSchedule = { key: cacheKey, value: previewSchedule || null };
   return previewSchedule || null;
 }
 
+function getSchedulePlannedIdSet(schedule) {
+  const ids = schedule?.plannedDeviceIds;
+  if (!Array.isArray(ids) || !ids.length) return new Set();
+  const cache = getRuntimeCaches();
+  const key = `${getScheduleVersionKey(schedule)}::planned-id-set`;
+  if (!cache.assignedIdSets.has(key)) {
+    cache.assignedIdSets.set(key, new Set(ids));
+  }
+  return cache.assignedIdSets.get(key);
+}
+
 function isDeviceInScheduleScope(device, schedule) {
-  const ids = new Set(schedule?.plannedDeviceIds || []);
+  const ids = getSchedulePlannedIdSet(schedule);
   if (!ids.size) return false;
   return ids.has(device?.id || device?.tag);
 }
 
-function getTechScopeMarkerClass(device) {
-  const assignedIds = getActiveTechAssignedDeviceIds();
+function getTechScopeMarkerClass(device, schedule = getTechMarkerScopeSchedule(), assignedIds = getActiveTechAssignedDeviceIds(schedule)) {
   if (!assignedIds) return "";
   const tag = device.id || device.tag;
   if (!assignedIds.has(tag)) return "";
-  const schedule = getTechMarkerScopeSchedule();
   const access = getDeviceCriticalAccessState({ ...device, id: tag, tag }, schedule);
   const dependencyClass = access.allowed ? "" : "dependency-locked";
   return `${hasActiveTechnicianMaintenanceJob() ? "assigned-scope" : "assigned-scope preview-scope"} ${dependencyClass}`.trim();
 }
 
-function isDeviceAllowedForTechScope(device) {
-  const assignedIds = getActiveTechAssignedDeviceIds();
+function isDeviceAllowedForTechScope(device, assignedIds = getActiveTechAssignedDeviceIds()) {
   if (!assignedIds) return true;
   return assignedIds.has(device.id || device.tag);
 }
 
 function renderMarkers() {
   markersLayer.innerHTML = "";
-  renderSetupMapMarkers();
+  const techSchedule = getCurrentUserRole() === "Technician" ? getTechMarkerScopeSchedule() : null;
+  const assignedIds = techSchedule ? getActiveTechAssignedDeviceIds(techSchedule) : null;
+  if (techSchedule) ensureActiveJobCriticalWorkflows(techSchedule);
+  renderSetupMapMarkers(techSchedule, assignedIds);
   renderRequestMapMarkers();
   if (floorSelect.value !== "lv1") return;
 
   devices.forEach((device) => {
     const pin = state.devicePins[device.id] || {};
-    if (!isDeviceAllowedForTechScope(device) || !isDeviceVisibleForTechnicianSystem(device)) return;
+    if (!isDeviceAllowedForTechScope(device, assignedIds) || !isDeviceVisibleForTechnicianSystem(device, techSchedule)) return;
     const marker = document.createElement("button");
-    marker.className = `marker ${deviceStatus(device.id)} ${getDeviceTypeClass(device.type)} ${isCriticalSopDevice(device) ? "critical-marker" : ""} ${getTechScopeMarkerClass(device)}`;
+    marker.className = `marker ${deviceStatus(device.id, techSchedule)} ${getDeviceTypeClass(device.type)} ${isCriticalSopDevice(device) ? "critical-marker" : ""} ${getTechScopeMarkerClass(device, techSchedule, assignedIds)}`;
     marker.style.left = `${pin.xPercent ?? device.x}%`;
     marker.style.top = `${pin.yPercent ?? device.y}%`;
     marker.textContent = device.short;
@@ -1555,18 +1810,18 @@ function renderMarkers() {
   });
 }
 
-function renderSetupMapMarkers() {
+function renderSetupMapMarkers(techSchedule = getCurrentUserRole() === "Technician" ? getTechMarkerScopeSchedule() : null, assignedIds = techSchedule ? getActiveTechAssignedDeviceIds(techSchedule) : null) {
   const markerDevices = getCurrentFloorSetupDevices()
     .filter((device) => Number.isFinite(getSetupDeviceX(device)) && Number.isFinite(getSetupDeviceY(device)))
     .filter((device) => {
       const normalized = { ...device, id: device.tag, tag: device.tag };
-      return isDeviceAllowedForTechScope(normalized) && isDeviceVisibleForTechnicianSystem(normalized);
+      return isDeviceAllowedForTechScope(normalized, assignedIds) && isDeviceVisibleForTechnicianSystem(normalized, techSchedule);
     });
 
   getDisplaySetupMarkers(markerDevices)
     .forEach(({ device, xPercent, yPercent }) => {
       const marker = document.createElement("button");
-      marker.className = `marker setup-marker ${deviceStatus(device.tag)} ${getDeviceTypeClass(device.type)} ${isCriticalSopDevice(device) ? "critical-marker" : ""} ${getTechScopeMarkerClass(device)}`;
+      marker.className = `marker setup-marker ${deviceStatus(device.tag, techSchedule)} ${getDeviceTypeClass(device.type)} ${isCriticalSopDevice(device) ? "critical-marker" : ""} ${getTechScopeMarkerClass(device, techSchedule, assignedIds)}`;
       marker.style.left = `${xPercent}%`;
       marker.style.top = `${yPercent}%`;
       marker.textContent = getShortCode(device);
@@ -2098,6 +2353,18 @@ function addCriticalChildDependency(run, childDevice, rule) {
 
 function ensureActiveJobCriticalWorkflows(schedule = getActiveTechnicianMaintenanceSchedule()) {
   if (!state.activeJob || !schedule || state.activeJob.scheduleId !== schedule.scheduleId) return {};
+  const cache = getRuntimeCaches();
+  const scheduleId = getScheduleKey(schedule);
+  const cacheKey = [
+    getScheduleVersionKey(schedule),
+    getSharedRecordVersionKey(schedule),
+    state.activeJob?.jobId || "",
+    Object.keys(state.inspections || {}).length,
+    Object.keys(state.criticalSops || {}).length
+  ].join("::");
+  if (cache.workflowPrepared.get(scheduleId) === cacheKey) {
+    return state.activeJob.criticalWorkflowRuns || {};
+  }
   const assignedDevices = getScheduledAssignedDevices(schedule);
   const parentDevices = assignedDevices.filter((device) => isCriticalSopDevice(device));
   const runs = state.activeJob.criticalWorkflowRuns || {};
@@ -2134,6 +2401,7 @@ function ensureActiveJobCriticalWorkflows(schedule = getActiveTechnicianMaintena
     .filter((run) => run.scheduleId === schedule.scheduleId)
     .forEach((run) => updateCriticalWorkflowRunProgress(run, schedule));
 
+  cache.workflowPrepared.set(scheduleId, cacheKey);
   return runs;
 }
 
@@ -2152,6 +2420,22 @@ function getCriticalWorkflowRunForParentDevice(device, schedule = getActiveTechn
   ensureActiveJobCriticalWorkflows(schedule);
   return getCriticalWorkflowRunsForSchedule(schedule)
     .find((run) => run.parentDeviceId === deviceId || run.parentDeviceTag === deviceId) || null;
+}
+
+function getCachedCriticalWorkflowRunState(run, schedule = null) {
+  if (!run) return null;
+  const cache = getRuntimeCaches();
+  const cacheKey = [
+    run.workflowId || run.parentDeviceId || run.parentDeviceTag || "",
+    getScheduleKey(schedule) || run.scheduleId || "",
+    getSharedRecordVersionKey(schedule || run.scheduleId),
+    Object.keys(state.inspections || {}).length,
+    Object.keys(state.criticalSops || {}).length
+  ].join("::");
+  if (!cache.workflowStates.has(cacheKey)) {
+    cache.workflowStates.set(cacheKey, getCriticalWorkflowRunState(run, schedule));
+  }
+  return cache.workflowStates.get(cacheKey);
 }
 
 function getCriticalSopRecordForWorkflowRun(run, schedule = null) {
@@ -2304,7 +2588,7 @@ function getCriticalDependenciesForDevice(device, schedule = getActiveTechnician
     return dependencies.map((dependency) => ({
       ...dependency,
       run,
-      stage: getCriticalWorkflowRunState(run, schedule)
+      stage: getCachedCriticalWorkflowRunState(run, schedule)
     }));
   });
 }
@@ -2312,21 +2596,40 @@ function getCriticalDependenciesForDevice(device, schedule = getActiveTechnician
 function getDeviceCriticalAccessState(device, schedule = getActiveTechnicianMaintenanceSchedule()) {
   const deviceId = getDeviceSessionKey(device);
   if (!schedule || !deviceId) return { allowed: true, status: "open", dependencies: [] };
+  const cache = getRuntimeCaches();
+  const cacheKey = [
+    getScheduleVersionKey(schedule),
+    getSharedRecordVersionKey(schedule),
+    state.activeJob?.jobId || "",
+    deviceId,
+    Object.keys(state.inspections || {}).length,
+    Object.keys(state.criticalSops || {}).length
+  ].join("::");
+  if (cache.criticalAccess.has(cacheKey)) {
+    return cache.criticalAccess.get(cacheKey);
+  }
+  let result;
   if (isCriticalSopDevice(device)) {
     const workflow = getCriticalWorkflowRunForParentDevice(device, schedule);
-    return {
+    result = {
       allowed: true,
       status: "critical_parent",
       workflow,
       dependencies: []
     };
+    cache.criticalAccess.set(cacheKey, result);
+    return result;
   }
   const dependencies = getCriticalDependenciesForDevice(device, schedule);
-  if (!dependencies.length) return { allowed: true, status: "open", dependencies: [] };
+  if (!dependencies.length) {
+    result = { allowed: true, status: "open", dependencies: [] };
+    cache.criticalAccess.set(cacheKey, result);
+    return result;
+  }
 
   const failed = dependencies.find((dependency) => dependency.stage.prerequisiteFailed);
   if (failed) {
-    return {
+    result = {
       allowed: false,
       status: "blocked",
       dependencies,
@@ -2334,11 +2637,13 @@ function getDeviceCriticalAccessState(device, schedule = getActiveTechnicianMain
       parentDeviceTag: failed.run.parentDeviceTag,
       reason: `${failed.run.parentDeviceTag} ${failed.run.label} prerequisite has a failed/unsafe result. Correct it before opening ${deviceId}.`
     };
+    cache.criticalAccess.set(cacheKey, result);
+    return result;
   }
 
   const locked = dependencies.find((dependency) => !dependency.stage.prerequisiteComplete);
   if (locked) {
-    return {
+    result = {
       allowed: false,
       status: "locked",
       dependencies,
@@ -2346,14 +2651,18 @@ function getDeviceCriticalAccessState(device, schedule = getActiveTechnicianMain
       parentDeviceTag: locked.run.parentDeviceTag,
       reason: `${locked.run.parentDeviceTag} ${locked.run.label} prerequisite must be completed before opening ${deviceId}.`
     };
+    cache.criticalAccess.set(cacheKey, result);
+    return result;
   }
 
-  return {
+  result = {
     allowed: true,
     status: "open",
     dependencies,
     dependencyLabel: dependencies.map((dependency) => dependency.label).join(" + ")
   };
+  cache.criticalAccess.set(cacheKey, result);
+  return result;
 }
 
 function showCriticalDependencyBlocked(device, access) {
@@ -2539,6 +2848,7 @@ async function saveInspection(forcedStatus, options = {}) {
       unsynced: true,
       conflictAt: new Date().toISOString()
     };
+    invalidateRuntimeCaches();
     writeStoredJson("tmFireInspections", state.inspections);
     renderMarkers();
     renderTechAssignedItemList();
@@ -2552,6 +2862,7 @@ async function saveInspection(forcedStatus, options = {}) {
     state.inspections[device.id].syncStatus = "draft";
     state.inspections[device.id].unsynced = true;
   }
+  invalidateRuntimeCaches();
 
   const inspectionSaved = writeStoredJson("tmFireInspections", state.inspections);
   if (!inspectionSaved) {
@@ -2570,6 +2881,20 @@ async function saveInspection(forcedStatus, options = {}) {
   persistActiveJob();
   if (getCurrentUserRole() === "Technician") {
     state.focusedMapTag = device.id;
+    renderMarkers();
+    renderTechAssignedItemList();
+    renderTechFaultPanel();
+    if (options.openNextAssignedItem) {
+      const openedNext = await openNextAssignedItemAfter(device.id);
+      if (openedNext) return;
+    }
+    workspace.classList.remove("tech-fault-entry-active");
+    checklistForm.classList.add("hidden");
+    emptyState.classList.remove("hidden");
+    setTechScreen("mimic", { scroll: true, renderMarkers: false });
+    requestAnimationFrame(() => centerMapOnDeviceMarker(device.id));
+    document.querySelector("#syncState").textContent = `${device.id} ${status.toUpperCase()} saved. Back on mimic.`;
+    return;
   }
   renderMarkers();
   renderTechAssignedItemList();
@@ -2577,24 +2902,11 @@ async function saveInspection(forcedStatus, options = {}) {
   updateSummary();
   renderHistory(device.id);
   renderJobPanel();
-  if (options.openNextAssignedItem && getCurrentUserRole() === "Technician") {
-    const openedNext = await openNextAssignedItemAfter(device.id);
-    if (openedNext) return;
-  }
   const sharedMessage = sharedSave.offline
     ? "Saved as local draft only. Server sync is unavailable and job completion is blocked."
     : sharedSave.localOnly
       ? "Saved locally"
       : "Saved to shared job record";
-  if (getCurrentUserRole() === "Technician") {
-    workspace.classList.remove("tech-fault-entry-active");
-    checklistForm.classList.add("hidden");
-    emptyState.classList.remove("hidden");
-    setTechScreen("mimic", { scroll: true });
-    requestAnimationFrame(() => centerMapOnDeviceMarker(device.id));
-    document.querySelector("#syncState").textContent = `${device.id} ${status.toUpperCase()} saved. Back on mimic.`;
-    return;
-  }
   document.querySelector("#syncState").textContent = inspectionSaved ? sharedMessage : `${sharedMessage} without embedded photo data`;
 }
 
@@ -2778,7 +3090,7 @@ function setSharedJobCache(scheduleId, payload = {}, { online = true } = {}) {
     ...(state.sharedJobRecords || {}),
     [scheduleId]: next
   };
-  writeStoredJson("rmtSharedJobRecords", state.sharedJobRecords);
+  invalidateRuntimeCaches();
   renderDiagnosticsPanel();
   return next;
 }
@@ -2796,7 +3108,7 @@ function markSharedJobUnavailable(scheduleId, error) {
     }
   };
   state.sharedSyncUnavailable = true;
-  writeStoredJson("rmtSharedJobRecords", state.sharedJobRecords);
+  invalidateRuntimeCaches();
   renderDiagnosticsPanel();
 }
 
@@ -2878,6 +3190,7 @@ function applySharedRecordsToLocalState(store, schedule = null) {
   });
   writeStoredJson("tmFireInspections", state.inspections);
   writeStoredJson("rmtCriticalSops", state.criticalSops);
+  invalidateRuntimeCaches();
 }
 
 function getScheduleSnapshotForSharedApi(schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule()) {
@@ -2998,6 +3311,7 @@ function loadScheduleProgressSnapshot(schedule) {
   const sharedCache = getSharedJobCache(schedule);
   if (sharedCache?.store && sharedCache.online) {
     applySharedRecordsToLocalState(sharedCache.store, schedule);
+    invalidateRuntimeCaches();
     return;
   }
   const progress = schedule?.jobProgress || {};
@@ -3023,6 +3337,7 @@ function loadScheduleProgressSnapshot(schedule) {
   writeStoredJson("tmFireInspections", state.inspections);
   writeStoredJson("rmtCriticalSops", state.criticalSops);
   writeStoredJson("rmtSystemChecks", state.systemChecks);
+  invalidateRuntimeCaches();
 }
 
 async function startServiceJob() {
@@ -3395,6 +3710,7 @@ function completeAssignedItemSession(device, {
 
 function persistActiveJob() {
   writeStoredJson("rmtActiveJob", state.activeJob);
+  invalidateRuntimeCaches();
 }
 
 function hasCurrentRunData() {
@@ -3409,6 +3725,7 @@ function clearCurrentRunData() {
   state.requests = [];
   state.systemChecks = {};
   state.criticalSops = {};
+  invalidateRuntimeCaches();
   if (state.activeJob) {
     state.activeJob.itemSessions = {};
     state.activeJob.criticalWorkflowRuns = {};
@@ -3441,6 +3758,7 @@ function keepRunDataForSchedule(schedule) {
     })
   );
   state.systemChecks = {};
+  invalidateRuntimeCaches();
   if (state.activeJob) {
     ensureActiveJobCriticalWorkflows(schedule);
   }
@@ -3455,6 +3773,13 @@ function keepRunDataForSchedule(schedule) {
 
 function clearActiveJobForSwitch() {
   state.activeJob = null;
+  state.activeTechSystemKey = "";
+  state.activeTechPreviewScheduleId = null;
+  state.activeTechFloorId = "";
+  localStorage.removeItem("rmtActiveTechSystemKey");
+  localStorage.removeItem("rmtActiveTechPreviewScheduleId");
+  localStorage.removeItem("rmtActiveTechFloorId");
+  invalidateRuntimeCaches();
   persistActiveJob();
   renderJobPanel();
   renderTechWorkPanel();
@@ -3463,6 +3788,13 @@ function clearActiveJobForSwitch() {
 function resetActiveJobLock() {
   state.activeJob = null;
   state.activeCriticalDevice = null;
+  state.activeTechSystemKey = "";
+  state.activeTechPreviewScheduleId = null;
+  state.activeTechFloorId = "";
+  localStorage.removeItem("rmtActiveTechSystemKey");
+  localStorage.removeItem("rmtActiveTechPreviewScheduleId");
+  localStorage.removeItem("rmtActiveTechFloorId");
+  invalidateRuntimeCaches();
   state.activeCriticalSopId = criticalSopTemplates[0]?.id || "";
   workspace.classList.remove("critical-sop-active");
   checklistForm?.classList.add("hidden");
@@ -3483,20 +3815,26 @@ function setDefaultScheduleDate() {
   }
 }
 
-async function loadSavedSchedules() {
+async function loadSavedSchedules(options = {}) {
+  const { render = true, refreshTech = true } = options;
+  loadStoredPlanningState();
+  if (browserDataState.savedSchedulesLoaded && !render && !refreshTech) return state.schedules;
   try {
     const response = await fetch("/api/schedules", { cache: "no-store" });
-    if (!response.ok) return;
+    if (!response.ok) return state.schedules;
     const payload = await response.json();
     if (Array.isArray(payload.schedules)) {
       state.schedules = payload.schedules;
       writeStoredJson("rmtSchedules", stripSchedulePhotoDataForLocalStorage(state.schedules));
-      renderSchedulePanel();
-      refreshTechnicianAssignedPins({ scrollToMap: false });
+      invalidateRuntimeCaches();
+      if (render) renderSchedulePanel();
+      if (refreshTech) refreshTechnicianAssignedPins({ scrollToMap: false });
     }
+    browserDataState.savedSchedulesLoaded = true;
   } catch (error) {
     console.warn("Unable to load saved schedules", error);
   }
+  return state.schedules;
 }
 
 function refreshTechnicianAssignedPins({ scrollToMap = false } = {}) {
@@ -5477,6 +5815,36 @@ function renderTechProgressGrid(summary) {
   `;
 }
 
+function getLightTechnicianScheduleSummary(schedule) {
+  const sharedProgress = getSharedProgress(schedule) || schedule?.sharedProgress || null;
+  if (sharedProgress?.total) {
+    return {
+      total: Number(sharedProgress.total || 0),
+      done: Number(sharedProgress.done || 0),
+      pass: Number(sharedProgress.pass || 0),
+      fail: Number(sharedProgress.fail || 0),
+      partial: Number(sharedProgress.partial || 0),
+      pending: Number(sharedProgress.pending || 0),
+      blocked: Number(sharedProgress.blocked || 0),
+      ready: Boolean(sharedProgress.ready)
+    };
+  }
+  if (browserDataState.fieldLoaded) {
+    return getAssignedCompletionSummary(schedule);
+  }
+  const total = Number(schedule?.plannedDeviceIds?.length || schedule?.deviceCount || 0);
+  return {
+    total,
+    done: 0,
+    pass: 0,
+    fail: 0,
+    partial: 0,
+    pending: total,
+    blocked: 0,
+    ready: false
+  };
+}
+
 function getTechnicianFireSystemDefinitions() {
   return [
     { id: "fire-alarm", label: "Fire Alarm", hint: "Panel, MCP, smoke, heat", scopeId: "fire-alarm" },
@@ -5503,9 +5871,14 @@ function deviceMatchesTechnicianFireSystem(device, systemKey) {
 }
 
 function getTechnicianFireSystemGroups(schedule) {
+  const cache = getRuntimeCaches();
+  const cacheKey = `${getScheduleVersionKey(schedule)}::${getSharedRecordVersionKey(schedule)}::fire-system-groups`;
+  if (cache.fireSystemGroups.has(cacheKey)) {
+    return cache.fireSystemGroups.get(cacheKey);
+  }
   const assignedDevices = getScheduledAssignedDevices(schedule);
   const definitions = getTechnicianFireSystemDefinitions();
-  return definitions.map((definition) => {
+  const groups = definitions.map((definition) => {
     const devicesForSystem = definition.id === "all"
       ? assignedDevices
       : assignedDevices.filter((device) => deviceMatchesTechnicianFireSystem(device, definition.id));
@@ -5534,6 +5907,8 @@ function getTechnicianFireSystemGroups(schedule) {
       summary
     };
   }).filter((group) => group.devices.length || group.id === "all");
+  cache.fireSystemGroups.set(cacheKey, groups);
+  return groups;
 }
 
 function getActiveTechnicianSystemKey(schedule = getTechMarkerScopeSchedule()) {
@@ -5581,9 +5956,16 @@ function renderTechFireSystemButtons(schedule) {
 }
 
 async function startOrResumeTechnicianSchedule(scheduleId) {
+  const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
+  if (schedule) {
+    await ensureTechnicianFieldDataLoaded(schedule);
+  }
   state.activeTechSystemKey = "";
-  const started = await startScheduledJob(scheduleId, { stayOnJobSummary: true });
+  state.activeTechPreviewScheduleId = scheduleId;
+  state.activeTechFloorId = "";
+  const started = await startScheduledJob(scheduleId, { stayOnJobSummary: true, skipFullJobSave: true, preserveTechSystem: false });
   if (started) {
+    persistTechnicianActiveContext(scheduleId, "", floorSelect.value);
     renderTechWorkPanel();
     setTechScreen("jobs", { scroll: true });
     document.querySelector("#syncState").textContent = "Job opened. Choose a fire system to show the mimic pins.";
@@ -5593,7 +5975,9 @@ async function startOrResumeTechnicianSchedule(scheduleId) {
 async function openTechnicianFireSystem(scheduleId, systemKey) {
   const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
   if (!schedule) return false;
+  await ensureTechnicianFieldDataLoaded(schedule);
   state.activeTechSystemKey = systemKey || "all";
+  state.activeTechPreviewScheduleId = scheduleId;
   const firstDevice = getVisibleTechnicianDevicesForSystem(schedule)[0];
   const targetFloorId = firstDevice?.floorId || getBestSchedulePreviewFloorId(schedule, {
     companyName: schedule.companyName,
@@ -5601,18 +5985,21 @@ async function openTechnicianFireSystem(scheduleId, systemKey) {
   });
   const started = await startScheduledJob(scheduleId, {
     stayOnJobSummary: true,
-    targetFloorId
+    targetFloorId,
+    skipFullJobSave: true
   });
   if (!started) return false;
   state.activeTechPreviewScheduleId = scheduleId;
   if (targetFloorId && floorExists(targetFloorId)) {
-    floorSelect.value = targetFloorId;
-    floorSelect.dispatchEvent(new Event("change"));
+    setTechnicianMapFloor(targetFloorId, {
+      companyName: schedule.companyName,
+      siteName: schedule.siteName
+    });
   }
+  persistTechnicianActiveContext(scheduleId, state.activeTechSystemKey, floorSelect.value);
   renderTechWorkPanel();
-  renderTechAssignedItemList();
   renderMarkers();
-  setTechScreen("mimic", { scroll: true });
+  setTechScreen("mimic", { scroll: true, renderMarkers: false });
   const label = getTechnicianFireSystemDefinition(state.activeTechSystemKey)?.label || "assigned";
   document.querySelector("#syncState").textContent = `${label} mimic loaded. Tap a pin to inspect.`;
   return true;
@@ -5674,7 +6061,13 @@ function renderTechWorkPanel() {
   }
 
   renderTechExtinguisherAssignedJobs();
-  renderTechAssignedItemList();
+  if (activeSchedule || state.activeTechPreviewScheduleId) {
+    renderTechAssignedItemList();
+  } else if (techAssignedItemPanel && techAssignedItemList) {
+    if (techItemProgress) techItemProgress.textContent = "Open a job";
+    techAssignedItemList.innerHTML = `<p class="hint">Open an assigned job first. The checklist and mimic pins load after that.</p>`;
+    renderTechCompletionPanel(null, [], false);
+  }
 
   const list = document.querySelector("#techAssignedJobs");
   if (!list) return;
@@ -5689,7 +6082,7 @@ function renderTechWorkPanel() {
     ensureSchedulePlannedScope(schedule);
     const isToday = schedule.date === today;
     const plannedCount = schedule.plannedDeviceIds?.length || schedule.deviceCount || 0;
-    const summary = getAssignedCompletionSummary(schedule);
+    const summary = getLightTechnicianScheduleSummary(schedule);
     const status = getTechnicianScheduleStatus(schedule);
     const progressPercent = summary.total ? Math.round((summary.done / summary.total) * 100) : 0;
     return `
@@ -5733,7 +6126,6 @@ function renderTechWorkPanel() {
   list.querySelectorAll("[data-tech-start-schedule]").forEach((button) => {
     bindReliableTap(button, () => startOrResumeTechnicianSchedule(button.dataset.techStartSchedule));
   });
-  renderTechAssignedItemList();
 }
 
 function getCurrentFloorAssignedCount(schedule) {
@@ -5745,7 +6137,12 @@ function getCurrentFloorAssignedCount(schedule) {
 function getScheduledAssignedDevices(schedule) {
   if (!schedule) return [];
   ensureSchedulePlannedScope(schedule);
-  const ids = new Set(schedule.plannedDeviceIds || []);
+  const cache = getRuntimeCaches();
+  const cacheKey = `${getScheduleVersionKey(schedule)}::scheduled-devices`;
+  if (cache.scheduledDevices.has(cacheKey)) {
+    return cache.scheduledDevices.get(cacheKey);
+  }
+  const ids = getSchedulePlannedIdSet(schedule);
   if (!ids.size) return [];
   const deviceMap = new Map();
   getDevicesForScheduleRecord(schedule)
@@ -5759,7 +6156,7 @@ function getScheduledAssignedDevices(schedule) {
       const floorAsset = getFloorAsset(floorId);
       deviceMap.set(device.tag, getScheduleDeviceFromSetupDevice(device, floorId, floorAsset));
     });
-  return [...ids]
+  const resolvedDevices = [...ids]
     .map((id) => deviceMap.get(id))
     .filter(Boolean)
     .map((device) => ({
@@ -5770,6 +6167,8 @@ function getScheduledAssignedDevices(schedule) {
       questions: device.questions || getChecklistQuestions(device.type)
     }))
     .sort(compareAssignedDevicesForTech);
+  cache.scheduledDevices.set(cacheKey, resolvedDevices);
+  return resolvedDevices;
 }
 
 function compareAssignedDevicesForTech(a, b) {
@@ -5792,7 +6191,7 @@ function getAssignedDeviceCompletionStatus(device, schedule = getActiveTechnicia
     if (!template) return "pending";
     const completed = getCriticalSopCompleteCount(template, saved);
     const workflow = getCriticalWorkflowRunForParentDevice(device, schedule);
-    const workflowState = workflow ? getCriticalWorkflowRunState(workflow, schedule) : null;
+    const workflowState = workflow ? getCachedCriticalWorkflowRunState(workflow, schedule) : null;
     if (workflowState?.status === "complete" || (!workflow && isCriticalSopRecordComplete(template, saved))) return "pass";
     return completed > 0 ? "partial" : "pending";
   }
@@ -5866,6 +6265,11 @@ function getAssignedDeviceStatusLabel(status) {
 }
 
 function getAssignedCompletionSummary(schedule) {
+  const cache = getRuntimeCaches();
+  const cacheKey = `${getScheduleVersionKey(schedule)}::${getSharedRecordVersionKey(schedule)}::completion-summary`;
+  if (cache.completionSummaries.has(cacheKey)) {
+    return cache.completionSummaries.get(cacheKey);
+  }
   const assignedDevices = getScheduledAssignedDevices(schedule);
   const summary = {
     total: assignedDevices.length,
@@ -5887,6 +6291,7 @@ function getAssignedCompletionSummary(schedule) {
   });
   summary.done = Math.max(0, summary.done - summary.blocked);
   summary.ready = summary.total > 0 && summary.done === summary.total && summary.partial === 0 && summary.pending === 0 && summary.blocked === 0;
+  cache.completionSummaries.set(cacheKey, summary);
   return summary;
 }
 
@@ -6295,7 +6700,7 @@ function renderTechAssignedItemList() {
   const activeSchedule = getActiveTechnicianMaintenanceSchedule();
   const isActiveSchedule = activeSchedule?.scheduleId === schedule.scheduleId;
   const doneCount = assignedDevices.filter((device) => {
-    const status = getAssignedDeviceCompletionStatus(device);
+    const status = getAssignedDeviceCompletionStatus(device, schedule);
     return status !== "pending" && status !== "partial";
   }).length;
   if (techItemProgress) {
@@ -6434,7 +6839,7 @@ function renderTechAssignedItemAudit(device, schedule = null) {
     const savedCount = sop && template ? getCriticalSopCompleteCount(template, sop) : 0;
     const total = template?.steps?.length || 0;
     const workflow = getCriticalWorkflowRunForParentDevice(device, schedule);
-    const workflowState = workflow ? getCriticalWorkflowRunState(workflow, schedule) : null;
+    const workflowState = workflow ? getCachedCriticalWorkflowRunState(workflow, schedule) : null;
     pieces.push(`Critical SOP${total ? ` ${savedCount}/${total}` : ""}`);
     if (workflowState?.stageLabel) pieces.push(workflowState.stageLabel);
   } else {
@@ -6463,8 +6868,19 @@ function renderTechAssignedItemAudit(device, schedule = null) {
 
 function focusTechnicianFloor(floorId) {
   if (!floorExists(floorId)) return;
-  floorSelect.value = floorId;
-  floorSelect.dispatchEvent(new Event("change"));
+  if (getCurrentUserRole() === "Technician") {
+    const schedule = getTechMarkerScopeSchedule();
+    setTechnicianMapFloor(floorId, schedule ? {
+      companyName: schedule.companyName,
+      siteName: schedule.siteName
+    } : state.siteProfile);
+    persistTechnicianActiveContext(state.activeTechPreviewScheduleId || schedule?.scheduleId || "", state.activeTechSystemKey, floorSelect.value);
+    renderMarkers();
+    renderTechAssignedItemList();
+  } else {
+    floorSelect.value = floorId;
+    floorSelect.dispatchEvent(new Event("change"));
+  }
   requestAnimationFrame(scrollInspectionPanelIntoView);
 }
 
@@ -6479,8 +6895,18 @@ async function focusTechnicianAssignedDevice(deviceId, { openChecklist = false, 
     setTechScreen("mimic");
   }
   if (device.floorId && floorExists(device.floorId) && floorSelect.value !== device.floorId) {
-    floorSelect.value = device.floorId;
-    floorSelect.dispatchEvent(new Event("change"));
+    if (getCurrentUserRole() === "Technician") {
+      setTechnicianMapFloor(device.floorId, {
+        companyName: schedule.companyName,
+        siteName: schedule.siteName
+      });
+      persistTechnicianActiveContext(schedule.scheduleId, state.activeTechSystemKey, floorSelect.value);
+      renderMarkers();
+      renderTechAssignedItemList();
+    } else {
+      floorSelect.value = device.floorId;
+      floorSelect.dispatchEvent(new Event("change"));
+    }
   } else {
     renderMarkers();
     renderTechAssignedItemList();
@@ -6502,13 +6928,14 @@ async function focusTechnicianAssignedDevice(deviceId, { openChecklist = false, 
   }
 }
 
-function showTechnicianScheduleOnMap(scheduleId, { scrollToMap = true } = {}) {
+async function showTechnicianScheduleOnMap(scheduleId, { scrollToMap = true } = {}) {
   const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
   if (!schedule) return;
   if (!isScheduleAssignedToCurrentTechnician(schedule)) {
     document.querySelector("#syncState").textContent = `${schedule.scheduleId} is not assigned to ${getCurrentUserName()}`;
     return;
   }
+  await ensureTechnicianFieldDataLoaded(schedule);
   ensureSchedulePlannedScope(schedule);
   state.activeTechPreviewScheduleId = schedule.scheduleId;
   const profile = {
@@ -6516,15 +6943,13 @@ function showTechnicianScheduleOnMap(scheduleId, { scrollToMap = true } = {}) {
     siteName: schedule.siteName
   };
   const targetFloorId = getBestSchedulePreviewFloorId(schedule, profile);
-  renderFloorOptions(targetFloorId, profile);
-  refreshSelectedFloorView();
+  setTechnicianMapFloor(targetFloorId, profile);
   state.activeTechPreviewScheduleId = schedule.scheduleId;
+  persistTechnicianActiveContext(schedule.scheduleId, state.activeTechSystemKey, floorSelect.value);
   renderMarkers();
   renderTechAssignedItemList();
-  persistSchedules();
-  saveSchedulesToPc(false);
   if (scrollToMap) {
-    setTechScreen("mimic", { scroll: true });
+    setTechScreen("mimic", { scroll: true, renderMarkers: false });
   } else {
     renderTechWorkflowNav();
   }
@@ -6548,11 +6973,17 @@ function getBestSchedulePreviewFloorId(schedule, profile) {
 
 function ensureSchedulePlannedScope(schedule) {
   if (!schedule || isExtinguisherJobSchedule(schedule)) return schedule;
+  const cache = getRuntimeCaches();
+  const cacheKey = getScheduleVersionKey(schedule);
+  if (cache.scopeEnsured.get(getScheduleKey(schedule)) === cacheKey) return schedule;
   const normalizedScope = normalizeScheduleScopeForService(schedule.scope || "full-maintenance", schedule.serviceType || "");
   const scopeInfo = getScheduleScopeInfo(normalizedScope);
   schedule.scope = normalizedScope;
   schedule.scopeLabel = scopeInfo.label;
-  if (scopeInfo.jobOnly) return schedule;
+  if (scopeInfo.jobOnly) {
+    cache.scopeEnsured.set(getScheduleKey(schedule), getScheduleVersionKey(schedule));
+    return schedule;
+  }
   const profile = {
     companyName: schedule.companyName,
     siteName: schedule.siteName
@@ -6572,7 +7003,10 @@ function ensureSchedulePlannedScope(schedule) {
     || (scopeInfo.mode === "all" && schedule.scopeSelectionMode !== "site-wide")
     || stalePlannedIds
     || poolExpandedAfterSave;
-  if (!shouldRefreshScope) return schedule;
+  if (!shouldRefreshScope) {
+    cache.scopeEnsured.set(getScheduleKey(schedule), getScheduleVersionKey(schedule));
+    return schedule;
+  }
   const frequencyPercent = Number(schedule.contractFrequencyPercent || getContractFrequencyForProfile(profile));
   const scopeSelectionMode = scopeInfo.mode === "all" ? "site-wide" : "selected-floor";
   const plannedDevices = getScheduleDevicesForScope(devicePool, scopeInfo, {
@@ -6595,27 +7029,47 @@ function ensureSchedulePlannedScope(schedule) {
   schedule.startFloorTitle = schedule.startFloorTitle || startFloor.title;
   schedule.floorTitle = scopeSelectionMode === "site-wide" ? `Whole site (start: ${startFloor.title})` : startFloor.title;
   schedule.plannedFloorCounts = getScheduleFloorCounts(plannedDevices);
+  cache.scopeEnsured.set(getScheduleKey(schedule), getScheduleVersionKey(schedule));
   return schedule;
 }
 
 async function resumeScheduledJob(schedule, options = {}) {
-  const sharedCache = await requestSharedJobState(schedule);
+  const isTechnician = getCurrentUserRole() === "Technician";
+  if (isTechnician) {
+    loadStoredRunState();
+    await ensureTechnicianFieldDataLoaded(schedule);
+  }
+  const sharedCache = options.sharedCache || await requestSharedJobState(schedule);
   if (sharedCache) {
     applySharedRecordsToLocalState(sharedCache.store, schedule);
   } else {
     loadScheduleProgressSnapshot(schedule);
   }
   const savedJob = schedule.jobProgress?.activeJob || {};
-  selectClientProfile({
+  const profile = {
     companyName: schedule.companyName,
     siteName: schedule.siteName
-  });
+  };
   const targetFloorId = options.targetFloorId || schedule.floorId || schedule.startFloorId;
-  if (floorExists(targetFloorId)) {
-    floorSelect.value = targetFloorId;
-    floorSelect.dispatchEvent(new Event("change"));
+  if (isTechnician) {
+    state.siteProfile = normalizeClientProfile(profile);
+    writeStoredJson("rmtSiteProfile", state.siteProfile);
+    if (floorExists(targetFloorId)) {
+      setTechnicianMapFloor(targetFloorId, profile);
+    }
+  } else {
+    selectClientProfile(profile);
+    if (floorExists(targetFloorId)) {
+      floorSelect.value = targetFloorId;
+      floorSelect.dispatchEvent(new Event("change"));
+    }
   }
   const scheduleFrequencyPercent = Number(schedule.contractFrequencyPercent || savedJob.serviceFrequencyPercent || getFrequencyFromScheduleScope(schedule.scope, schedule.serviceType));
+  const techSystemKey = isTechnician
+    ? options.preserveTechSystem === false
+      ? ""
+      : state.activeTechSystemKey || savedJob.activeTechSystemKey || ""
+    : savedJob.activeTechSystemKey || "";
   state.activeJob = {
     ...savedJob,
     jobId: savedJob.jobId || `JOB-${formatRunStamp(new Date())}`,
@@ -6632,12 +7086,16 @@ async function resumeScheduledJob(schedule, options = {}) {
     createdAt: savedJob.createdAt || schedule.createdAt || new Date().toISOString(),
     serviceFrequencyPercent: scheduleFrequencyPercent,
     schedule,
+    activeTechSystemKey: techSystemKey,
+    activeFloorId: floorSelect.value,
     events: savedJob.events || [],
     itemSessions: savedJob.itemSessions || {},
     criticalWorkflowRuns: savedJob.criticalWorkflowRuns || {}
   };
   ensureActiveJobCriticalWorkflows(schedule);
   state.activeTechPreviewScheduleId = schedule.scheduleId;
+  state.activeTechSystemKey = techSystemKey;
+  state.activeTechFloorId = floorSelect.value;
   ensureActiveJobTeamMember();
   jobInspector.value = state.activeJob.inspector || getCurrentUserName();
   setSelectValue(jobServiceType, schedule.serviceType || "Maintenance / Inspection", "Maintenance / Inspection");
@@ -6648,13 +7106,18 @@ async function resumeScheduledJob(schedule, options = {}) {
   }
   addJobEvent("Job resumed", `${getCurrentUserName()} resumed shared schedule`);
   syncActiveJobProgressToSchedule();
-  persistActiveJob();
-  saveSchedulesToPc(false);
-  renderSchedulePanel();
-  renderJobPanel();
-  renderTechWorkPanel();
-  renderMarkers();
-  updateSummary();
+  if (isTechnician) {
+    persistTechnicianActiveContext(schedule.scheduleId, state.activeTechSystemKey, floorSelect.value);
+    renderTechWorkPanel();
+  } else {
+    persistActiveJob();
+    saveSchedulesToPc(false);
+    renderSchedulePanel();
+    renderJobPanel();
+    renderTechWorkPanel();
+    renderMarkers();
+    updateSummary();
+  }
   if (options.openDeviceId) {
     await focusTechnicianAssignedDevice(options.openDeviceId, { openChecklist: true });
   } else if (options.openFirstUnfinished && getCurrentUserRole() === "Technician") {
@@ -6666,6 +7129,8 @@ async function resumeScheduledJob(schedule, options = {}) {
     }
   } else if (getCurrentUserRole() === "Technician" && !options.stayOnJobSummary) {
     setTechScreen("inspection", { scroll: true });
+  } else if (isTechnician) {
+    setTechScreen("jobs");
   }
   document.querySelector("#syncState").textContent = `${schedule.scheduleId} resumed from saved progress`;
   return true;
@@ -6674,30 +7139,41 @@ async function resumeScheduledJob(schedule, options = {}) {
 async function startScheduledJob(scheduleId, options = {}) {
   const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
   if (!schedule) return false;
+  const isTechnician = getCurrentUserRole() === "Technician";
   if (!isScheduleAssignedToCurrentTechnician(schedule)) {
     document.querySelector("#syncState").textContent = `${schedule.scheduleId} is not assigned to ${getCurrentUserName()}`;
     return false;
   }
+  if (isTechnician) {
+    loadStoredRunState();
+    await ensureTechnicianFieldDataLoaded(schedule);
+  }
   ensureSchedulePlannedScope(schedule);
-  await requestSharedJobState(schedule);
+  const sharedCache = await requestSharedJobState(schedule);
   if ((!state.activeJob || state.activeJob.status === "Completed") && isScheduleResumeAvailable(schedule)) {
-    return resumeScheduledJob(schedule, options);
+    return resumeScheduledJob(schedule, { ...options, sharedCache });
   }
   if (state.activeJob && state.activeJob.status !== "Completed") {
     const currentScheduleId = state.activeJob.scheduleId || state.activeJob.schedule?.scheduleId;
     if (currentScheduleId === schedule.scheduleId) {
       state.activeTechPreviewScheduleId = schedule.scheduleId;
-      renderJobPanel();
-      renderTechWorkPanel();
-      renderMarkers();
+      if (isTechnician) {
+        persistTechnicianActiveContext(schedule.scheduleId, state.activeTechSystemKey, floorSelect.value);
+        renderTechWorkPanel();
+        if (state.techScreen === "mimic") renderMarkers();
+      } else {
+        renderJobPanel();
+        renderTechWorkPanel();
+        renderMarkers();
+      }
       if (options.openDeviceId) {
         await focusTechnicianAssignedDevice(options.openDeviceId, { openChecklist: true });
       } else if (options.openFirstUnfinished && getCurrentUserRole() === "Technician") {
         const target = getResumeTargetAssignedDevice(schedule);
         if (target) await focusTechnicianAssignedDevice(target.id || target.tag, { openChecklist: true });
-      } else if (getCurrentUserRole() === "Technician" && !options.stayOnJobSummary) {
+      } else if (isTechnician && !options.stayOnJobSummary) {
         setTechScreen("inspection", { scroll: true });
-      } else if (getCurrentUserRole() === "Technician") {
+      } else if (isTechnician) {
         setTechScreen("jobs");
       } else {
         requestAnimationFrame(scrollInspectionPanelIntoView);
@@ -6705,8 +7181,8 @@ async function startScheduledJob(scheduleId, options = {}) {
       document.querySelector("#syncState").textContent = `${schedule.scheduleId} is already active.`;
       return true;
     }
-    const activeJobIsStale = getCurrentUserRole() === "Technician" && !isActiveTechnicianJobResolvable();
-    const canSwitchFromTechOpen = getCurrentUserRole() === "Technician" && (options.openDeviceId || options.openFirstUnfinished || options.stayOnJobSummary || options.forceSwitch || activeJobIsStale);
+    const activeJobIsStale = isTechnician && !isActiveTechnicianJobResolvable();
+    const canSwitchFromTechOpen = isTechnician && (options.openDeviceId || options.openFirstUnfinished || options.stayOnJobSummary || options.forceSwitch || activeJobIsStale);
     if (!canSwitchFromTechOpen) {
       document.querySelector("#syncState").textContent = "Finish or check out the current job before starting this schedule";
       return false;
@@ -6723,7 +7199,7 @@ async function startScheduledJob(scheduleId, options = {}) {
     clearActiveJobForSwitch();
   }
   if (hasCurrentRunData()) {
-    if (getCurrentUserRole() === "Technician") {
+    if (isTechnician) {
       keepRunDataForSchedule(schedule);
     } else {
       const confirmed = window.confirm("Start this scheduled job and clear current inspection answers/SOP results? Device pins and master data will remain.");
@@ -6732,16 +7208,25 @@ async function startScheduledJob(scheduleId, options = {}) {
     }
   }
 
-  selectClientProfile({
+  const profile = {
     companyName: schedule.companyName,
     siteName: schedule.siteName
-  });
+  };
   const targetFloorId = options.targetFloorId || schedule.floorId;
-  if (floorExists(targetFloorId)) {
-    floorSelect.value = targetFloorId;
-    floorSelect.dispatchEvent(new Event("change"));
+  if (isTechnician) {
+    state.siteProfile = normalizeClientProfile(profile);
+    writeStoredJson("rmtSiteProfile", state.siteProfile);
+    if (floorExists(targetFloorId)) {
+      setTechnicianMapFloor(targetFloorId, profile);
+    }
+  } else {
+    selectClientProfile(profile);
+    if (floorExists(targetFloorId)) {
+      floorSelect.value = targetFloorId;
+      floorSelect.dispatchEvent(new Event("change"));
+    }
   }
-  jobInspector.value = getCurrentUserRole() === "Technician" ? getCurrentUserName() : schedule.technician || "Demo Inspector";
+  jobInspector.value = isTechnician ? getCurrentUserName() : schedule.technician || "Demo Inspector";
   setSelectValue(jobServiceType, schedule.serviceType || "Maintenance / Inspection", "Maintenance / Inspection");
   jobReference.value = schedule.scheduleId;
   const scheduleFrequencyPercent = Number(schedule.contractFrequencyPercent || getFrequencyFromScheduleScope(schedule.scope, schedule.serviceType));
@@ -6760,7 +7245,7 @@ async function startScheduledJob(scheduleId, options = {}) {
     address: schedule.address,
     extinguisherDetails: schedule.extinguisherDetails,
     extinguisherUnitDetails: schedule.extinguisherUnitDetails,
-    inspector: getCurrentUserRole() === "Technician" ? getCurrentUserName() : schedule.technician,
+    inspector: isTechnician ? getCurrentUserName() : schedule.technician,
     serviceType: schedule.serviceType,
     reference: schedule.scheduleId,
     status: "Scheduled Job Started",
@@ -6768,37 +7253,48 @@ async function startScheduledJob(scheduleId, options = {}) {
     startedAt: now.toISOString(),
     serviceFrequencyPercent: scheduleFrequencyPercent,
     schedule,
+    activeTechSystemKey: isTechnician ? state.activeTechSystemKey || "" : "",
+    activeFloorId: floorSelect.value,
     events: [],
     itemSessions: {},
     criticalWorkflowRuns: {}
   };
   ensureActiveJobCriticalWorkflows(schedule);
   state.activeTechPreviewScheduleId = schedule.scheduleId;
+  state.activeTechFloorId = floorSelect.value;
   schedule.status = "In Progress";
   schedule.startedAt = now.toISOString();
   addJobEvent("Scheduled job started", schedule.floorTitle);
   ensureActiveJobTeamMember();
   syncActiveJobProgressToSchedule();
   persistSchedules();
-  persistActiveJob();
-  renderSchedulePanel();
-  renderJobPanel();
-  renderTechWorkPanel();
-  renderMarkers();
-  await saveJobProgress(false);
+  if (isTechnician) {
+    persistTechnicianActiveContext(schedule.scheduleId, state.activeTechSystemKey, floorSelect.value);
+    renderTechWorkPanel();
+    if (state.techScreen === "mimic") renderMarkers();
+  } else {
+    persistActiveJob();
+    renderSchedulePanel();
+    renderJobPanel();
+    renderTechWorkPanel();
+    renderMarkers();
+  }
+  if (!options.skipFullJobSave && !isTechnician) {
+    await saveJobProgress(false);
+  }
   document.querySelector("#syncState").textContent = options.openDeviceId
     ? `${schedule.scheduleId} started from ${options.openDeviceId}`
     : `${schedule.scheduleId} loaded into active job`;
-  if (!options.openDeviceId && options.openFirstUnfinished && getCurrentUserRole() === "Technician") {
+  if (!options.openDeviceId && options.openFirstUnfinished && isTechnician) {
     const target = getResumeTargetAssignedDevice(schedule);
     if (target) {
       await focusTechnicianAssignedDevice(target.id || target.tag, { openChecklist: true });
     } else {
       setTechScreen("inspection", { scroll: true });
     }
-  } else if (getCurrentUserRole() === "Technician" && !options.stayOnJobSummary) {
+  } else if (isTechnician && !options.stayOnJobSummary) {
     setTechScreen("inspection", { scroll: true });
-  } else if (getCurrentUserRole() === "Technician") {
+  } else if (isTechnician) {
     setTechScreen("jobs");
   }
   return true;
@@ -6853,6 +7349,7 @@ function releaseScheduleScopeReservation(schedule) {
 
 function persistSchedules() {
   writeStoredJson("rmtSchedules", stripSchedulePhotoDataForLocalStorage(state.schedules));
+  invalidateRuntimeCaches();
 }
 
 function stripSchedulePhotoDataForLocalStorage(schedules = []) {
@@ -7926,7 +8423,7 @@ function normalizeScopeText(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function renderFloorOptions(selectedValue = floorSelect.value || "lv1", preferredProfile = null) {
+function renderFloorOptions(selectedValue = floorSelect.value || "lv1", preferredProfile = null, options = {}) {
   const selectedFloor = floorExists(selectedValue) ? getFloorAsset(selectedValue) : null;
   const selectedFloorProfile = getFloorClientProfile(selectedFloor);
   renderClientSiteSelectors(preferredProfile || selectedFloorProfile || state.siteProfile);
@@ -7965,7 +8462,7 @@ function renderFloorOptions(selectedValue = floorSelect.value || "lv1", preferre
   updateMapImage(floor);
   syncMimicInputsFromFloor(floor);
   renderLibraryPageTabs();
-  if (scheduleFloor) {
+  if (scheduleFloor && options.renderSchedule !== false) {
     renderSchedulePanel();
   }
 }
@@ -8131,36 +8628,71 @@ function getFloorCode(floorId) {
   return customFloor?.floorCode || libraryFloor?.floorCode || floorCodes[floorId] || "UNK";
 }
 
-async function loadMimicLibrary() {
+function getProfileCacheKey(profile = {}) {
+  return normalizeScopeText(`${profile.companyName || ""}::${profile.siteName || ""}`);
+}
+
+function masterFileMatchesProfile(file = {}, profile = null) {
+  if (!profile) return true;
+  const text = normalizeScopeText(`${file.name || ""} ${file.url || ""}`);
+  const companySlug = slugify(profile.companyName || "");
+  const siteSlug = slugify(profile.siteName || "");
+  const combinedSlug = slugify(`${profile.companyName || ""}-${profile.siteName || ""}`);
+  return Boolean(
+    (combinedSlug && text.includes(combinedSlug))
+      || (companySlug && siteSlug && text.includes(companySlug) && text.includes(siteSlug))
+      || (companySlug && text.includes(companySlug))
+  );
+}
+
+async function loadMimicLibrary(options = {}) {
+  const { profile = null, render = true } = options;
+  if (browserDataState.mimicLibraryLoaded && !profile) return state.libraryFloors;
   try {
     const response = await fetch("/local-data/mimic-library/mimic-library-app-data.json", { cache: "no-store" });
-    if (!response.ok) return;
+    if (!response.ok) return state.libraryFloors;
     const manifest = await response.json();
-    state.libraryCompanies = manifest.companies || [];
-    state.libraryFloors = manifest.floors || [];
+    const companies = manifest.companies || [];
+    const floors = manifest.floors || [];
+    if (profile && getCurrentUserRole() === "Technician") {
+      state.libraryCompanies = companies.filter((company) => profileMatchesClient(company, profile));
+      state.libraryFloors = floors.filter((floor) => profileMatchesClient(floor, profile));
+    } else {
+      state.libraryCompanies = companies;
+      state.libraryFloors = floors;
+      browserDataState.mimicLibraryLoaded = true;
+    }
     normalizeSetupDevices();
-    renderFloorOptions(floorSelect.value);
-    renderMarkers();
-    renderSchedulePanel();
-    renderTechWorkPanel();
-    refreshTechnicianAssignedPins({ scrollToMap: false });
-    document.querySelector("#syncState").textContent = `${state.libraryFloors.length} mimic pages loaded`;
+    invalidateRuntimeCaches();
+    if (render) {
+      renderFloorOptions(floorSelect.value);
+      renderMarkers();
+      renderSchedulePanel();
+      renderTechWorkPanel();
+      refreshTechnicianAssignedPins({ scrollToMap: false });
+      document.querySelector("#syncState").textContent = `${state.libraryFloors.length} mimic pages loaded`;
+    }
   } catch (error) {
     console.warn("Unable to load mimic library", error);
   }
+  return state.libraryFloors;
 }
 
-async function loadSavedDeviceMasters() {
+async function loadSavedDeviceMasters(options = {}) {
+  const { profile = null, render = true } = options;
+  const profileKey = profile ? getProfileCacheKey(profile) : "";
+  if (profileKey && browserDataState.loadedDeviceMasterProfiles.has(profileKey)) return state.setupDevices;
+  if (!profile && browserDataState.deviceMastersLoaded) return state.setupDevices;
   let masterFiles = [
-    "/local-data/device-master/uob-uob-device-master.json",
-    "/local-data/device-master/wetex-wetex-device-master.json"
+    { name: "uob-uob-device-master.json", url: "/local-data/device-master/uob-uob-device-master.json" },
+    { name: "wetex-wetex-device-master.json", url: "/local-data/device-master/wetex-wetex-device-master.json" }
   ];
 
   try {
     const indexResponse = await fetch("/api/device-masters", { cache: "no-store" });
     if (indexResponse.ok) {
       const index = await indexResponse.json();
-      const discovered = (index.files || []).map((file) => file.url).filter(Boolean);
+      const discovered = (index.files || []).filter((file) => file.url);
       if (discovered.length) {
         masterFiles = discovered;
       }
@@ -8169,12 +8701,19 @@ async function loadSavedDeviceMasters() {
     console.warn("Unable to list device masters; using known demo files", error);
   }
 
+  if (profile) {
+    const matching = masterFiles.filter((file) => masterFileMatchesProfile(file, profile));
+    if (matching.length) masterFiles = matching;
+  }
+
   let loadedCount = 0;
-  for (const file of masterFiles) {
+  for (const fileInfo of masterFiles) {
+    const file = fileInfo.url || fileInfo;
     try {
       const response = await fetch(file, { cache: "no-store" });
       if (!response.ok) continue;
       const master = await response.json();
+      if (profile && !profileMatchesClient(master, profile)) continue;
       const devicesFromFile = (master.devices || []).map((device) => ({
         ...device,
         companyName: device.companyName || master.companyName,
@@ -8182,34 +8721,51 @@ async function loadSavedDeviceMasters() {
       }));
       if (!devicesFromFile.length) continue;
 
-      const company = String(master.companyName || "").toLowerCase();
-      const site = String(master.siteName || "").toLowerCase();
       state.setupDevices = [
-        ...state.setupDevices.filter((device) => {
-          return String(device.companyName || "").toLowerCase() !== company
-            || String(device.siteName || "").toLowerCase() !== site;
-        }),
+        ...state.setupDevices,
         ...devicesFromFile
       ];
       normalizeSetupDevices();
       migrateConfiguredTagStarts();
       writeStoredJson("tmFireSetupDevices", state.setupDevices);
-      renderSetupDevices();
-      renderMarkers();
-      updateSummary();
-      renderSystemChecklist();
-      renderSchedulePanel();
-      renderTechWorkPanel();
+      invalidateRuntimeCaches();
+      if (render) {
+        renderSetupDevices();
+        renderMarkers();
+        updateSummary();
+        renderSystemChecklist();
+        renderSchedulePanel();
+        renderTechWorkPanel();
+      }
       loadedCount += 1;
-      document.querySelector("#syncState").textContent = `${devicesFromFile.length} ${master.companyName || "site"} master devices loaded for checklist`;
+      if (render) {
+        document.querySelector("#syncState").textContent = `${devicesFromFile.length} ${master.companyName || "site"} master devices loaded for checklist`;
+      }
     } catch (error) {
       console.warn("Unable to load saved device master", file, error);
     }
   }
-  if (loadedCount > 1) {
+  if (profileKey) browserDataState.loadedDeviceMasterProfiles.add(profileKey);
+  if (!profile) browserDataState.deviceMastersLoaded = true;
+  if (render && loadedCount > 1) {
     document.querySelector("#syncState").textContent = `${loadedCount} saved device masters loaded`;
   }
-  refreshTechnicianAssignedPins({ scrollToMap: false });
+  if (render) refreshTechnicianAssignedPins({ scrollToMap: false });
+  return state.setupDevices;
+}
+
+async function ensureTechnicianFieldDataLoaded(scheduleOrProfile = null) {
+  loadStoredFieldState();
+  const profile = scheduleOrProfile
+    ? {
+        companyName: scheduleOrProfile.companyName || state.siteProfile.companyName,
+        siteName: scheduleOrProfile.siteName || state.siteProfile.siteName
+      }
+    : state.siteProfile;
+  await loadMimicLibrary({ profile, render: false });
+  await loadSavedDeviceMasters({ profile, render: false });
+  invalidateRuntimeCaches();
+  return true;
 }
 
 async function loadStaffTrackingDemo() {
@@ -10105,6 +10661,7 @@ async function saveCriticalSop(showMessage = true) {
   if (sharedSave.conflict) {
     savedRecord.syncStatus = "conflict";
     savedRecord.unsynced = true;
+    invalidateRuntimeCaches();
     writeStoredJson("rmtCriticalSops", state.criticalSops);
     renderTechAssignedItemList();
     renderTechFaultPanel();
@@ -10121,6 +10678,7 @@ async function saveCriticalSop(showMessage = true) {
     savedRecord.syncStatus = "synced";
     savedRecord.sharedRevision = Number(sharedSave.record?.revision || savedRecord.sharedRevision || 0);
   }
+  invalidateRuntimeCaches();
   writeStoredJson("rmtCriticalSops", state.criticalSops);
   addJobEvent("Critical SOP saved", template.title);
   if (workflowRun) {

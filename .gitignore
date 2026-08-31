@@ -33,6 +33,9 @@ outputs/rmt-fire-local-data/
 output/pdf/
 tmp/
 outputs/fire-inspection-mvp/mobile-qa/
+outputs/fire-inspection-mvp/performance-qa/
+outputs/rmt-fireapps-code-review-pack.zip
+work/debug-tech-open.cjs
 
 # Old generated draft folders and large raw CAD/PDF working sources
 outputs/_archive-old-generated-files/
