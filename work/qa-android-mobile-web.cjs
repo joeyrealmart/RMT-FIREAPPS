@@ -1,4 +1,4 @@
-const { existsSync, mkdirSync } = require("node:fs");
+const { existsSync, mkdirSync, writeFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { chromium, devices } = require("C:/Users/Joey/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright");
 
@@ -50,14 +50,90 @@ async function tapVisibleCenter(page, locator, label) {
   await page.touchscreen.tap(tap.x, tap.y);
 }
 
-async function clickJobButton(page, companyName, buttonName) {
-  await page.locator("[data-tech-screen='jobs']").click();
-  await page.waitForSelector("#workspace.tech-screen-jobs", { timeout: 15000 });
+async function showTechJobs(page) {
+  await page.evaluate(() => setTechScreen("jobs"));
+  await page.waitForFunction(() => document.querySelector("#workspace")?.classList.contains("tech-screen-jobs"), null, { timeout: 15000 });
+}
+
+async function openTechnicianJob(page, companyName) {
+  await showTechJobs(page);
   const card = page.locator(".tech-job-card", { hasText: companyName }).first();
   await card.waitFor({ state: "visible", timeout: 15000 });
-  const button = card.getByRole("button", { name: buttonName }).first();
+  const button = card.getByRole("button", { name: /Open Job|Resume Job|Start Job/ }).first();
+  await button.waitFor({ state: "visible", timeout: 15000 });
+  const scheduleId = await button.getAttribute("data-tech-start-schedule");
+  assert(scheduleId, `No schedule id found on ${companyName} job action.`);
+  await button.click();
+  try {
+    await page.waitForFunction(({ scheduleId, companyName }) => {
+      const activeScheduleId = state.activeJob?.scheduleId || state.activeJob?.schedule?.scheduleId || "";
+      const summaryText = document.querySelector("#techActiveJobSummary")?.textContent || "";
+      return activeScheduleId === scheduleId
+        && summaryText.includes(companyName)
+        && document.querySelectorAll("#techActiveJobSummary .tech-system-grid button").length > 0;
+    }, { scheduleId, companyName }, { timeout: 15000 });
+  } catch (error) {
+    const debug = await page.evaluate(() => {
+      const activeSchedule = getActiveTechnicianMaintenanceSchedule?.();
+      const markerSchedule = getTechMarkerScopeSchedule?.();
+      return {
+        syncState: document.querySelector("#syncState")?.textContent || "",
+        activeJob: state.activeJob ? {
+          jobId: state.activeJob.jobId,
+          scheduleId: state.activeJob.scheduleId || state.activeJob.schedule?.scheduleId || "",
+          companyName: state.activeJob.companyName,
+          status: state.activeJob.status
+        } : null,
+        seedDebug: window.__androidQaSeedDebug || null,
+        currentQaTags: state.setupDevices
+          .filter((device) => /^WETEX\.QA\.|^UOB\.QA\.|^MTB\.QA\./.test(String(device.tag || "")))
+          .map((device) => device.tag),
+        activeSchedule: activeSchedule ? {
+          scheduleId: activeSchedule.scheduleId,
+          companyName: activeSchedule.companyName,
+          status: activeSchedule.status,
+          plannedCount: activeSchedule.plannedDeviceIds?.length || 0,
+          plannedIds: activeSchedule.plannedDeviceIds || [],
+          assignedCount: getScheduledAssignedDevices(activeSchedule).length,
+          groupLabels: getTechnicianFireSystemGroups(activeSchedule).map((group) => `${group.label}:${group.devices.length}`),
+          setupMatches: (activeSchedule.plannedDeviceIds || []).map((id) => {
+            const device = state.setupDevices.find((item) => item.tag === id);
+            return device ? {
+              tag: device.tag,
+              type: device.type,
+              floorId: device.floorId,
+              companyName: device.companyName,
+              siteName: device.siteName
+            } : { tag: id, missing: true };
+          })
+        } : null,
+        markerSchedule: markerSchedule ? {
+          scheduleId: markerSchedule.scheduleId,
+          companyName: markerSchedule.companyName,
+          plannedCount: markerSchedule.plannedDeviceIds?.length || 0
+        } : null,
+        activeSummaryText: document.querySelector("#techActiveJobSummary")?.textContent.trim() || "",
+        jobText: document.querySelector("#techAssignedJobs")?.textContent.trim() || ""
+      };
+    });
+    throw new Error(`Opening ${companyName} did not activate the selected technician job: ${JSON.stringify({ scheduleId, ...debug }, null, 2)}`);
+  }
+  return scheduleId;
+}
+
+async function openTechnicianSystem(page, companyName, systemName = "Fire Alarm") {
+  const scheduleId = await openTechnicianJob(page, companyName);
+  const activeSummary = page.locator("#techActiveJobSummary");
+  const button = activeSummary.locator("[data-tech-system]", { hasText: systemName }).first();
   await button.waitFor({ state: "visible", timeout: 15000 });
   await button.click();
+  await page.waitForSelector("#workspace.tech-screen-mimic", { timeout: 15000 });
+  await page.waitForFunction(({ scheduleId }) => {
+    const activeScheduleId = state.activeJob?.scheduleId || state.activeJob?.schedule?.scheduleId || "";
+    const markerScheduleId = getTechMarkerScopeSchedule?.()?.scheduleId || "";
+    return activeScheduleId === scheduleId && markerScheduleId === scheduleId;
+  }, { scheduleId }, { timeout: 15000 });
+  await waitForAssignedPins(page, `${companyName} ${systemName}`);
 }
 
 async function loginAs(page, email, password) {
@@ -93,6 +169,11 @@ async function waitForWorkspace(page) {
   }, null, { timeout: 15000 });
 }
 
+async function waitForInitialDataLoad(page) {
+  await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(250);
+}
+
 async function waitForAssignedPins(page, label) {
   try {
     await page.waitForFunction(() => document.querySelectorAll(".marker.assigned-scope").length > 0, null, { timeout: 15000 });
@@ -124,21 +205,28 @@ async function waitForAssignedPins(page, label) {
 async function seedTemporaryMtbSchedule(page) {
   const seeded = await page.evaluate(() => {
     const specs = [
-      { scheduleId: "QA-MOBILE-WETEX", companyName: "WETEX", siteName: "WETEX", floorId: "qa-wetex-lv1", floorTitle: "WETEX QA L1", prefix: "WETEX.QA", time: "09:00" },
+      { scheduleId: "QA-MOBILE-WETEX", companyName: "WETEX", siteName: "WETEX QA", floorId: "qa-wetex-lv1", floorTitle: "WETEX QA L1", prefix: "WETEX.QA", time: "09:00" },
       { scheduleId: "QA-MOBILE-UOB", companyName: "UOB", siteName: "UOB", floorId: "qa-uob-lv1", floorTitle: "UOB QA Ground Floor", prefix: "UOB.QA", time: "10:00" },
       { scheduleId: "QA-MOBILE-MTB", companyName: "MTB Reality Sdn Bhd", siteName: "Bandar Hilir", floorId: "qa-mtb-lv1", floorTitle: "MTB Reality QA L1", prefix: "MTB.QA", time: "10:30" }
     ];
-    const seedDevices = devices.slice(0, 6);
-    if (!seedDevices.length) return false;
-    const floors = [];
-    const allDevices = [];
+    const fallbackSeedDevices = devices.filter((device) => deviceMatchesScheduleScope(device, "fire-alarm")).slice(0, 6);
+    if (!fallbackSeedDevices.length) return false;
+    const syntheticFloors = [];
+    const syntheticDevices = [];
     const schedules = [];
     const today = formatDateValue(new Date());
-    specs.forEach((spec) => {
-      const profile = {
-        companyName: spec.companyName,
-        siteName: spec.siteName
-      };
+    state.activeJob = null;
+    state.activeTechPreviewScheduleId = null;
+    state.activeTechSystemKey = "";
+    state.inspections = {};
+    state.criticalSops = {};
+    state.systemChecks = {};
+    writeStoredJson("rmtActiveJob", state.activeJob);
+    writeStoredJson("tmFireInspections", state.inspections);
+    writeStoredJson("rmtCriticalSops", state.criticalSops);
+    writeStoredJson("rmtSystemChecks", state.systemChecks);
+
+    const buildFallbackScope = (spec, profile) => {
       const floor = {
         id: spec.floorId,
         floorId: spec.floorId,
@@ -150,7 +238,8 @@ async function seedTemporaryMtbSchedule(page) {
         cleanSrc: defaultFloorAssets.lv1.src,
         active: true
       };
-      const pool = seedDevices.map((device, index) => ({
+      const pool = fallbackSeedDevices.map((device, index) => ({
+        id: `${spec.prefix}.${index + 1}`,
         tag: `${spec.prefix}.${index + 1}`,
         type: device.type,
         short: device.short,
@@ -164,19 +253,49 @@ async function seedTemporaryMtbSchedule(page) {
         yPercent: device.y,
         status: "Confirmed"
       }));
-      floors.push(floor);
-      allDevices.push(...pool);
+      syntheticFloors.push(floor);
+      syntheticDevices.push(...pool);
+      return { floor, devices: pool, source: "synthetic" };
+    };
+
+    specs.forEach((spec) => {
+      const profile = {
+        companyName: spec.companyName,
+        siteName: spec.siteName
+      };
+      const realFloors = getScheduleFloorsForSite(profile).filter((floor) => !isGeneralScheduleFloorId(floor.id || floor.floorId));
+      let selectedFloor = null;
+      let pool = [];
+      for (const floor of realFloors) {
+        const floorId = floor.id || floor.floorId;
+        const devicesForFloor = getDevicesForScheduleFloor(floorId, profile)
+          .filter((device) => deviceMatchesScheduleScope(device, "fire-alarm"));
+        if (devicesForFloor.length) {
+          selectedFloor = floor;
+          pool = devicesForFloor.slice(0, 6);
+          break;
+        }
+      }
+      if (!pool.length) {
+        const fallback = buildFallbackScope(spec, profile);
+        selectedFloor = fallback.floor;
+        pool = fallback.devices;
+      }
+      const floorId = selectedFloor.id || selectedFloor.floorId;
+      const floorTitle = selectedFloor.title || selectedFloor.floorTitle || spec.floorTitle;
+      const floorCode = selectedFloor.floorCode || getFloorCode(floorId);
+      const plannedIds = pool.map((device) => device.id || device.tag).filter(Boolean);
       schedules.push({
         scheduleId: spec.scheduleId,
         status: "Scheduled",
         companyName: profile.companyName,
         siteName: profile.siteName,
         clientSource: "Existing Client",
-        floorId: floor.id,
-        floorTitle: floor.title,
-        floorCode: floor.floorCode,
-        startFloorId: floor.id,
-        startFloorTitle: floor.title,
+        floorId,
+        floorTitle,
+        floorCode,
+        startFloorId: floorId,
+        startFloorTitle: floorTitle,
         date: today,
         time: spec.time,
         technician: "Technician Pool",
@@ -185,12 +304,12 @@ async function seedTemporaryMtbSchedule(page) {
         scopeLabel: `QA ${spec.companyName} Phone Pins`,
         scopeSelectionMode: "selected-floor",
         contractFrequencyPercent: 100,
-        plannedDeviceIds: pool.map((device) => device.tag),
-        plannedFloorCounts: [{ floorId: floor.id, floorTitle: floor.title, count: pool.length }],
+        plannedDeviceIds: plannedIds,
+        plannedFloorCounts: [{ floorId, floorTitle, count: plannedIds.length }],
         priority: "Normal",
         notes: "Temporary Android QA schedule only.",
-        deviceCount: pool.length,
-        totalFloorDeviceCount: pool.length,
+        deviceCount: plannedIds.length,
+        totalFloorDeviceCount: plannedIds.length,
         passiveCount: pool.filter((device) => isPassiveScopeDevice(device)).length,
         activeCount: pool.filter((device) => isActiveSystem(device.type)).length,
         createdAt: new Date().toISOString(),
@@ -198,11 +317,11 @@ async function seedTemporaryMtbSchedule(page) {
       });
     });
     state.mimicFloors = [
-      ...floors,
-      ...state.mimicFloors.filter((item) => !floors.some((floor) => floor.id === item.id))
+      ...syntheticFloors,
+      ...state.mimicFloors.filter((item) => !syntheticFloors.some((floor) => floor.id === item.id))
     ];
     state.setupDevices = [
-      ...allDevices,
+      ...syntheticDevices,
       ...state.setupDevices.filter((device) => !specs.some((spec) => String(device.tag || "").startsWith(`${spec.prefix}.`)))
     ];
     state.schedules = schedules;
@@ -210,9 +329,29 @@ async function seedTemporaryMtbSchedule(page) {
     writeStoredJson("rmtMimicFloors", state.mimicFloors);
     writeStoredJson("tmFireSetupDevices", state.setupDevices);
     renderTechWorkPanel();
-    return true;
+    window.__androidQaSeedDebug = {
+      ok: schedules.every((schedule) => schedule.plannedDeviceIds.length),
+      schedules: schedules.map((schedule) => ({
+        scheduleId: schedule.scheduleId,
+        companyName: schedule.companyName,
+        floorId: schedule.floorId,
+        plannedDeviceIds: schedule.plannedDeviceIds
+      })),
+      setupQaTags: state.setupDevices
+        .filter((device) => specs.some((spec) => String(device.tag || "").startsWith(`${spec.prefix}.`)))
+        .map((device) => device.tag)
+    };
+    return window.__androidQaSeedDebug;
   });
-  assert(seeded, "Unable to seed temporary MTB schedule for Android QA.");
+  assert(seeded.ok, `Unable to seed temporary MTB schedule for Android QA: ${JSON.stringify(seeded, null, 2)}`);
+}
+
+function ensureQaFaultPhoto() {
+  const photoPath = join(OUTPUT_DIR, "android-qa-fault-photo.png");
+  if (!existsSync(photoPath)) {
+    writeFileSync(photoPath, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lCOgSwAAAABJRU5ErkJggg==", "base64"));
+  }
+  return photoPath;
 }
 
 (async () => {
@@ -239,49 +378,123 @@ async function seedTemporaryMtbSchedule(page) {
   await page.goto(APP_URL, { waitUntil: "domcontentloaded" });
   await loginAs(page, "tech@rmtfire.local", QA_LOGIN_TEXT);
   await waitForWorkspace(page);
-  await page.waitForSelector(".tech-job-card", { timeout: 15000 });
+  await waitForInitialDataLoad(page);
+  await showTechJobs(page);
   await seedTemporaryMtbSchedule(page);
+  await showTechJobs(page);
+  await page.locator(".tech-job-card").first().waitFor({ state: "visible", timeout: 15000 });
 
   const jobText = await page.locator("#techAssignedJobs").innerText();
   assert(jobText.includes("WETEX"), "WETEX job is not visible in technician job list.");
   assert(jobText.includes("UOB"), "UOB job is not visible in technician job list.");
   assert(jobText.includes("MTB Reality"), "MTB job is not visible in technician job list.");
 
-  await clickJobButton(page, "WETEX", "View Items");
-  await page.waitForSelector(".tech-assigned-item-card", { timeout: 15000 });
-  const listFirstResult = await page.evaluate(() => ({
-    itemCards: document.querySelectorAll(".tech-assigned-item-card").length,
-    progress: document.querySelector("#techItemProgress")?.textContent.trim(),
-    firstItem: document.querySelector(".tech-assigned-item-card strong")?.textContent.trim() || "",
-    inspectionBeforeMap: (() => {
-      const inspection = document.querySelector(".inspection-panel")?.getBoundingClientRect().top ?? 0;
-      const map = document.querySelector(".map-panel")?.getBoundingClientRect().top ?? 0;
-      return inspection <= map;
-    })()
+  const faultPhotoPath = ensureQaFaultPhoto();
+
+  await openTechnicianJob(page, "WETEX");
+  const listFirstResult = await page.evaluate(() => {
+    const isVisible = (selector) => {
+      const element = document.querySelector(selector);
+      return Boolean(element && element.getClientRects().length && getComputedStyle(element).display !== "none");
+    };
+    return {
+      activeJobText: document.querySelector("#techActiveJobSummary")?.textContent.trim() || "",
+      jobCards: document.querySelectorAll(".tech-job-card").length,
+      systemButtons: document.querySelectorAll("#techActiveJobSummary [data-tech-system]").length,
+      workflowNavVisible: isVisible("#techWorkflowNav"),
+      diagnosticsVisible: isVisible("#diagnosticsPanel"),
+      suggestVisible: isVisible("#showRequestBtn"),
+      contentGridHidden: !isVisible(".content-grid")
+    };
+  });
+
+  await openTechnicianSystem(page, "WETEX", "Fire Alarm");
+  const wetexResult = await page.evaluate(() => ({
+    title: document.querySelector("#mapTitle")?.textContent.trim(),
+    floor: document.querySelector("#floorSelect")?.selectedOptions?.[0]?.textContent.trim(),
+    assignedPins: document.querySelectorAll(".marker.assigned-scope").length,
+    activeJobText: document.querySelector("#techActiveJobSummary")?.textContent.trim() || "",
+    techScreen: [...document.querySelector("#workspace")?.classList || []].filter((name) => name.startsWith("tech-screen-")).join(" "),
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth
   }));
-  await tapVisibleCenter(page, page.locator("[data-tech-open-device]").first(), "First assigned Open Checklist button");
-  await page.waitForFunction(() => {
-    return !document.querySelector("#checklistForm")?.classList.contains("hidden")
-      || document.querySelector("#workspace")?.classList.contains("critical-sop-active");
-  }, null, { timeout: 15000 });
-  const autoStartItemResult = await page.evaluate(() => ({
-    activeJobText: document.querySelector("#techActiveJobSummary")?.textContent.trim(),
-    checklistOpen: !document.querySelector("#checklistForm")?.classList.contains("hidden"),
-    criticalSopOpen: document.querySelector("#workspace")?.classList.contains("critical-sop-active"),
-    selectedDevice: document.querySelector("#deviceName")?.textContent.trim() || document.querySelector(".critical-device-summary strong")?.textContent.trim() || "",
-    detailInViewport: (() => {
-      const target = !document.querySelector("#checklistForm")?.classList.contains("hidden")
-        ? document.querySelector("#checklistForm")
-        : document.querySelector("#criticalSopPanel");
-      const rect = target?.getBoundingClientRect();
-      return Boolean(rect && rect.top >= -8 && rect.top < window.innerHeight * 0.55);
-    })()
+  await page.screenshot({ path: join(OUTPUT_DIR, "android-wetex-view-pins.png"), fullPage: false });
+
+  const passMarkerCount = await page.locator(".marker.assigned-scope:not(.critical-marker)").count();
+  const passMarker = passMarkerCount
+    ? page.locator(".marker.assigned-scope:not(.critical-marker)").first()
+    : page.locator(".marker.assigned-scope").first();
+  await tapVisibleCenter(page, passMarker, "WETEX Fire Alarm assigned pin for PASS");
+  await page.waitForSelector("#workspace.tech-screen-inspection", { timeout: 15000 });
+  await page.waitForFunction(() => !document.querySelector("#checklistForm")?.classList.contains("hidden"), null, { timeout: 15000 });
+  const autoStartItemResult = await page.evaluate(() => {
+    const isVisible = (selector) => {
+      const element = document.querySelector(selector);
+      return Boolean(element && element.getClientRects().length && getComputedStyle(element).display !== "none");
+    };
+    return {
+      activeJobText: document.querySelector("#techActiveJobSummary")?.textContent.trim(),
+      checklistOpen: !document.querySelector("#checklistForm")?.classList.contains("hidden"),
+      criticalSopOpen: document.querySelector("#workspace")?.classList.contains("critical-sop-active"),
+      selectedDevice: document.querySelector("#deviceName")?.textContent.trim() || "",
+      faultFieldsHiddenBeforeFault: !isVisible(".fault-evidence-row") && !isVisible(".inspection-notes-field"),
+      questionListHidden: !isVisible("#questionList"),
+      actionText: document.querySelector("#checklistForm button[type='submit']")?.textContent.trim() || ""
+    };
+  });
+  await page.locator("#checklistForm button[type='submit']").click();
+  await page.waitForSelector("#workspace.tech-screen-mimic", { timeout: 15000 });
+  const autoStartTapResult = await page.evaluate(() => ({
+    backOnMimic: document.querySelector("#workspace")?.classList.contains("tech-screen-mimic"),
+    checklistHidden: document.querySelector("#checklistForm")?.classList.contains("hidden"),
+    syncState: document.querySelector("#syncState")?.textContent.trim() || "",
+    passMarkers: document.querySelectorAll(".marker.assigned-scope.pass").length
   }));
 
-  await clickJobButton(page, "WETEX", "View Items");
-  await waitForAssignedPins(page, "WETEX");
-  await tapVisibleCenter(page, page.locator("[data-tech-map-device]").first(), "First assigned Map button");
-  await page.waitForSelector(".marker.map-focus-marker", { timeout: 15000 });
+  const failMarkerCount = await page.locator(".marker.assigned-scope:not(.critical-marker):not(.pass)").count();
+  const failMarker = failMarkerCount
+    ? page.locator(".marker.assigned-scope:not(.critical-marker):not(.pass)").first()
+    : page.locator(".marker.assigned-scope:not(.critical-marker)").nth(1);
+  await tapVisibleCenter(page, failMarker, "WETEX Fire Alarm assigned pin for FAULT");
+  await page.waitForSelector("#workspace.tech-screen-inspection", { timeout: 15000 });
+  await page.waitForFunction(() => !document.querySelector("#checklistForm")?.classList.contains("hidden"), null, { timeout: 15000 });
+  const faultFieldsBefore = await page.evaluate(() => {
+    const isVisible = (selector) => {
+      const element = document.querySelector(selector);
+      return Boolean(element && element.getClientRects().length && getComputedStyle(element).display !== "none");
+    };
+    return {
+      photosVisible: isVisible(".fault-evidence-row"),
+      notesVisible: isVisible(".inspection-notes-field"),
+      failButton: document.querySelector("#markFailBtn")?.textContent.trim() || ""
+    };
+  });
+  await page.locator("#markFailBtn").click();
+  await page.waitForFunction(() => document.querySelector("#workspace")?.classList.contains("tech-fault-entry-active"), null, { timeout: 15000 });
+  const faultFieldsAfter = await page.evaluate(() => {
+    const isVisible = (selector) => {
+      const element = document.querySelector(selector);
+      return Boolean(element && element.getClientRects().length && getComputedStyle(element).display !== "none");
+    };
+    return {
+      photosVisible: isVisible(".fault-evidence-row"),
+      notesVisible: isVisible(".inspection-notes-field"),
+      failButton: document.querySelector("#markFailBtn")?.textContent.trim() || ""
+    };
+  });
+  await page.locator("#notes").fill("Android QA fault evidence test.");
+  await page.setInputFiles("#beforePhoto", faultPhotoPath);
+  await page.locator("#markFailBtn").click();
+  await page.waitForSelector("#workspace.tech-screen-mimic", { timeout: 15000 });
+  const tapResult = await page.evaluate(() => ({
+    backOnMimic: document.querySelector("#workspace")?.classList.contains("tech-screen-mimic"),
+    checklistHidden: document.querySelector("#checklistForm")?.classList.contains("hidden"),
+    faultFieldsCleared: !document.querySelector("#workspace")?.classList.contains("tech-fault-entry-active"),
+    failMarkers: document.querySelectorAll(".marker.assigned-scope.fail").length,
+    syncState: document.querySelector("#syncState")?.textContent.trim() || ""
+  }));
+  await page.screenshot({ path: join(OUTPUT_DIR, "android-wetex-start-tap-pin.png"), fullPage: false });
+
   const mapFocusResult = await page.evaluate(() => {
     const marker = document.querySelector(".marker.map-focus-marker");
     const stage = document.querySelector("#mapStage");
@@ -310,36 +523,8 @@ async function seedTemporaryMtbSchedule(page) {
       stageScrollTop: stage?.scrollTop || 0
     };
   });
-  const firstWetexPreviewTag = await page.evaluate(() => {
-    const marker = document.querySelector(".marker.assigned-scope");
-    return marker?.dataset.setupTag || marker?.dataset.deviceId || marker?.dataset.label || "";
-  });
-  assert(firstWetexPreviewTag, "No assigned preview marker tag was available for WETEX preview test.");
-  await page.evaluate((tag) => focusTechnicianAssignedDevice(tag, { openChecklist: true }), firstWetexPreviewTag);
-  await page.waitForFunction(() => {
-    return !document.querySelector("#checklistForm")?.classList.contains("hidden")
-      || document.querySelector("#workspace")?.classList.contains("critical-sop-active");
-  }, null, { timeout: 15000 });
-  const autoStartTapResult = await page.evaluate(() => ({
-    activeJobText: document.querySelector("#techActiveJobSummary")?.textContent.trim(),
-    checklistOpen: !document.querySelector("#checklistForm")?.classList.contains("hidden"),
-    criticalSopOpen: document.querySelector("#workspace")?.classList.contains("critical-sop-active"),
-    selectedDevice: document.querySelector("#deviceName")?.textContent.trim() || document.querySelector(".critical-device-summary strong")?.textContent.trim() || ""
-  }));
 
-  await clickJobButton(page, "WETEX", "View Items");
-  await waitForAssignedPins(page, "WETEX");
-  const wetexResult = await page.evaluate(() => ({
-    title: document.querySelector("#mapTitle")?.textContent.trim(),
-    floor: document.querySelector("#floorSelect")?.selectedOptions?.[0]?.textContent.trim(),
-    assignedPins: document.querySelectorAll(".marker.assigned-scope").length,
-    scrollWidth: document.documentElement.scrollWidth,
-    clientWidth: document.documentElement.clientWidth
-  }));
-  await page.screenshot({ path: join(OUTPUT_DIR, "android-wetex-view-pins.png"), fullPage: false });
-
-  await clickJobButton(page, "UOB", "View Items");
-  await waitForAssignedPins(page, "UOB");
+  await openTechnicianSystem(page, "UOB", "Fire Alarm");
   const uobResult = await page.evaluate(() => ({
     title: document.querySelector("#mapTitle")?.textContent.trim(),
     floor: document.querySelector("#floorSelect")?.selectedOptions?.[0]?.textContent.trim(),
@@ -349,8 +534,7 @@ async function seedTemporaryMtbSchedule(page) {
   }));
   await page.screenshot({ path: join(OUTPUT_DIR, "android-uob-view-pins.png"), fullPage: false });
 
-  await clickJobButton(page, "MTB Reality", "View Items");
-  await waitForAssignedPins(page, "MTB");
+  await openTechnicianSystem(page, "MTB Reality", "Fire Alarm");
   const mtbResult = await page.evaluate(() => ({
     title: document.querySelector("#mapTitle")?.textContent.trim(),
     floor: document.querySelector("#floorSelect")?.selectedOptions?.[0]?.textContent.trim(),
@@ -360,18 +544,16 @@ async function seedTemporaryMtbSchedule(page) {
   }));
   await page.screenshot({ path: join(OUTPUT_DIR, "android-mtb-view-pins.png"), fullPage: false });
 
-  const diagnosticsResult = await page.evaluate(() => ({
-    server: document.querySelector("#diagServerStatus")?.textContent.trim() || "",
-    mode: document.querySelector("#diagAppMode")?.textContent.trim() || "",
-    technician: document.querySelector("#diagTechnician")?.textContent.trim() || "",
-    activeJob: document.querySelector("#diagActiveJob")?.textContent.trim() || "",
-    sharedRecords: document.querySelector("#diagSharedRevision")?.textContent.trim() || "",
-    drafts: document.querySelector("#diagDraftCount")?.textContent.trim() || "",
-    lanUrl: document.querySelector("#diagLanUrl")?.textContent.trim() || ""
-  }));
+  const diagnosticsResult = await page.evaluate(() => {
+    const element = document.querySelector("#diagnosticsPanel");
+    const visible = Boolean(element && element.getClientRects().length && getComputedStyle(element).display !== "none");
+    return {
+      visible,
+      serverText: document.querySelector("#diagServerStatus")?.textContent.trim() || "",
+      appModeText: document.querySelector("#diagAppMode")?.textContent.trim() || ""
+    };
+  });
 
-  await clickJobButton(page, "MTB Reality", "View Items");
-  await waitForAssignedPins(page, "MTB while WETEX active");
   const mtbWhileWetexActiveResult = await page.evaluate(() => ({
     title: document.querySelector("#mapTitle")?.textContent.trim(),
     floor: document.querySelector("#floorSelect")?.selectedOptions?.[0]?.textContent.trim(),
@@ -379,44 +561,34 @@ async function seedTemporaryMtbSchedule(page) {
     activeJobText: document.querySelector("#techActiveJobSummary")?.textContent.trim()
   }));
 
-  const firstPreviewTag = await page.evaluate(() => {
-    const marker = document.querySelector(".marker.assigned-scope");
-    return marker?.dataset.setupTag || marker?.dataset.deviceId || marker?.dataset.label || "";
-  });
-  assert(firstPreviewTag, "No assigned preview marker tag was available for MTB switch test.");
-  await page.evaluate((tag) => focusTechnicianAssignedDevice(tag, { openChecklist: true }), firstPreviewTag);
-  await page.waitForFunction(() => {
-    return !document.querySelector("#checklistForm")?.classList.contains("hidden")
-      || document.querySelector("#workspace")?.classList.contains("critical-sop-active");
-  }, null, { timeout: 15000 });
-  const tapResult = await page.evaluate(() => ({
-    checklistOpen: !document.querySelector("#checklistForm")?.classList.contains("hidden"),
-    criticalSopOpen: document.querySelector("#workspace")?.classList.contains("critical-sop-active"),
-    selectedDevice: document.querySelector("#deviceName")?.textContent.trim() || document.querySelector(".critical-device-summary strong")?.textContent.trim() || ""
-  }));
-  await page.screenshot({ path: join(OUTPUT_DIR, "android-wetex-start-tap-pin.png"), fullPage: false });
-
   assert(wetexResult.assignedPins > 0, "WETEX assigned pins did not appear on Android viewport.");
   assert(uobResult.assignedPins > 0, "UOB assigned pins did not appear on Android viewport.");
   assert(mtbResult.assignedPins > 0, "MTB assigned pins did not appear on Android viewport.");
   assertNoHorizontalOverflow(wetexResult, "WETEX Android view");
   assertNoHorizontalOverflow(uobResult, "UOB Android view");
   assertNoHorizontalOverflow(mtbResult, "MTB Android view");
-  assert(diagnosticsResult.server === "Server connected", `Diagnostics server status is not connected: ${JSON.stringify(diagnosticsResult)}.`);
-  assert(diagnosticsResult.mode.includes("online-shared-records"), `Diagnostics mode does not show shared-record server mode: ${JSON.stringify(diagnosticsResult)}.`);
-  assert(diagnosticsResult.technician.includes("Demo Technician"), `Diagnostics technician is wrong: ${JSON.stringify(diagnosticsResult)}.`);
-  assert(listFirstResult.itemCards > 0, "Assigned item list did not render for technician.");
-  assert(listFirstResult.inspectionBeforeMap, "Technician list/checklist panel is not above the map on Android.");
-  assert(mapFocusResult.hasFocusClass, "Map button did not highlight the selected mimic pin.");
+  assert(listFirstResult.jobCards >= 3, "Technician Today's Jobs did not show WETEX/UOB/MTB cards.");
+  assert(listFirstResult.systemButtons > 0, "Opening a technician job did not show fire-system buttons.");
+  assert(!listFirstResult.workflowNavVisible, "Hidden technician workflow tabs are still visible on Android.");
+  assert(!listFirstResult.diagnosticsVisible, "Diagnostics panel is visible in normal technician workflow.");
+  assert(!listFirstResult.suggestVisible, "Topbar suggest-device control is visible in normal technician workflow.");
+  assert(listFirstResult.contentGridHidden, "Technician job landing still shows the large admin/content grid.");
+  assert(wetexResult.techScreen.includes("tech-screen-mimic"), "Choosing Fire Alarm did not take technician to the mimic screen.");
+  assert(!diagnosticsResult.visible, `Diagnostics should be hidden for technicians: ${JSON.stringify(diagnosticsResult)}.`);
+  assert(mapFocusResult.hasFocusClass, "Saving from a mimic pin did not keep the selected pin highlighted.");
   assert(mapFocusResult.trueSavedPosition, `Highlighted map pin is not at saved location: ${JSON.stringify(mapFocusResult)}.`);
-  assert(autoStartItemResult.checklistOpen || autoStartItemResult.criticalSopOpen, "Opening an assigned list item did not auto-start and open checklist/SOP.");
-  assert(autoStartItemResult.detailInViewport, "Opening an assigned list item did not scroll the checklist/SOP into phone view.");
-  assert(autoStartItemResult.activeJobText.includes("WETEX"), "Assigned list item did not start WETEX active job.");
-  assert(autoStartTapResult.checklistOpen || autoStartTapResult.criticalSopOpen, "Tapping a preview assigned pin did not auto-start and open checklist/SOP.");
-  assert(autoStartTapResult.activeJobText.includes("WETEX"), "Auto-started pin tap did not start WETEX active job.");
+  assert(autoStartItemResult.checklistOpen && !autoStartItemResult.criticalSopOpen, "Tapping a normal mimic pin did not open the focused inspection card.");
+  assert(autoStartItemResult.faultFieldsHiddenBeforeFault, "Fault fields are visible before FAULT is selected.");
+  assert(autoStartItemResult.questionListHidden, "Normal technician card is still showing the full checklist question block.");
+  assert(autoStartItemResult.actionText.includes("PASS"), "Technician PASS action is not the primary card action.");
+  assert(autoStartTapResult.backOnMimic && autoStartTapResult.checklistHidden, "PASS save did not return technician to mimic.");
+  assert(autoStartTapResult.passMarkers > 0, "PASS save did not update any mimic pin status.");
+  assert(!faultFieldsBefore.photosVisible && !faultFieldsBefore.notesVisible, "FAULT evidence fields were visible before FAULT selection.");
+  assert(faultFieldsAfter.photosVisible && faultFieldsAfter.notesVisible, "FAULT selection did not reveal photo/description fields.");
+  assert(tapResult.backOnMimic && tapResult.checklistHidden && tapResult.faultFieldsCleared, "FAULT save did not return cleanly to mimic.");
+  assert(tapResult.failMarkers > 0, "FAULT save did not update any mimic pin status.");
   assert(mtbWhileWetexActiveResult.assignedPins > 0, "MTB assigned pins disappeared while another tech job was active.");
-  assert(mtbWhileWetexActiveResult.title.includes("MTB"), `Expected MTB map while WETEX active, got ${mtbWhileWetexActiveResult.title}.`);
-  assert(tapResult.checklistOpen || tapResult.criticalSopOpen, "Tapping MTB assigned pin after switching from WETEX did not open checklist or critical SOP.");
+  assert(mtbWhileWetexActiveResult.title.includes("MTB"), `Expected MTB map after switching jobs, got ${mtbWhileWetexActiveResult.title}.`);
   assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);
 
   await context.close();
@@ -435,8 +607,10 @@ async function seedTemporaryMtbSchedule(page) {
     await extraPage.goto(APP_URL, { waitUntil: "domcontentloaded" });
     await loginAs(extraPage, account.email, QA_LOGIN_TEXT);
     await waitForWorkspace(extraPage);
-    await extraPage.waitForSelector(".tech-job-card", { timeout: 15000 });
+    await waitForInitialDataLoad(extraPage);
+    await showTechJobs(extraPage);
     await seedTemporaryMtbSchedule(extraPage);
+    await showTechJobs(extraPage);
     const badge = await extraPage.locator("#currentUserBadge").innerText();
     const jobs = await extraPage.locator("#techAssignedJobs").innerText();
     extraUserResults.push({
@@ -463,6 +637,8 @@ async function seedTemporaryMtbSchedule(page) {
   await stalePage.goto(APP_URL, { waitUntil: "domcontentloaded" });
   await loginAs(stalePage, "tech@rmtfire.local", QA_LOGIN_TEXT);
   await waitForWorkspace(stalePage);
+  await waitForInitialDataLoad(stalePage);
+  await showTechJobs(stalePage);
   await seedTemporaryMtbSchedule(stalePage);
   await stalePage.evaluate(() => {
     state.activeJob = {
@@ -489,7 +665,7 @@ async function seedTemporaryMtbSchedule(page) {
     persistActiveJob();
     renderTechWorkPanel();
   });
-  await clickJobButton(stalePage, "MTB Reality", "View Items");
+  await openTechnicianSystem(stalePage, "MTB Reality", "Fire Alarm");
   const stalePick = await stalePage.evaluate(() => {
     const schedule = state.schedules.find((item) => item.scheduleId === "QA-MOBILE-MTB");
     if (schedule) {

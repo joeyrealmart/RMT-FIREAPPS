@@ -799,6 +799,7 @@ const state = {
   jobHistory: readStoredJson("rmtJobHistory", []),
   techScreen: "jobs",
   activeTechPreviewScheduleId: null,
+  activeTechSystemKey: "",
   staffRun: null,
   mimicViewMode: localStorage.getItem("rmtMimicViewMode") === "original" ? "original" : "clean",
   libraryFloors: [],
@@ -1185,15 +1186,20 @@ function bindTechNavigationControls() {
   bindReliableTap(techGoCompleteBtn, () => setTechScreen("complete", { scroll: true }));
 }
 
+function shouldUpdateDiagnosticsForCurrentUser() {
+  return getCurrentUserRole() !== "Technician" || workspace?.classList.contains("show-tech-diagnostics");
+}
+
 function startDiagnosticsHeartbeat() {
   renderDiagnosticsPanel();
-  refreshDiagnosticsPanel();
+  if (shouldUpdateDiagnosticsForCurrentUser()) refreshDiagnosticsPanel();
   if (!diagnosticsTimerId) {
     diagnosticsTimerId = window.setInterval(refreshDiagnosticsPanel, 15000);
   }
 }
 
 async function refreshDiagnosticsPanel() {
+  if (!shouldUpdateDiagnosticsForCurrentUser()) return;
   try {
     const response = await fetch("/api/diagnostics", { cache: "no-store" });
     const payload = await response.json();
@@ -1254,7 +1260,7 @@ function getDiagnosticsRevisionSummary(schedule) {
 }
 
 function renderDiagnosticsPanel() {
-  if (!diagServerStatus) return;
+  if (!diagServerStatus || !shouldUpdateDiagnosticsForCurrentUser()) return;
   const server = state.serverDiagnostics || {};
   const connected = Boolean(server.connected);
   const role = getCurrentUserRole();
@@ -1509,7 +1515,7 @@ function renderMarkers() {
 
   devices.forEach((device) => {
     const pin = state.devicePins[device.id] || {};
-    if (!isDeviceAllowedForTechScope(device)) return;
+    if (!isDeviceAllowedForTechScope(device) || !isDeviceVisibleForTechnicianSystem(device)) return;
     const marker = document.createElement("button");
     marker.className = `marker ${deviceStatus(device.id)} ${getDeviceTypeClass(device.type)} ${isCriticalSopDevice(device) ? "critical-marker" : ""} ${getTechScopeMarkerClass(device)}`;
     marker.style.left = `${pin.xPercent ?? device.x}%`;
@@ -1552,12 +1558,15 @@ function renderMarkers() {
 function renderSetupMapMarkers() {
   const markerDevices = getCurrentFloorSetupDevices()
     .filter((device) => Number.isFinite(getSetupDeviceX(device)) && Number.isFinite(getSetupDeviceY(device)))
-    .filter((device) => isDeviceAllowedForTechScope({ ...device, id: device.tag }));
+    .filter((device) => {
+      const normalized = { ...device, id: device.tag, tag: device.tag };
+      return isDeviceAllowedForTechScope(normalized) && isDeviceVisibleForTechnicianSystem(normalized);
+    });
 
   getDisplaySetupMarkers(markerDevices)
     .forEach(({ device, xPercent, yPercent }) => {
       const marker = document.createElement("button");
-      marker.className = `marker setup-marker ${getDeviceTypeClass(device.type)} ${isCriticalSopDevice(device) ? "critical-marker" : ""} ${getTechScopeMarkerClass(device)}`;
+      marker.className = `marker setup-marker ${deviceStatus(device.tag)} ${getDeviceTypeClass(device.type)} ${isCriticalSopDevice(device) ? "critical-marker" : ""} ${getTechScopeMarkerClass(device)}`;
       marker.style.left = `${xPercent}%`;
       marker.style.top = `${yPercent}%`;
       marker.textContent = getShortCode(device);
@@ -1575,8 +1584,10 @@ function renderSetupMapMarkers() {
       const activateMarker = (event) => {
         event.stopPropagation();
         state.selectedSetupTag = device.tag;
-        renderMarkers();
-        updateTagPaletteHint();
+        if (getCurrentUserRole() !== "Technician") {
+          renderMarkers();
+          updateTagPaletteHint();
+        }
         selectDevice(device.tag);
       };
       if (getCurrentUserRole() === "Technician") {
@@ -1700,6 +1711,7 @@ async function selectDevice(id, options = {}) {
   }
   state.activeCriticalDevice = null;
   workspace.classList.remove("critical-sop-active");
+  workspace.classList.remove("tech-fault-entry-active");
   placeChecklistFormForRole();
   const saved = state.inspections[id] || {};
 
@@ -1712,6 +1724,10 @@ async function selectDevice(id, options = {}) {
   document.querySelector("#actionTaken").value = "";
   document.querySelector("#beforePhoto").value = "";
   document.querySelector("#afterPhoto").value = "";
+  const failButton = document.querySelector("#markFailBtn");
+  const passButton = checklistForm.querySelector("button[type='submit']");
+  if (failButton) failButton.textContent = "FAULT";
+  if (passButton) passButton.textContent = getCurrentUserRole() === "Technician" ? "PASS & Save" : "PASS / Save";
   renderHistory(device.id);
 
   questionList.innerHTML = "";
@@ -2433,6 +2449,14 @@ saveNextInspectionBtn?.addEventListener("click", async () => {
 });
 
 document.querySelector("#markFailBtn").addEventListener("click", async () => {
+  if (getCurrentUserRole() === "Technician" && !workspace.classList.contains("tech-fault-entry-active")) {
+    workspace.classList.add("tech-fault-entry-active");
+    const failButton = document.querySelector("#markFailBtn");
+    if (failButton) failButton.textContent = "Save FAULT";
+    document.querySelector("#syncState").textContent = "FAULT selected. Add defect description and photo evidence, then save.";
+    document.querySelector("#notes")?.focus();
+    return;
+  }
   await saveInspection("fail");
 });
 
@@ -2544,6 +2568,9 @@ async function saveInspection(forcedStatus, options = {}) {
   ensureActiveJobCriticalWorkflows(getActiveTechnicianMaintenanceSchedule());
   syncActiveJobProgressToSchedule();
   persistActiveJob();
+  if (getCurrentUserRole() === "Technician") {
+    state.focusedMapTag = device.id;
+  }
   renderMarkers();
   renderTechAssignedItemList();
   renderTechFaultPanel();
@@ -2559,6 +2586,15 @@ async function saveInspection(forcedStatus, options = {}) {
     : sharedSave.localOnly
       ? "Saved locally"
       : "Saved to shared job record";
+  if (getCurrentUserRole() === "Technician") {
+    workspace.classList.remove("tech-fault-entry-active");
+    checklistForm.classList.add("hidden");
+    emptyState.classList.remove("hidden");
+    setTechScreen("mimic", { scroll: true });
+    requestAnimationFrame(() => centerMapOnDeviceMarker(device.id));
+    document.querySelector("#syncState").textContent = `${device.id} ${status.toUpperCase()} saved. Back on mimic.`;
+    return;
+  }
   document.querySelector("#syncState").textContent = inspectionSaved ? sharedMessage : `${sharedMessage} without embedded photo data`;
 }
 
@@ -5418,7 +5454,7 @@ function getTechnicianScheduleStatus(schedule) {
 }
 
 function getTechnicianScheduleActionLabel(schedule) {
-  return getTechnicianScheduleStatus(schedule) === "In Progress" ? "Resume Job" : "Start Job";
+  return getTechnicianScheduleStatus(schedule) === "In Progress" ? "Resume Job" : "Open Job";
 }
 
 function getTechnicianScheduleStartFloor(schedule) {
@@ -5441,11 +5477,145 @@ function renderTechProgressGrid(summary) {
   `;
 }
 
-async function startOrResumeTechnicianSchedule(scheduleId) {
-  const started = await startScheduledJob(scheduleId, { openFirstUnfinished: true });
-  if (started) {
-    setTechScreen("inspection", { scroll: true });
+function getTechnicianFireSystemDefinitions() {
+  return [
+    { id: "fire-alarm", label: "Fire Alarm", hint: "Panel, MCP, smoke, heat", scopeId: "fire-alarm" },
+    { id: "emergency-exit", label: "Emergency / Exit", hint: "EL and exit signs", scopeId: "emergency-exit" },
+    { id: "hose-reel", label: "Hose Reel", hint: "Hose reel points", scopeId: "hose-reel" },
+    { id: "pump-system", label: "Pump / Water", hint: "Pump, riser, hydrant panels", scopeId: "pump-system" },
+    { id: "gas-release", label: "Gas / CO2 / FM200", hint: "Suppression systems", scopeId: "gas-release" },
+    { id: "wet-chemical", label: "Wet Chemical", hint: "Kitchen hood system", scopeId: "wet-chemical" },
+    { id: "intercom-flow", label: "Intercom / Flow", hint: "FI and flow switch", scopeId: "intercom-flow" },
+    { id: "extinguisher", label: "Extinguisher", hint: "Portable units", scopeId: "extinguisher" },
+    { id: "all", label: "All Assigned", hint: "Show full job scope", scopeId: "" }
+  ];
+}
+
+function getTechnicianFireSystemDefinition(systemKey) {
+  return getTechnicianFireSystemDefinitions().find((item) => item.id === systemKey) || null;
+}
+
+function deviceMatchesTechnicianFireSystem(device, systemKey) {
+  if (!systemKey || systemKey === "all") return true;
+  const definition = getTechnicianFireSystemDefinition(systemKey);
+  if (!definition?.scopeId) return true;
+  return deviceMatchesScheduleScope(device, definition.scopeId);
+}
+
+function getTechnicianFireSystemGroups(schedule) {
+  const assignedDevices = getScheduledAssignedDevices(schedule);
+  const definitions = getTechnicianFireSystemDefinitions();
+  return definitions.map((definition) => {
+    const devicesForSystem = definition.id === "all"
+      ? assignedDevices
+      : assignedDevices.filter((device) => deviceMatchesTechnicianFireSystem(device, definition.id));
+    const summary = {
+      total: devicesForSystem.length,
+      done: 0,
+      pass: 0,
+      fail: 0,
+      partial: 0,
+      pending: 0,
+      blocked: 0
+    };
+    devicesForSystem.forEach((device) => {
+      const status = getAssignedDeviceCompletionStatus(device, schedule);
+      if (status === "pass") summary.pass += 1;
+      if (status === "fail") summary.fail += 1;
+      if (status === "partial") summary.partial += 1;
+      if (status === "locked") summary.blocked += 1;
+      if (status === "pending") summary.pending += 1;
+      if (status !== "pending" && status !== "partial") summary.done += 1;
+    });
+    summary.done = Math.max(0, summary.done - summary.blocked);
+    return {
+      ...definition,
+      devices: devicesForSystem,
+      summary
+    };
+  }).filter((group) => group.devices.length || group.id === "all");
+}
+
+function getActiveTechnicianSystemKey(schedule = getTechMarkerScopeSchedule()) {
+  const groups = getTechnicianFireSystemGroups(schedule);
+  if (!groups.length) return "";
+  const valid = groups.some((group) => group.id === state.activeTechSystemKey);
+  return valid ? state.activeTechSystemKey : "";
+}
+
+function getVisibleTechnicianDevicesForSystem(schedule) {
+  const devicesForSchedule = getScheduledAssignedDevices(schedule);
+  const systemKey = getActiveTechnicianSystemKey(schedule);
+  if (!systemKey || systemKey === "all") return devicesForSchedule;
+  return devicesForSchedule.filter((device) => deviceMatchesTechnicianFireSystem(device, systemKey));
+}
+
+function isDeviceVisibleForTechnicianSystem(device, schedule = getTechMarkerScopeSchedule()) {
+  if (getCurrentUserRole() !== "Technician") return true;
+  const systemKey = getActiveTechnicianSystemKey(schedule);
+  return deviceMatchesTechnicianFireSystem(device, systemKey);
+}
+
+function renderTechFireSystemButtons(schedule) {
+  const groups = getTechnicianFireSystemGroups(schedule);
+  const activeKey = getActiveTechnicianSystemKey(schedule);
+  const visibleGroups = groups.filter((group) => group.id !== "all" || groups.length > 2);
+  if (!visibleGroups.length) {
+    return `<p class="hint">No fire-system scope is ready for this job. Ask admin to check the schedule/device master.</p>`;
   }
+  return `
+    <div class="tech-system-panel">
+      <strong>Choose Fire System</strong>
+      <span>Pick the system first. The app will show the matching mimic pins only.</span>
+      <div class="tech-system-grid">
+        ${visibleGroups.map((group) => `
+          <button type="button" class="${activeKey === group.id ? "active" : ""}" data-tech-system="${escapeHtml(group.id)}" data-tech-system-schedule="${escapeHtml(schedule.scheduleId)}">
+            <strong>${escapeHtml(group.label)}</strong>
+            <span>${group.summary.done}/${group.summary.total} done</span>
+            <small>${escapeHtml(group.hint)}</small>
+          </button>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+async function startOrResumeTechnicianSchedule(scheduleId) {
+  state.activeTechSystemKey = "";
+  const started = await startScheduledJob(scheduleId, { stayOnJobSummary: true });
+  if (started) {
+    renderTechWorkPanel();
+    setTechScreen("jobs", { scroll: true });
+    document.querySelector("#syncState").textContent = "Job opened. Choose a fire system to show the mimic pins.";
+  }
+}
+
+async function openTechnicianFireSystem(scheduleId, systemKey) {
+  const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
+  if (!schedule) return false;
+  state.activeTechSystemKey = systemKey || "all";
+  const firstDevice = getVisibleTechnicianDevicesForSystem(schedule)[0];
+  const targetFloorId = firstDevice?.floorId || getBestSchedulePreviewFloorId(schedule, {
+    companyName: schedule.companyName,
+    siteName: schedule.siteName
+  });
+  const started = await startScheduledJob(scheduleId, {
+    stayOnJobSummary: true,
+    targetFloorId
+  });
+  if (!started) return false;
+  state.activeTechPreviewScheduleId = scheduleId;
+  if (targetFloorId && floorExists(targetFloorId)) {
+    floorSelect.value = targetFloorId;
+    floorSelect.dispatchEvent(new Event("change"));
+  }
+  renderTechWorkPanel();
+  renderTechAssignedItemList();
+  renderMarkers();
+  setTechScreen("mimic", { scroll: true });
+  const label = getTechnicianFireSystemDefinition(state.activeTechSystemKey)?.label || "assigned";
+  document.querySelector("#syncState").textContent = `${label} mimic loaded. Tap a pin to inspect.`;
+  return true;
 }
 
 function renderTechWorkPanel() {
@@ -5453,12 +5623,12 @@ function renderTechWorkPanel() {
   if (!panel) return;
   const jobs = getTechnicianMaintenanceSchedules(6);
   const activeSchedule = getActiveTechnicianMaintenanceSchedule();
-  const previewSchedule = getTechMarkerScopeSchedule();
-  const summarySchedule = activeSchedule || previewSchedule || jobs[0] || null;
-  const profile = summarySchedule
-    ? { companyName: summarySchedule.companyName, siteName: summarySchedule.siteName }
-    : getCurrentSiteIdentity();
-  const frequencyPercent = Number(summarySchedule?.contractFrequencyPercent || getContractFrequencyForProfile(profile));
+  const profile = activeSchedule
+    ? { companyName: activeSchedule.companyName, siteName: activeSchedule.siteName }
+    : jobs[0]
+      ? { companyName: jobs[0].companyName, siteName: jobs[0].siteName }
+      : getCurrentSiteIdentity();
+  const frequencyPercent = Number(activeSchedule?.contractFrequencyPercent || jobs[0]?.contractFrequencyPercent || getContractFrequencyForProfile(profile));
   const badge = document.querySelector("#techContractBadge");
   if (badge) {
     badge.textContent = frequencyPercent >= 100
@@ -5470,24 +5640,23 @@ function renderTechWorkPanel() {
   const activeJob = state.activeJob && state.activeJob.status !== "Completed" ? state.activeJob : null;
   clearActiveJobBtn?.classList.add("hidden");
   if (activeSummary) {
-    if (summarySchedule) {
-      ensureSchedulePlannedScope(summarySchedule);
-      const summary = getAssignedCompletionSummary(summarySchedule);
-      const status = getTechnicianScheduleStatus(summarySchedule);
-      const isActiveSummary = activeSchedule?.scheduleId === summarySchedule.scheduleId;
-      const floorBreakdown = formatScheduleFloorBreakdown(summarySchedule.plannedFloorCounts || [], 4);
+    if (activeSchedule) {
+      ensureSchedulePlannedScope(activeSchedule);
+      const summary = getAssignedCompletionSummary(activeSchedule);
+      const status = getTechnicianScheduleStatus(activeSchedule);
+      const floorBreakdown = formatScheduleFloorBreakdown(activeSchedule.plannedFloorCounts || [], 4);
       activeSummary.innerHTML = `
-          <div class="tech-current-job ${isActiveSummary ? "" : "muted"}">
+          <div class="tech-current-job">
             <div>
-              <strong>${escapeHtml(summarySchedule.companyName)} / ${escapeHtml(summarySchedule.siteName)}</strong>
-              <span>${escapeHtml(summarySchedule.serviceType || "Maintenance / Inspection")} - ${escapeHtml(summarySchedule.date || "No date")} ${escapeHtml(summarySchedule.time || "")}</span>
-              <span>Assigned scope: ${escapeHtml(summarySchedule.scopeLabel || "Maintenance checklist")}</span>
-              <span>Starting floor: ${escapeHtml(getTechnicianScheduleStartFloor(summarySchedule))}${floorBreakdown ? ` | ${escapeHtml(floorBreakdown)}` : ""}</span>
+              <strong>${escapeHtml(activeSchedule.companyName)} / ${escapeHtml(activeSchedule.siteName)}</strong>
+              <span>${escapeHtml(activeSchedule.serviceType || "Maintenance / Inspection")} - ${escapeHtml(activeSchedule.date || "No date")} ${escapeHtml(activeSchedule.time || "")}</span>
+              <span>Assigned scope: ${escapeHtml(activeSchedule.scopeLabel || "Maintenance checklist")}</span>
+              <span>Starting floor: ${escapeHtml(getTechnicianScheduleStartFloor(activeSchedule))}${floorBreakdown ? ` | ${escapeHtml(floorBreakdown)}` : ""}</span>
             </div>
             ${renderTechProgressGrid(summary)}
+            ${renderTechFireSystemButtons(activeSchedule)}
             <div class="tech-job-actions">
-              <button type="button" class="primary-wide" data-tech-start-schedule="${escapeHtml(summarySchedule.scheduleId)}">${escapeHtml(getTechnicianScheduleActionLabel(summarySchedule))}</button>
-              <button type="button" class="secondary" data-tech-summary-mimic="${escapeHtml(summarySchedule.scheduleId)}">View Mimic</button>
+              <button type="button" class="secondary" data-tech-summary-mimic="${escapeHtml(activeSchedule.scheduleId)}">All Mimic</button>
               <button type="button" class="secondary" data-tech-screen-link="faults">Outstanding Faults</button>
               <button type="button" class="secondary" data-tech-screen-link="complete">Complete Job</button>
             </div>
@@ -5497,8 +5666,8 @@ function renderTechWorkPanel() {
       } else {
         activeSummary.innerHTML = `
         <div class="tech-current-job muted">
-          <strong>No active maintenance job started</strong>
-          <span>Pick an assigned job below. For extinguisher collection / return / loan unit, send an admin request if no job is assigned.</span>
+          <strong>Today's assigned jobs</strong>
+          <span>Open a job below. Then choose the fire system and use the mimic pins as the main working screen.</span>
         </div>
       `;
       }
@@ -5540,8 +5709,6 @@ function renderTechWorkPanel() {
         ${renderTechProgressGrid(summary)}
         <div class="tech-job-actions">
           <button type="button" class="primary-wide" data-tech-start-schedule="${escapeHtml(schedule.scheduleId)}">${escapeHtml(getTechnicianScheduleActionLabel(schedule))}</button>
-          <button type="button" class="secondary" data-tech-view-schedule="${escapeHtml(schedule.scheduleId)}">View Items</button>
-          <button type="button" class="secondary" data-tech-mimic-schedule="${escapeHtml(schedule.scheduleId)}">Mimic</button>
         </div>
         <span class="job-status-badge ${status === "In Progress" ? "active" : ""}">${escapeHtml(status)} - ${progressPercent}%</span>
       </article>
@@ -5552,22 +5719,19 @@ function renderTechWorkPanel() {
     bindReliableTap(button, () => startOrResumeTechnicianSchedule(button.dataset.techStartSchedule));
   });
   activeSummary?.querySelectorAll("[data-tech-summary-mimic]").forEach((button) => {
-    bindReliableTap(button, () => showTechnicianScheduleOnMap(button.dataset.techSummaryMimic, { scrollToMap: true }));
+    bindReliableTap(button, () => {
+      state.activeTechSystemKey = "all";
+      showTechnicianScheduleOnMap(button.dataset.techSummaryMimic, { scrollToMap: true });
+    });
+  });
+  activeSummary?.querySelectorAll("[data-tech-system]").forEach((button) => {
+    bindReliableTap(button, () => openTechnicianFireSystem(button.dataset.techSystemSchedule, button.dataset.techSystem));
   });
   activeSummary?.querySelectorAll("[data-tech-screen-link]").forEach((button) => {
     bindReliableTap(button, () => setTechScreen(button.dataset.techScreenLink, { scroll: true }));
   });
-  list.querySelectorAll("[data-tech-view-schedule]").forEach((button) => {
-    bindReliableTap(button, () => {
-      showTechnicianScheduleOnMap(button.dataset.techViewSchedule, { scrollToMap: false });
-      setTechScreen("inspection", { scroll: true });
-    });
-  });
   list.querySelectorAll("[data-tech-start-schedule]").forEach((button) => {
     bindReliableTap(button, () => startOrResumeTechnicianSchedule(button.dataset.techStartSchedule));
-  });
-  list.querySelectorAll("[data-tech-mimic-schedule]").forEach((button) => {
-    bindReliableTap(button, () => showTechnicianScheduleOnMap(button.dataset.techMimicSchedule, { scrollToMap: true }));
   });
   renderTechAssignedItemList();
 }
@@ -5583,8 +5747,21 @@ function getScheduledAssignedDevices(schedule) {
   ensureSchedulePlannedScope(schedule);
   const ids = new Set(schedule.plannedDeviceIds || []);
   if (!ids.size) return [];
-  return getDevicesForScheduleRecord(schedule)
+  const deviceMap = new Map();
+  getDevicesForScheduleRecord(schedule)
     .filter((device) => ids.has(device.id))
+    .forEach((device) => deviceMap.set(device.id, device));
+  state.setupDevices
+    .filter((device) => ids.has(device.tag))
+    .forEach((device) => {
+      if (deviceMap.has(device.tag)) return;
+      const floorId = device.floorId || schedule.floorId || floorSelect.value;
+      const floorAsset = getFloorAsset(floorId);
+      deviceMap.set(device.tag, getScheduleDeviceFromSetupDevice(device, floorId, floorAsset));
+    });
+  return [...ids]
+    .map((id) => deviceMap.get(id))
+    .filter(Boolean)
     .map((device) => ({
       ...device,
       tag: device.tag || device.id,
@@ -6131,23 +6308,26 @@ function renderTechAssignedItemList() {
     return;
   }
 
+  const visibleSystemDevices = getVisibleTechnicianDevicesForSystem(schedule);
   const floorGroups = getAssignedFloorGroups(assignedDevices, schedule);
-  const selectedFloorHasItems = assignedDevices.some((device) => device.floorId === floorSelect.value);
-  const visibleFloorId = selectedFloorHasItems ? floorSelect.value : floorGroups[0]?.floorId;
+  const visibleFloorGroups = getAssignedFloorGroups(visibleSystemDevices, schedule);
+  const selectedFloorHasItems = visibleSystemDevices.some((device) => device.floorId === floorSelect.value);
+  const visibleFloorId = selectedFloorHasItems ? floorSelect.value : visibleFloorGroups[0]?.floorId || floorGroups[0]?.floorId;
   const visibleFloor = getFloorAsset(visibleFloorId);
-  const visibleDevices = assignedDevices.filter((device) => device.floorId === visibleFloorId);
-  const floorButtons = floorGroups.map((floor) => `
+  const visibleDevices = visibleSystemDevices.filter((device) => device.floorId === visibleFloorId);
+  const floorButtons = (visibleFloorGroups.length ? visibleFloorGroups : floorGroups).map((floor) => `
     <button type="button" class="${floor.floorId === visibleFloorId ? "active" : ""}" data-tech-item-floor="${escapeHtml(floor.floorId)}">
       ${escapeHtml(floor.floorCode || floor.floorTitle)}
       <span>${floor.done}/${floor.count}</span>
     </button>
   `).join("");
   const summary = getAssignedCompletionSummary(schedule);
+  const activeSystemLabel = getTechnicianFireSystemDefinition(getActiveTechnicianSystemKey(schedule))?.label || "All Assigned";
 
   techAssignedItemList.innerHTML = `
     <div class="tech-item-job-summary">
       <strong>${escapeHtml(schedule.companyName)} / ${escapeHtml(schedule.siteName)}</strong>
-      <span>${escapeHtml(schedule.scopeLabel || "Maintenance")} | ${assignedDevices.length} assigned item(s) | ${escapeHtml(schedule.date || "")} ${escapeHtml(schedule.time || "")}</span>
+      <span>${escapeHtml(activeSystemLabel)} | ${escapeHtml(schedule.scopeLabel || "Maintenance")} | ${assignedDevices.length} assigned item(s) | ${escapeHtml(schedule.date || "")} ${escapeHtml(schedule.time || "")}</span>
       ${!isActiveSchedule ? `<span class="tech-item-warning">Press Open Checklist on any item to start this scheduled job.</span>` : ""}
     </div>
     ${renderTechProgressGrid(summary)}
@@ -6155,7 +6335,7 @@ function renderTechAssignedItemList() {
       ${floorButtons}
     </div>
     <div class="tech-current-floor-note">
-      Showing ${visibleDevices.length} item(s) on ${escapeHtml(visibleFloor?.title || currentFloor.title)}. Work down this list first; use Map only if location is unclear.
+      Showing ${visibleDevices.length} ${escapeHtml(activeSystemLabel)} item(s) on ${escapeHtml(visibleFloor?.title || currentFloor.title)}.
     </div>
     <div class="tech-item-cards">
       ${visibleDevices.map((device) => renderTechAssignedItemCard(device, schedule)).join("")}
@@ -6484,7 +6664,7 @@ async function resumeScheduledJob(schedule, options = {}) {
     } else {
       setTechScreen("inspection", { scroll: true });
     }
-  } else if (getCurrentUserRole() === "Technician") {
+  } else if (getCurrentUserRole() === "Technician" && !options.stayOnJobSummary) {
     setTechScreen("inspection", { scroll: true });
   }
   document.querySelector("#syncState").textContent = `${schedule.scheduleId} resumed from saved progress`;
@@ -6515,8 +6695,10 @@ async function startScheduledJob(scheduleId, options = {}) {
       } else if (options.openFirstUnfinished && getCurrentUserRole() === "Technician") {
         const target = getResumeTargetAssignedDevice(schedule);
         if (target) await focusTechnicianAssignedDevice(target.id || target.tag, { openChecklist: true });
-      } else if (getCurrentUserRole() === "Technician") {
+      } else if (getCurrentUserRole() === "Technician" && !options.stayOnJobSummary) {
         setTechScreen("inspection", { scroll: true });
+      } else if (getCurrentUserRole() === "Technician") {
+        setTechScreen("jobs");
       } else {
         requestAnimationFrame(scrollInspectionPanelIntoView);
       }
@@ -6524,7 +6706,7 @@ async function startScheduledJob(scheduleId, options = {}) {
       return true;
     }
     const activeJobIsStale = getCurrentUserRole() === "Technician" && !isActiveTechnicianJobResolvable();
-    const canSwitchFromTechOpen = getCurrentUserRole() === "Technician" && (options.openDeviceId || options.openFirstUnfinished || options.forceSwitch || activeJobIsStale);
+    const canSwitchFromTechOpen = getCurrentUserRole() === "Technician" && (options.openDeviceId || options.openFirstUnfinished || options.stayOnJobSummary || options.forceSwitch || activeJobIsStale);
     if (!canSwitchFromTechOpen) {
       document.querySelector("#syncState").textContent = "Finish or check out the current job before starting this schedule";
       return false;
@@ -6614,8 +6796,10 @@ async function startScheduledJob(scheduleId, options = {}) {
     } else {
       setTechScreen("inspection", { scroll: true });
     }
-  } else if (getCurrentUserRole() === "Technician") {
+  } else if (getCurrentUserRole() === "Technician" && !options.stayOnJobSummary) {
     setTechScreen("inspection", { scroll: true });
+  } else if (getCurrentUserRole() === "Technician") {
+    setTechScreen("jobs");
   }
   return true;
 }

@@ -113,8 +113,15 @@ function assert(condition, message) {
 
   await page.click("[data-tech-start-schedule='QA-AUDIT']");
   await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.scheduleId === "QA-AUDIT");
+  await page.waitForSelector("#techActiveJobSummary [data-tech-system='emergency-exit']", { timeout: 15000 });
+  await page.click("#techActiveJobSummary [data-tech-system='emergency-exit']");
+  await page.waitForSelector("#workspace.tech-screen-mimic", { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelectorAll(".marker.assigned-scope").length > 0, null, { timeout: 15000 });
   await page.evaluate((id) => focusTechnicianAssignedDevice(id, { openChecklist: true }), deviceId);
-  await page.waitForSelector("#checklistForm:not(.hidden)");
+  await page.waitForFunction(() => {
+    return document.querySelector("#workspace")?.classList.contains("tech-screen-inspection")
+      && !document.querySelector("#checklistForm")?.classList.contains("hidden");
+  }, null, { timeout: 15000 });
   await page.waitForTimeout(250);
   await page.click("#checklistForm button[type='submit']");
   await page.waitForFunction((id) => Boolean(JSON.parse(localStorage.getItem("tmFireInspections") || "{}")?.[id]?.inspectedBy), deviceId);

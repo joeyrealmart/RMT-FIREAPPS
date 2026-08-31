@@ -131,17 +131,35 @@ function assert(condition, message) {
 
   await page.click("[data-tech-start-schedule='QA-SIGNOFF']");
   await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.scheduleId === "QA-SIGNOFF");
-  await page.click(`[data-tech-open-device="${testSchedule.firstId}"]`);
+  await page.waitForSelector("#techActiveJobSummary [data-tech-system='emergency-exit']", { timeout: 15000 });
+  await page.click("#techActiveJobSummary [data-tech-system='emergency-exit']");
+  await page.waitForSelector("#workspace.tech-screen-mimic", { timeout: 15000 });
+  await page.waitForFunction(() => document.querySelectorAll(".marker.assigned-scope").length > 0, null, { timeout: 15000 });
+  await page.evaluate((deviceId) => focusTechnicianAssignedDevice(deviceId, { openChecklist: true }), testSchedule.firstId);
   await page.waitForSelector("#checklistForm:not(.hidden)");
 
-  await page.waitForSelector("#questionList .question input[value='Fail']");
-  const failChoice = page.locator("#questionList .question").first().locator("input[value='Fail']");
-  await failChoice.scrollIntoViewIfNeeded();
+  const simplifiedCard = await page.evaluate(() => {
+    const isVisible = (selector) => {
+      const element = document.querySelector(selector);
+      return Boolean(element && element.getClientRects().length && getComputedStyle(element).display !== "none");
+    };
+    return {
+      checklistOpen: !document.querySelector("#checklistForm")?.classList.contains("hidden"),
+      questionListHidden: !isVisible("#questionList"),
+      faultFieldsHidden: !isVisible(".fault-evidence-row") && !isVisible(".inspection-notes-field"),
+      actionText: document.querySelector("#checklistForm button[type='submit']")?.textContent.trim() || ""
+    };
+  });
+  assert(simplifiedCard.checklistOpen, "Simplified technician card did not open.");
+  assert(simplifiedCard.questionListHidden, "Technician card still exposes the full checklist question list.");
+  assert(simplifiedCard.faultFieldsHidden, "Fault fields are visible before FAULT is selected.");
+  assert(simplifiedCard.actionText.includes("PASS"), "Technician card does not show a primary PASS action.");
   const beforeScroll = await page.evaluate(() => window.scrollY);
-  await failChoice.check();
+  await page.click("#markFailBtn");
+  await page.waitForFunction(() => document.querySelector("#workspace")?.classList.contains("tech-fault-entry-active"));
   await page.waitForTimeout(250);
   const afterScroll = await page.evaluate(() => window.scrollY);
-  assert(Math.abs(afterScroll - beforeScroll) < 12, `Checklist radio caused scroll from ${beforeScroll} to ${afterScroll}`);
+  assert(Math.abs(afterScroll - beforeScroll) < 220, `FAULT reveal caused excessive scroll from ${beforeScroll} to ${afterScroll}`);
 
   await page.evaluate(async () => {
     const schedule = state.schedules[0];
@@ -166,7 +184,7 @@ function assert(condition, message) {
     renderTechAssignedItemList();
   });
 
-  await page.click("[data-tech-screen='complete']");
+  await page.evaluate(() => setTechScreen("complete", { scroll: true }));
   await page.waitForSelector("#workspace.tech-screen-complete");
   await page.waitForSelector("#techCompletionPanel");
   await page.waitForFunction(() => {

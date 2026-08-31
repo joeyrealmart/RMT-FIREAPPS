@@ -225,6 +225,14 @@ textarea {
   display: none !important;
 }
 
+.workspace.technician-mode .admin-debug-only {
+  display: none !important;
+}
+
+.workspace.technician-mode #showRequestBtn {
+  display: none !important;
+}
+
 .workspace:not(.technician-mode) .technician-only {
   display: none !important;
 }
@@ -238,6 +246,10 @@ textarea {
 }
 
 .workspace.technician-mode .summary-band {
+  display: none !important;
+}
+
+.workspace.technician-mode .tech-workflow-nav {
   display: none !important;
 }
 
@@ -1030,6 +1042,67 @@ textarea {
   grid-column: span 2;
 }
 
+.tech-system-panel {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+}
+
+.tech-system-panel > strong {
+  color: var(--blue);
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.tech-system-panel > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tech-system-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tech-system-grid button {
+  display: grid;
+  min-height: 82px;
+  gap: 3px;
+  align-content: center;
+  padding: 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: var(--blue);
+  background: #fff;
+  text-align: left;
+}
+
+.tech-system-grid button.active {
+  border-color: var(--blue);
+  color: #fff;
+  background: var(--blue);
+}
+
+.tech-system-grid button strong,
+.tech-system-grid button span,
+.tech-system-grid button small {
+  color: inherit;
+}
+
+.tech-system-grid button strong {
+  font-size: 13px;
+}
+
+.tech-system-grid button span,
+.tech-system-grid button small {
+  font-size: 11px;
+}
+
 .tech-assigned-item-panel {
   margin-bottom: 18px;
   padding-bottom: 18px;
@@ -1087,17 +1160,37 @@ textarea {
 .workspace.technician-mode #checklistForm {
   border: 1px solid #bfdbfe;
   border-radius: 8px;
-  padding: 14px;
+  padding: 16px;
   background: #eff6ff;
 }
 
 .workspace.technician-mode #checklistForm h2 {
   margin-bottom: 4px;
+  font-size: 28px;
 }
 
-.workspace.technician-mode .question {
-  border-radius: 8px;
-  background: #fff;
+.workspace.technician-mode #checklistForm #deviceLocation {
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.workspace.technician-mode #checklistForm .history-box,
+.workspace.technician-mode #checklistForm #questionList,
+.workspace.technician-mode #checklistForm .fault-evidence-row,
+.workspace.technician-mode #checklistForm .inspection-notes-field,
+.workspace.technician-mode #checklistForm .inspection-action-field {
+  display: none;
+}
+
+.workspace.technician-mode.tech-fault-entry-active #checklistForm .fault-evidence-row {
+  display: grid;
+}
+
+.workspace.technician-mode.tech-fault-entry-active #checklistForm .inspection-notes-field,
+.workspace.technician-mode.tech-fault-entry-active #checklistForm .inspection-action-field {
+  display: grid;
 }
 
 .workspace.technician-mode .choice-row {
@@ -1121,6 +1214,26 @@ textarea {
   border-top: 1px solid rgba(148, 163, 184, 0.35);
   background: rgba(239, 246, 255, 0.96);
   box-shadow: 0 -12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.workspace.technician-mode #checklistForm .panel-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.workspace.technician-mode #checklistForm .panel-actions button {
+  min-height: 56px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.workspace.technician-mode #saveNextInspectionBtn {
+  grid-column: 1 / -1;
+  min-height: 46px;
+  background: #e9f1ff;
+  color: var(--blue);
 }
 
 .tech-item-job-summary,
@@ -3666,8 +3779,12 @@ th {
   .tech-job-meta-grid,
   .tech-progress-grid,
   .tech-job-actions,
-  .tech-screen-actions,
   .tech-fault-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .tech-system-grid,
+  .tech-screen-actions {
     grid-template-columns: 1fr;
   }
 

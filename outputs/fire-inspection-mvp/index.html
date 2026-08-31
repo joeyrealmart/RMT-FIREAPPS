@@ -62,7 +62,7 @@
           </div>
         </header>
 
-        <section class="diagnostics-panel" id="diagnosticsPanel" aria-label="Prototype diagnostics">
+        <section class="diagnostics-panel admin-debug-only" id="diagnosticsPanel" aria-label="Prototype diagnostics">
           <div class="diagnostics-header">
             <strong>Diagnostics</strong>
             <span id="diagServerStatus" class="diagnostics-pill">Checking server</span>
@@ -786,7 +786,7 @@
 
               <div class="question-list" id="questionList"></div>
 
-              <div class="photo-row">
+              <div class="photo-row fault-evidence-row">
                 <label>
                   Before Photo
                   <input id="beforePhoto" type="file" accept="image/*">
@@ -797,12 +797,12 @@
                 </label>
               </div>
 
-              <label>
+              <label class="inspection-notes-field">
                 Notes / Defect
                 <textarea id="notes" rows="4" placeholder="Example: Hose reel cabinet door hard to open."></textarea>
               </label>
 
-              <label>
+              <label class="inspection-action-field">
                 Replacement / Corrective Action
                 <textarea id="actionTaken" rows="3" placeholder="Example: Nozzle replaced, signage cleaned, battery changed."></textarea>
               </label>
