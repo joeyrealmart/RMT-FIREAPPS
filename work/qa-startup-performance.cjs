@@ -41,13 +41,21 @@ function buildUobFixture() {
   const manifest = readJson(MIMIC_MANIFEST);
   const uobFloor = (manifest.floors || []).find((floor) => floor.companyName === "UOB" && floor.siteName === "UOB" && /Page 1/i.test(floor.title || floor.floorName || ""))
     || (manifest.floors || []).find((floor) => floor.companyName === "UOB" && floor.siteName === "UOB");
+  const isUobReferenceFloor = (device) => /Page 1/i.test(device.floor || "") || /G\.|GROUND|UOB\.TEST/i.test(device.tag || "");
   const fireAlarmTypes = new Set(["Main Fire Alarm Panel", "Manual Call Point", "Break Glass", "Smoke Detector", "Heat Detector", "Flow Switch"]);
-  const devices = (master.devices || [])
+  const fireAlarmDevices = (master.devices || [])
     .filter((device) => fireAlarmTypes.has(device.type))
-    .filter((device) => /Page 1/i.test(device.floor || "") || /G\.|GROUND|UOB\.TEST/i.test(device.tag || ""))
+    .filter(isUobReferenceFloor)
     .slice(0, 24);
+  const emergencyExitTypes = new Set(["Emergency Light", "Exit Sign"]);
+  const emergencyExitDevices = (master.devices || [])
+    .filter((device) => emergencyExitTypes.has(device.type))
+    .filter(isUobReferenceFloor)
+    .slice(0, 4);
+  const devices = [...fireAlarmDevices, ...emergencyExitDevices];
   assert(uobFloor, "UOB floor fixture was not found.");
-  assert(devices.length >= 4, "UOB device fixture does not contain enough fire-alarm devices.");
+  assert(fireAlarmDevices.length >= 4, "UOB device fixture does not contain enough fire-alarm devices.");
+  assert(emergencyExitDevices.length >= 2, "UOB device fixture does not contain enough emergency/exit devices for tab-switch coverage.");
   const plannedDeviceIds = devices.map((device) => device.tag);
   const schedule = {
     scheduleId: "QA-PERF-UOB",
@@ -291,17 +299,149 @@ async function openUobToMimic(page) {
   }, scheduleId, { timeout: 20000 });
   const jobReady = await page.evaluate(() => performance.now());
   await page.locator("#techActiveJobSummary [data-tech-system='fire-alarm']").click();
+  await page.waitForFunction(() => {
+    const panel = document.querySelector("#techSystemStagePanel");
+    const cards = [...document.querySelectorAll("#techSystemStagePanel .tech-stage-card")];
+    return Boolean(panel && !panel.classList.contains("hidden"))
+      && cards.length === 3
+      && cards[0]?.textContent.includes("Panel Check")
+      && cards[1]?.textContent.includes("MCP / Smoke / Heat")
+      && cards[2]?.textContent.includes("Normal Status");
+  }, null, { timeout: 20000 });
+  const systemCheckReady = await page.evaluate(() => performance.now());
   await page.waitForFunction((id) => {
     const activeId = state.activeJob?.scheduleId || state.activeJob?.schedule?.scheduleId || "";
     const markerId = getTechMarkerScopeSchedule?.()?.scheduleId || "";
     return activeId === id
       && markerId === id
       && document.querySelector("#workspace")?.classList.contains("tech-screen-mimic")
+      && document.querySelector("#techSystemStagePanel:not(.hidden)")
       && document.querySelectorAll(".marker.assigned-scope").length > 0
       && document.querySelector("#mapImage")?.complete;
   }, scheduleId, { timeout: 30000 });
   const mimicReady = await page.evaluate(() => performance.now());
-  return { openStarted, jobReady, mimicReady, scheduleId };
+  await page.evaluate((id) => {
+    const schedule = state.schedules.find((item) => item.scheduleId === id);
+    const mfap = getScheduledAssignedDevices(schedule).find((device) => (device.id || device.tag) === "G.MFAP.1" || /mfap|main fire alarm panel/i.test(`${device.id || device.tag || ""} ${device.type || ""}`));
+    if (!schedule || !mfap) return { ok: false };
+    const workflow = getCriticalWorkflowRunForParentDevice(mfap, schedule);
+    const template = getCriticalSopTemplate(workflow?.templateId || getCriticalSopTemplateIdForDevice(mfap));
+    if (!workflow || !template) return { ok: false };
+    const steps = {};
+    (workflow.prerequisiteStepIndexes || []).forEach((index) => {
+      const step = template.steps[index] || {};
+      steps[index] = {
+        confirmed: true,
+        title: step.title || `Step ${index + 1}`,
+        choice: step.requiresChoice ? (step.choices?.[0] || "Pass") : "",
+        reading: step.requiresReading ? "QA reading" : "",
+        remark: step.requiresRemark || step.optionalRemark ? "QA prerequisite completed for performance path." : "",
+        photo: step.requiresPhoto ? "qa-prerequisite-photo.jpg" : "",
+        supervisor: step.requiresSupervisor ? "QA Supervisor" : ""
+      };
+    });
+    const storageKey = `${template.id}::${mfap.id || mfap.tag}`;
+    state.criticalSops[storageKey] = {
+      templateId: template.id,
+      templateVersion: getCriticalSopTemplateVersion(template),
+      templateSnapshot: createCriticalSopTemplateSnapshot(template),
+      workflowId: workflow.workflowId,
+      dependencyDefinitionId: workflow.definitionId,
+      title: template.title,
+      deviceTag: mfap.id || mfap.tag,
+      deviceType: mfap.type,
+      floor: mfap.floorTitle || mfap.floor || "",
+      location: mfap.location || "",
+      companyName: schedule.companyName,
+      siteName: schedule.siteName,
+      steps,
+      beforePhoto: "",
+      afterPhoto: "",
+      filledBy: "Performance QA",
+      filledRole: "Technician",
+      generalRemarks: "Prerequisite seeded by performance QA to measure field-device save path.",
+      savedAt: new Date().toISOString(),
+      savedBy: "Performance QA"
+    };
+    writeStoredJson("rmtCriticalSops", state.criticalSops);
+    invalidateRuntimeCaches();
+    ensureActiveJobCriticalWorkflows(schedule);
+    renderTechSystemStagePanel(schedule);
+    renderMarkers();
+    return { ok: true };
+  }, scheduleId);
+  await page.waitForFunction(() => {
+    return document.querySelector("#techSystemStagePanel")?.textContent.includes("prerequisite record(s) complete")
+      && document.querySelectorAll(".marker.assigned-scope:not(.critical-marker):not(.locked):not(.dependency-locked)").length > 0;
+  }, null, { timeout: 20000 });
+  const saveStarted = await page.evaluate(async () => {
+    const candidate = [...document.querySelectorAll(".marker.assigned-scope:not(.critical-marker):not(.locked):not(.dependency-locked)")][0];
+    if (!candidate) return { started: performance.now(), skipped: true };
+    candidate.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerType: "touch" }));
+    return { started: performance.now(), skipped: false, tag: candidate.dataset.setupTag || candidate.dataset.deviceId || candidate.dataset.label || "" };
+  });
+  if (!saveStarted.skipped) {
+    await page.waitForSelector("#checklistForm:not(.hidden)", { timeout: 15000 });
+    await page.locator("#checklistForm button[type='submit']").click();
+    await page.waitForFunction(() => {
+      return document.querySelector("#workspace")?.classList.contains("tech-screen-mimic")
+        && document.querySelector("#checklistForm")?.classList.contains("hidden")
+        && document.querySelector("#techSystemStagePanel:not(.hidden)");
+    }, null, { timeout: 20000 });
+  }
+  const saveToMimicReady = await page.evaluate(() => performance.now());
+  return { openStarted, jobReady, systemCheckReady, mimicReady, saveStarted, saveToMimicReady, scheduleId };
+}
+
+async function measureConfiguredSystemTabSwitching(page, preferredReturnSystem = "fire-alarm") {
+  const systems = await page.$$eval("#techSystemStagePanel [data-tech-stage-system]", (buttons) => {
+    return buttons
+      .map((button) => button.getAttribute("data-tech-stage-system"))
+      .filter(Boolean);
+  });
+  if (systems.length < 2) {
+    return { skipped: true, systemCount: systems.length, rounds: 0, durationMs: 0, renderMarkersDelta: 0, techPanelDelta: 0 };
+  }
+
+  const before = await page.evaluate(() => ({
+    started: performance.now(),
+    renderMarkers: window.__rmtPerf?.counters?.renderMarkers?.count || 0,
+    techPanel: window.__rmtPerf?.counters?.renderTechWorkPanel?.count || 0
+  }));
+  const rounds = 2;
+  for (let round = 0; round < rounds; round += 1) {
+    for (const systemId of systems) {
+      await page.locator(`#techSystemStagePanel [data-tech-stage-system="${systemId}"]`).click();
+      await page.waitForFunction((id) => {
+        const activeButton = document.querySelector(`#techSystemStagePanel [data-tech-stage-system="${CSS.escape(id)}"]`);
+        const activeId = state.activeTechSystemKey || "";
+        return activeId === id
+          && activeButton?.classList.contains("active")
+          && document.querySelector("#workspace")?.classList.contains("tech-screen-mimic")
+          && document.querySelector("#techSystemStagePanel:not(.hidden)");
+      }, systemId, { timeout: 12000 });
+    }
+  }
+  const returnSystem = systems.includes(preferredReturnSystem) ? preferredReturnSystem : systems[0];
+  await page.locator(`#techSystemStagePanel [data-tech-stage-system="${returnSystem}"]`).click();
+  await page.waitForFunction((id) => state.activeTechSystemKey === id, returnSystem, { timeout: 12000 });
+  const after = await page.evaluate(() => ({
+    finished: performance.now(),
+    renderMarkers: window.__rmtPerf?.counters?.renderMarkers?.count || 0,
+    techPanel: window.__rmtPerf?.counters?.renderTechWorkPanel?.count || 0,
+    activeSystem: state.activeTechSystemKey || ""
+  }));
+
+  return {
+    skipped: false,
+    systemCount: systems.length,
+    systems,
+    rounds,
+    durationMs: Math.round(after.finished - before.started),
+    renderMarkersDelta: after.renderMarkers - before.renderMarkers,
+    techPanelDelta: after.techPanel - before.techPanel,
+    activeSystem: after.activeSystem
+  };
 }
 
 async function collectStorageReport(page) {
@@ -400,6 +540,7 @@ async function collectPerf(page) {
   const uob = await openUobToMimic(page);
   await page.waitForTimeout(250);
   const afterUob = await collectPerf(page);
+  const systemTabSwitching = await measureConfiguredSystemTabSwitching(page);
   await page.screenshot({ path: join(OUTPUT_DIR, STRESS_STORAGE ? "startup-performance-stress.png" : "startup-performance.png"), fullPage: false });
 
   await page.reload({ waitUntil: "domcontentloaded" });
@@ -437,8 +578,12 @@ async function collectPerf(page) {
       loginScreenReady: Math.round(loginReady),
       loginTapToTechnicianJobs: Math.round(login.ready - login.started),
       uobOpenTapToJobReady: Math.round(uob.jobReady - uob.openStarted),
+      uobOpenTapToSystemCheckReady: Math.round(uob.systemCheckReady - uob.openStarted),
       uobOpenTapToMimicReady: Math.round(uob.mimicReady - uob.openStarted),
+      systemCheckToMimicReady: Math.round(uob.mimicReady - uob.systemCheckReady),
       systemTapToMimicReady: Math.round(uob.mimicReady - uob.jobReady),
+      mimicDeviceSaveToMimicReady: uob.saveStarted?.skipped ? 0 : Math.round(uob.saveToMimicReady - uob.saveStarted.started),
+      configuredSystemTabSwitching: systemTabSwitching.durationMs,
       refreshToRestoredJobMimic: Math.round(refreshReady - refreshStarted)
     },
     beforeLogin: {
@@ -451,6 +596,7 @@ async function collectPerf(page) {
       error: restoreError,
       afterRefresh
     },
+    systemTabSwitching,
     consoleErrors
   };
   writeFileSync(join(OUTPUT_DIR, STRESS_STORAGE ? "startup-performance-stress.json" : "startup-performance.json"), JSON.stringify(result, null, 2));
@@ -462,6 +608,7 @@ async function collectPerf(page) {
     fetches: result.afterUob.fetches.map((item) => ({ url: item.url, status: item.status, ms: Math.round(item.ms) })),
     domNodes: result.afterUob.domNodes,
     markers: result.afterUob.assignedMarkerCount,
+    systemTabSwitching: result.systemTabSwitching,
     refreshRestore: result.refreshRestore.restored,
     refreshError: result.refreshRestore.error,
     consoleErrors
@@ -476,7 +623,16 @@ async function collectPerf(page) {
     assert(renderMarkers <= 20, `UOB resume rendered markers too many times: ${renderMarkers}`);
     assert(techPanel <= 18, `UOB resume rendered technician panel too many times: ${techPanel}`);
     assert(result.timingsMs.loginTapToTechnicianJobs < 4500, `Login to jobs is too slow: ${result.timingsMs.loginTapToTechnicianJobs}ms`);
+    assert(result.timingsMs.uobOpenTapToSystemCheckReady < 7000, `UOB open to Fire Alarm system check is too slow: ${result.timingsMs.uobOpenTapToSystemCheckReady}ms`);
     assert(result.timingsMs.uobOpenTapToMimicReady < 7000, `UOB open to mimic is too slow: ${result.timingsMs.uobOpenTapToMimicReady}ms`);
+    if (!result.systemTabSwitching.skipped) {
+      assert(result.systemTabSwitching.durationMs < 8000, `Configured system tab switching is too slow: ${result.systemTabSwitching.durationMs}ms`);
+      assert(result.systemTabSwitching.renderMarkersDelta <= result.systemTabSwitching.systemCount * result.systemTabSwitching.rounds * 3 + 3, `Configured system tab switching rendered markers too many times: ${result.systemTabSwitching.renderMarkersDelta}`);
+      assert(result.systemTabSwitching.techPanelDelta <= result.systemTabSwitching.systemCount * result.systemTabSwitching.rounds * 2 + 3, `Configured system tab switching rendered technician panel too many times: ${result.systemTabSwitching.techPanelDelta}`);
+    }
+    if (result.timingsMs.mimicDeviceSaveToMimicReady) {
+      assert(result.timingsMs.mimicDeviceSaveToMimicReady < 4500, `Device save back to mimic is too slow: ${result.timingsMs.mimicDeviceSaveToMimicReady}ms`);
+    }
   }
 
   await context.close();

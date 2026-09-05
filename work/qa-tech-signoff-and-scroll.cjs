@@ -31,7 +31,7 @@ function assert(condition, message) {
     await dialog.accept();
   });
 
-  await page.goto(APP_URL, { waitUntil: "networkidle" });
+  await page.goto(APP_URL, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => {
     localStorage.removeItem("rmtActiveJob");
     localStorage.removeItem("tmFireInspections");
@@ -39,13 +39,15 @@ function assert(condition, message) {
     localStorage.removeItem("rmtSystemChecks");
     localStorage.removeItem("tmFireRequests");
   });
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#loginView:not(.hidden)");
   await page.click("[data-demo-login='tech']");
   await page.fill("#loginPassword", new Date().toISOString());
   await page.click("#loginForm button[type='submit']");
   await page.waitForSelector("#workspace.technician-mode");
 
-  const testSchedule = await page.evaluate(() => {
+  const scheduleId = `QA-SIGNOFF-${Date.now()}`;
+  const testSchedule = await page.evaluate((qaScheduleId) => {
     const profile = {
       companyName: "QA Signoff",
       siteName: "QA Signoff"
@@ -101,7 +103,7 @@ function assert(condition, message) {
       ...state.setupDevices.filter((device) => !String(device.tag || "").startsWith("QA.EL.SIGN"))
     ];
     const schedule = {
-      scheduleId: "QA-SIGNOFF",
+      scheduleId: qaScheduleId,
       status: "Scheduled",
       companyName: profile.companyName,
       siteName: profile.siteName,
@@ -126,11 +128,11 @@ function assert(condition, message) {
     writeStoredJson("rmtSchedules", state.schedules);
     selectClientProfile(profile);
     renderTechWorkPanel();
-    return { firstId: pool[0].tag, secondId: pool[1].tag };
-  });
+    return { scheduleId: qaScheduleId, firstId: pool[0].tag, secondId: pool[1].tag };
+  }, scheduleId);
 
-  await page.click("[data-tech-start-schedule='QA-SIGNOFF']");
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.scheduleId === "QA-SIGNOFF");
+  await page.evaluate((id) => startOrResumeTechnicianSchedule(id), testSchedule.scheduleId);
+  await page.waitForFunction((id) => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.scheduleId === id, testSchedule.scheduleId);
   await page.waitForSelector("#techActiveJobSummary [data-tech-system='emergency-exit']", { timeout: 15000 });
   await page.click("#techActiveJobSummary [data-tech-system='emergency-exit']");
   await page.waitForSelector("#workspace.tech-screen-mimic", { timeout: 15000 });
@@ -146,12 +148,14 @@ function assert(condition, message) {
     return {
       checklistOpen: !document.querySelector("#checklistForm")?.classList.contains("hidden"),
       questionListHidden: !isVisible("#questionList"),
-      faultFieldsHidden: !isVisible(".fault-evidence-row") && !isVisible(".inspection-notes-field"),
+      photoEvidenceVisible: isVisible(".inspection-photo-row"),
+      faultFieldsHidden: !isVisible(".inspection-notes-field") && !isVisible(".inspection-action-field"),
       actionText: document.querySelector("#checklistForm button[type='submit']")?.textContent.trim() || ""
     };
   });
   assert(simplifiedCard.checklistOpen, "Simplified technician card did not open.");
   assert(simplifiedCard.questionListHidden, "Technician card still exposes the full checklist question list.");
+  assert(simplifiedCard.photoEvidenceVisible, "Photo evidence should be visible before PASS/FAULT selection.");
   assert(simplifiedCard.faultFieldsHidden, "Fault fields are visible before FAULT is selected.");
   assert(simplifiedCard.actionText.includes("PASS"), "Technician card does not show a primary PASS action.");
   const beforeScroll = await page.evaluate(() => window.scrollY);
@@ -271,19 +275,21 @@ function assert(condition, message) {
     if (!button || button.disabled) throw new Error("Complete Job button is not enabled");
     button.click();
   });
-  await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.status === "Completed");
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.status === "AWAITING_ADMIN_REVIEW");
 
   const result = await page.evaluate(() => {
     const job = JSON.parse(localStorage.getItem("rmtActiveJob") || "null");
     return {
       status: job?.status,
+      reportSubmissionStatus: job?.reportSubmission?.status || "",
       signSupervisor: job?.signOff?.supervisorName,
-      signatureCaptured: Boolean(job?.signOff?.supervisorSignatureData),
+      signatureCaptured: Boolean(job?.signOff?.signatureData || job?.signOff?.supervisorSignatureData),
       teamMembers: job?.teamMembers || [],
       syncState: document.querySelector("#syncState")?.textContent
     };
   });
-  assert(result.status === "Completed", "Job was not completed after sign-off");
+  assert(result.status === "AWAITING_ADMIN_REVIEW", "Job was not submitted for Admin review after sign-off");
+  assert(result.reportSubmissionStatus === "AWAITING_ADMIN_REVIEW", "Report submission status was not saved");
   assert(result.signSupervisor === "QA Supervisor", "Sign-off supervisor was not saved");
   assert(result.signatureCaptured, "Signature was not saved");
   console.log(JSON.stringify({ beforeScroll, afterScroll, ...result }, null, 2));

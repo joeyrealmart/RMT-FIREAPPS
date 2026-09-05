@@ -57,7 +57,8 @@ async function getOptionTexts(page, selector) {
     await page.click("#loginForm button[type='submit']");
   }
   await page.waitForSelector("#workspace.admin-mode");
-  await page.waitForSelector("#schedulePanel");
+  await page.click("#adminMainNav [data-admin-module='schedule']");
+  await page.waitForSelector("#schedulePanel", { state: "visible" });
   await page.waitForFunction(() => {
     const labels = [...(document.querySelector("#scheduleClientSite")?.options || [])]
       .map((option) => option.textContent.trim().toLowerCase());

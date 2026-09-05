@@ -437,7 +437,8 @@ function ensureQaFaultPhoto() {
       checklistOpen: !document.querySelector("#checklistForm")?.classList.contains("hidden"),
       criticalSopOpen: document.querySelector("#workspace")?.classList.contains("critical-sop-active"),
       selectedDevice: document.querySelector("#deviceName")?.textContent.trim() || "",
-      faultFieldsHiddenBeforeFault: !isVisible(".fault-evidence-row") && !isVisible(".inspection-notes-field"),
+      photoEvidenceVisibleBeforeResult: isVisible(".inspection-photo-row"),
+      faultDetailFieldsHiddenBeforeFault: !isVisible(".inspection-notes-field") && !isVisible(".inspection-action-field"),
       questionListHidden: !isVisible("#questionList"),
       actionText: document.querySelector("#checklistForm button[type='submit']")?.textContent.trim() || ""
     };
@@ -464,8 +465,9 @@ function ensureQaFaultPhoto() {
       return Boolean(element && element.getClientRects().length && getComputedStyle(element).display !== "none");
     };
     return {
-      photosVisible: isVisible(".fault-evidence-row"),
+      photosVisible: isVisible(".inspection-photo-row"),
       notesVisible: isVisible(".inspection-notes-field"),
+      actionVisible: isVisible(".inspection-action-field"),
       failButton: document.querySelector("#markFailBtn")?.textContent.trim() || ""
     };
   });
@@ -477,8 +479,9 @@ function ensureQaFaultPhoto() {
       return Boolean(element && element.getClientRects().length && getComputedStyle(element).display !== "none");
     };
     return {
-      photosVisible: isVisible(".fault-evidence-row"),
+      photosVisible: isVisible(".inspection-photo-row"),
       notesVisible: isVisible(".inspection-notes-field"),
+      actionVisible: isVisible(".inspection-action-field"),
       failButton: document.querySelector("#markFailBtn")?.textContent.trim() || ""
     };
   });
@@ -578,13 +581,14 @@ function ensureQaFaultPhoto() {
   assert(mapFocusResult.hasFocusClass, "Saving from a mimic pin did not keep the selected pin highlighted.");
   assert(mapFocusResult.trueSavedPosition, `Highlighted map pin is not at saved location: ${JSON.stringify(mapFocusResult)}.`);
   assert(autoStartItemResult.checklistOpen && !autoStartItemResult.criticalSopOpen, "Tapping a normal mimic pin did not open the focused inspection card.");
-  assert(autoStartItemResult.faultFieldsHiddenBeforeFault, "Fault fields are visible before FAULT is selected.");
+  assert(autoStartItemResult.photoEvidenceVisibleBeforeResult, "Photo evidence must be visible before PASS/FAULT selection.");
+  assert(autoStartItemResult.faultDetailFieldsHiddenBeforeFault, "FAULT detail fields are visible before FAULT is selected.");
   assert(autoStartItemResult.questionListHidden, "Normal technician card is still showing the full checklist question block.");
   assert(autoStartItemResult.actionText.includes("PASS"), "Technician PASS action is not the primary card action.");
   assert(autoStartTapResult.backOnMimic && autoStartTapResult.checklistHidden, "PASS save did not return technician to mimic.");
   assert(autoStartTapResult.passMarkers > 0, "PASS save did not update any mimic pin status.");
-  assert(!faultFieldsBefore.photosVisible && !faultFieldsBefore.notesVisible, "FAULT evidence fields were visible before FAULT selection.");
-  assert(faultFieldsAfter.photosVisible && faultFieldsAfter.notesVisible, "FAULT selection did not reveal photo/description fields.");
+  assert(faultFieldsBefore.photosVisible && !faultFieldsBefore.notesVisible && !faultFieldsBefore.actionVisible, "Photo should be visible before FAULT, but FAULT detail fields should stay hidden.");
+  assert(faultFieldsAfter.photosVisible && faultFieldsAfter.notesVisible && faultFieldsAfter.actionVisible, "FAULT selection did not reveal description/corrective fields.");
   assert(tapResult.backOnMimic && tapResult.checklistHidden && tapResult.faultFieldsCleared, "FAULT save did not return cleanly to mimic.");
   assert(tapResult.failMarkers > 0, "FAULT save did not update any mimic pin status.");
   assert(mtbWhileWetexActiveResult.assignedPins > 0, "MTB assigned pins disappeared while another tech job was active.");

@@ -760,11 +760,15 @@ const demoAccounts = [
   }
 ];
 
+const savedAdminUiState = readStoredJson("rmtAdminUiState", {}) || {};
+
 const state = {
   selectedId: null,
   activeTag: null,
   requestPinMode: false,
   pendingRequestPin: null,
+  requestPinGesture: null,
+  editingRequestId: null,
   selectedSetupTag: null,
   focusedMapTag: null,
   draggingSetupTag: null,
@@ -801,6 +805,16 @@ const state = {
   activeTechPreviewScheduleId: localStorage.getItem("rmtActiveTechPreviewScheduleId") || null,
   activeTechSystemKey: localStorage.getItem("rmtActiveTechSystemKey") || "",
   activeTechFloorId: localStorage.getItem("rmtActiveTechFloorId") || "",
+  techSystemOpenRequestId: 0,
+  adminModule: savedAdminUiState.module || "home",
+  adminClientModule: savedAdminUiState.clientModule || "overview",
+  adminClientValue: savedAdminUiState.clientValue || "",
+  adminClientSearch: savedAdminUiState.clientSearch || "",
+  adminReportFilter: savedAdminUiState.reportFilter || "awaiting",
+  adminDefectSearch: savedAdminUiState.defectSearch || "",
+  adminDefectStatus: savedAdminUiState.defectStatus || "open",
+  adminSelectedDefectId: savedAdminUiState.defectId || "",
+  adminModuleScroll: {},
   staffRun: null,
   mimicViewMode: localStorage.getItem("rmtMimicViewMode") === "original" ? "original" : "clean",
   libraryFloors: [],
@@ -856,6 +870,10 @@ function getScheduleVersionKey(schedule) {
     schedule?.scope || "",
     schedule?.scopeSelectionMode || "",
     schedule?.contractFrequencyPercent || "",
+    schedule?.annualCycleId || "",
+    schedule?.contractCycleId || "",
+    schedule?.rotationHistoryKey || "",
+    schedule?.scopeFrozen === true ? "frozen" : "",
     schedule?.plannedDeviceIds?.join("|") || "",
     state.setupDevices.length,
     state.libraryFloors.length
@@ -874,7 +892,9 @@ function getSharedRecordVersionKey(scheduleOrId = null) {
   const inspectionRecords = Object.values(store?.inspectionRecords || {});
   const criticalRecords = Object.values(store?.criticalSopRecords || {});
   const revisionTotal = [...inspectionRecords, ...criticalRecords]
-    .reduce((total, record) => total + Number(record?.revision || 0), 0);
+    .reduce((total, record) => total + Number(record?.revision || 0), 0)
+    + Number(store?.signOff?.revision || 0)
+    + Number(store?.reportSubmission?.revision || 0);
   const version = [
     progress.updatedAt || "",
     progress.total || "",
@@ -914,6 +934,11 @@ function persistTechnicianActiveContext(scheduleId = state.activeTechPreviewSche
     state.activeJob.activeFloorId = floorId || "";
     persistActiveJob();
   }
+}
+
+function isStaleTechnicianSystemOpenRequest(options = {}) {
+  const requestId = Number(options.techSystemOpenRequestId || 0);
+  return Boolean(requestId && getCurrentUserRole() === "Technician" && requestId !== state.techSystemOpenRequestId);
 }
 
 function setTechnicianMapFloor(floorId, profile = null) {
@@ -981,6 +1006,36 @@ const diagDraftCount = document.querySelector("#diagDraftCount");
 const diagLanUrl = document.querySelector("#diagLanUrl");
 const logoutBtn = document.querySelector("#logoutBtn");
 const showRequestBtn = document.querySelector("#showRequestBtn");
+const techSuggestMissingBtn = document.querySelector("#techSuggestMissingBtn");
+const reportReviewList = document.querySelector("#reportReviewList");
+const frontDeskPanel = document.querySelector("#frontDeskPanel");
+const adminMainNav = document.querySelector("#adminMainNav");
+const adminNavToggle = document.querySelector("#adminNavToggle");
+const adminWorkspaceHost = document.querySelector("#adminWorkspaceHost");
+const adminDeskTitle = document.querySelector("#adminDeskTitle");
+const adminFrontDeskHome = document.querySelector("#adminFrontDeskHome");
+const adminDeskMetrics = document.querySelector("#adminDeskMetrics");
+const adminDeskTodayList = document.querySelector("#adminDeskTodayList");
+const adminDeskReviewList = document.querySelector("#adminDeskReviewList");
+const adminClientDesk = document.querySelector("#adminClientDesk");
+const adminDeskClientSelect = document.querySelector("#adminDeskClientSelect");
+const adminClientSearch = document.querySelector("#adminClientSearch");
+const adminClientList = document.querySelector("#adminClientList");
+const adminDeskClientTitle = document.querySelector("#adminDeskClientTitle");
+const adminDeskClientMeta = document.querySelector("#adminDeskClientMeta");
+const adminClientOverview = document.querySelector("#adminClientOverview");
+const adminReportStatusTabs = document.querySelector("#adminReportStatusTabs");
+const adminDefectSearch = document.querySelector("#adminDefectSearch");
+const adminDefectStatus = document.querySelector("#adminDefectStatus");
+const adminDefectList = document.querySelector("#adminDefectList");
+const adminScheduleMount = document.querySelector("#adminScheduleMount");
+const adminReportsActions = document.querySelector("#adminReportsActions");
+const adminReportsMount = document.querySelector("#adminReportsMount");
+const adminMimicsMount = document.querySelector("#adminMimicsMount");
+const adminStaffMount = document.querySelector("#adminStaffMount");
+const adminSettingsMount = document.querySelector("#adminSettingsMount");
+const technicianSharedWorkspaceMount = document.querySelector("#technicianSharedWorkspaceMount");
+const techFrontDeskStats = document.querySelector("#techFrontDeskStats");
 const markersLayer = document.querySelector("#markersLayer");
 const checklistForm = document.querySelector("#checklistForm");
 const checklistOriginalParent = checklistForm?.parentElement || null;
@@ -994,14 +1049,13 @@ const techAssignedItemList = document.querySelector("#techAssignedItemList");
 const techItemProgress = document.querySelector("#techItemProgress");
 const techCompletionPanel = document.querySelector("#techCompletionPanel");
 const techWorkflowNav = document.querySelector("#techWorkflowNav");
+const techSystemStagePanel = document.querySelector("#techSystemStagePanel");
 const techFaultPanel = document.querySelector("#techFaultPanel");
 const techBackToInspectionBtn = document.querySelector("#techBackToInspectionBtn");
 const techViewMimicBtn = document.querySelector("#techViewMimicBtn");
 const techViewFaultsBtn = document.querySelector("#techViewFaultsBtn");
 const techGoCompleteBtn = document.querySelector("#techGoCompleteBtn");
 const criticalSopPanel = document.querySelector("#criticalSopPanel");
-const criticalSopOriginalParent = criticalSopPanel?.parentElement || null;
-const criticalSopOriginalNextSibling = criticalSopPanel?.nextElementSibling || null;
 const floorSelect = document.querySelector("#floorSelect");
 const clientSelect = document.querySelector("#clientSelect");
 const siteSelect = document.querySelector("#siteSelect");
@@ -1096,6 +1150,7 @@ const calendarTemplateList = document.querySelector("#calendarTemplateList");
 const calendarDragClient = document.querySelector("#calendarDragClient");
 const calendarDragJob = document.querySelector("#calendarDragJob");
 const calendarDragTime = document.querySelector("#calendarDragTime");
+const annualCoverageSummary = document.querySelector("#annualCoverageSummary");
 
 let diagnosticsTimerId = null;
 
@@ -1138,8 +1193,10 @@ logoutBtn.addEventListener("click", () => {
 });
 
 function initializeAppShell() {
+  composeAdminWorkspaces();
   applyCompanyBranding();
   setDefaultScheduleDate();
+  bindFrontDeskControls();
   bindTechNavigationControls();
   if (state.currentUser?.email && state.currentUser?.role) {
     loginStatus.textContent = "Restoring saved session...";
@@ -1185,6 +1242,7 @@ async function startUserSession(user, options = {}) {
 async function startTechnicianSession(options = {}) {
   loadStoredPlanningState();
   await loadSavedSchedules({ render: false, refreshTech: false });
+  await loadSavedRequests({ render: false });
   const activeSchedule = getActiveTechnicianMaintenanceSchedule();
   if (activeSchedule) {
     loadStoredRunState();
@@ -1208,6 +1266,7 @@ async function startAdminSession() {
   loadStoredRunState();
   loadStoredFieldState();
   loadStoredAdminHistoryState();
+  await loadSavedRequests({ render: false });
   renderFloorOptions();
   syncScheduleClientMode();
   renderSchedulePanel();
@@ -1224,6 +1283,8 @@ async function startAdminSession() {
   renderSystemChecklist();
   renderCriticalSop();
   renderStaffTracking();
+  renderFrontDeskPanel();
+  setAdminModule(getCurrentAdminModule());
   startDiagnosticsHeartbeat();
 }
 
@@ -1242,11 +1303,55 @@ async function restoreTechnicianActiveJobView(activeSchedule) {
   setTechnicianMapFloor(targetFloorId, profile);
   persistTechnicianActiveContext(activeSchedule.scheduleId, state.activeTechSystemKey, floorSelect.value);
   renderTechWorkPanel();
-  renderMarkers();
-  setTechScreen(state.activeTechSystemKey ? "mimic" : "jobs", { renderMarkers: false });
-  document.querySelector("#syncState").textContent = state.activeTechSystemKey
-    ? "Technician session restored. Continue from the mimic."
-    : "Technician session restored. Choose a fire system.";
+  if (state.activeTechSystemKey) {
+    await routeTechnicianSystemStage(activeSchedule, state.activeTechSystemKey, { scroll: false, restore: true });
+    return;
+  }
+  setTechScreen("jobs", { renderMarkers: false });
+  document.querySelector("#syncState").textContent = "Technician session restored. Choose a fire system.";
+}
+
+let adminWorkspacesComposed = false;
+
+function appendAdminWorkspacePanels(mount, selectors = []) {
+  if (!mount) return;
+  selectors.forEach((selector) => {
+    const panel = document.querySelector(selector);
+    if (!panel || panel === mount || panel.parentElement === mount) return;
+    panel.classList.remove("hidden");
+    mount.appendChild(panel);
+  });
+}
+
+function composeAdminWorkspaces() {
+  if (adminWorkspacesComposed) return;
+  appendAdminWorkspacePanels(adminScheduleMount, ["#schedulePanel", "#jobPanel"]);
+  appendAdminWorkspacePanels(adminReportsActions, ["#showReportBtn"]);
+  appendAdminWorkspacePanels(adminReportsMount, ["#requestPanel"]);
+  appendAdminWorkspacePanels(adminMimicsMount, [".selector-row", "#mimicSetupPanel", ".content-grid", ".summary-band", "#setupPanel"]);
+  appendAdminWorkspacePanels(adminStaffMount, ["#staffTrackingPanel"]);
+  appendAdminWorkspacePanels(adminSettingsMount, ["#diagnosticsPanel", "#scopePanel", "#systemCheckPanel", "#criticalSopPanel"]);
+  adminWorkspacesComposed = true;
+}
+
+function placeSharedWorkspaceForRole() {
+  const contentGrid = document.querySelector(".content-grid");
+  if (!contentGrid) return;
+  const target = getCurrentUserRole() === "Technician" ? technicianSharedWorkspaceMount : adminMimicsMount;
+  if (target && contentGrid.parentElement !== target) target.appendChild(contentGrid);
+}
+
+function persistAdminUiState() {
+  writeStoredJson("rmtAdminUiState", {
+    module: getCurrentAdminModule(),
+    clientModule: state.adminClientModule || "overview",
+    clientValue: state.adminClientValue || adminDeskClientSelect?.value || "",
+    clientSearch: state.adminClientSearch || "",
+    reportFilter: state.adminReportFilter || "awaiting",
+    defectSearch: state.adminDefectSearch || "",
+    defectStatus: state.adminDefectStatus || "open",
+    defectId: state.adminSelectedDefectId || ""
+  });
 }
 
 function applyRoleView() {
@@ -1255,13 +1360,23 @@ function applyRoleView() {
   workspace.classList.toggle("technician-mode", isTechnician);
   workspace.classList.toggle("admin-mode", !isTechnician);
   updateWorkspaceTechScreenClass();
+  placeSharedWorkspaceForRole();
   placeChecklistFormForRole();
   placeCriticalSopPanelForRole();
   if (isTechnician) {
+    clearAdminModuleVisibilityForTechnician();
     state.activeTag = null;
     state.draggingSetupTag = null;
     state.draggingDeviceId = null;
     state.selectedSetupTag = null;
+  } else {
+    workspace.classList.remove("critical-sop-active");
+    workspace.classList.remove("tech-fault-entry-active");
+    workspace.classList.remove("request-pin-mode");
+    state.requestPinMode = false;
+    state.requestPinGesture = null;
+    state.activeCriticalDevice = null;
+    criticalSopPanel?.classList.add("hidden");
   }
   if (currentUserBadge) {
     currentUserBadge.textContent = `${state.currentUser?.name || "Admin"} - ${role}`;
@@ -1280,6 +1395,9 @@ function applyRoleView() {
   }
   if (showRequestBtn) {
     showRequestBtn.textContent = isTechnician ? "Pin Missing Point" : "Suggest Device";
+  }
+  if (techSuggestMissingBtn) {
+    techSuggestMissingBtn.textContent = "+ Missing Device / Suggest Pin";
   }
   renderDiagnosticsPanel();
 }
@@ -1309,11 +1427,8 @@ function placeCriticalSopPanelForRole() {
     }
     return;
   }
-  if (!criticalSopOriginalParent || criticalSopPanel.parentElement === criticalSopOriginalParent) return;
-  if (criticalSopOriginalNextSibling?.parentElement === criticalSopOriginalParent) {
-    criticalSopOriginalParent.insertBefore(criticalSopPanel, criticalSopOriginalNextSibling);
-  } else {
-    criticalSopOriginalParent.appendChild(criticalSopPanel);
+  if (adminSettingsMount && criticalSopPanel.parentElement !== adminSettingsMount) {
+    adminSettingsMount.appendChild(criticalSopPanel);
   }
 }
 
@@ -1326,6 +1441,17 @@ function getCurrentUserRole() {
 }
 
 const TECH_SCREENS = ["jobs", "inspection", "mimic", "faults", "complete"];
+const ADMIN_MODULES = ["home", "clients", "schedule", "reports", "defects", "mimics", "staff", "settings"];
+const ADMIN_MODULE_COPY = {
+  home: ["Operations Home", "Daily service position and items needing attention."],
+  clients: ["Clients", "Client and site records in one focused workspace."],
+  schedule: ["Schedule", "Plan jobs, assign technicians and manage upcoming services."],
+  reports: ["Reports", "Review one submitted report or suggested pin at a time."],
+  defects: ["Defects", "Track service faults and follow-up work."],
+  mimics: ["Mimics", "Manage floor backgrounds and existing pin setup tools."],
+  staff: ["Staff", "Technician assignments and activity review."],
+  settings: ["Settings", "Application diagnostics and system configuration."]
+};
 
 function getCurrentTechScreen() {
   return TECH_SCREENS.includes(state.techScreen) ? state.techScreen : "jobs";
@@ -1376,7 +1502,7 @@ function scrollTechScreenIntoView(screen) {
   const target = screen === "jobs"
     ? document.querySelector("#techWorkPanel")
     : screen === "mimic"
-      ? document.querySelector(".map-panel")
+      ? document.querySelector("#mapStage") || document.querySelector(".map-panel")
       : screen === "faults"
         ? document.querySelector("#techFaultPanel")
         : screen === "complete"
@@ -1387,16 +1513,519 @@ function scrollTechScreenIntoView(screen) {
   window.scrollTo({ top: Math.max(0, top), behavior: "auto" });
 }
 
+function prepareTechnicianMimicWorkspace() {
+  if (getCurrentUserRole() !== "Technician") return;
+  workspace.classList.remove("critical-sop-active");
+  workspace.classList.remove("tech-fault-entry-active");
+  checklistForm?.classList.add("hidden");
+  emptyState?.classList.add("hidden");
+}
+
+function updateTechnicianMimicBackAction(schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule(), systemKey = state.activeTechSystemKey) {
+  if (!techBackToInspectionBtn) return;
+  const route = schedule && systemKey ? getTechnicianSystemStageRoute(schedule, systemKey) : null;
+  techBackToInspectionBtn.textContent = route?.stage === "system-check"
+    ? "Back to System Check"
+    : "Back to Inspection";
+}
+
+async function returnToCurrentTechnicianInspectionStage(options = {}) {
+  const schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule();
+  const systemKey = schedule ? getActiveTechnicianSystemKey(schedule) : "";
+  if (schedule && systemKey) {
+    await routeTechnicianSystemStage(schedule, systemKey, { scroll: options.scroll !== false });
+    return true;
+  }
+  setTechScreen("inspection", { scroll: options.scroll !== false });
+  return false;
+}
+
+async function openCurrentTechnicianMimic(options = {}) {
+  const scroll = options.scroll !== false;
+  const schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule();
+  if (!schedule) {
+    prepareTechnicianMimicWorkspace();
+    setTechScreen("mimic", { scroll });
+    document.querySelector("#syncState").textContent = "No active technician job is available for mimic view.";
+    return false;
+  }
+
+  await ensureTechnicianFieldDataLoaded(schedule);
+  const groups = getTechnicianFireSystemGroups(schedule);
+  const activeSystemKey = getActiveTechnicianSystemKey(schedule) || groups[0]?.id || "";
+  if (!activeSystemKey) {
+    await showTechnicianScheduleOnMap(schedule.scheduleId, { scrollToMap: scroll });
+    return true;
+  }
+
+  await focusTechnicianSystemMimic(schedule.scheduleId, activeSystemKey, { scroll });
+  updateTechnicianMimicBackAction(schedule, activeSystemKey);
+  const group = getTechnicianFireSystemGroups(schedule).find((item) => item.id === activeSystemKey);
+  const route = getTechnicianSystemStageRoute(schedule, activeSystemKey);
+  const label = group?.label || "Assigned system";
+  document.querySelector("#syncState").textContent = route?.stage === "system-check"
+    ? `${label} mimic opened for reference. Field-device pins remain locked until System Check is complete.`
+    : `${label} mimic opened. Tap an assigned pin to inspect.`;
+  return true;
+}
+
 function bindTechNavigationControls() {
   techWorkflowNav?.querySelectorAll("[data-tech-screen]").forEach((button) => {
     bindReliableTap(button, () => {
       setTechScreen(button.dataset.techScreen, { scroll: true });
     });
   });
-  bindReliableTap(techBackToInspectionBtn, () => setTechScreen("inspection", { scroll: true }));
-  bindReliableTap(techViewMimicBtn, () => setTechScreen("mimic", { scroll: true }));
+  bindReliableTap(techBackToInspectionBtn, () => returnToCurrentTechnicianInspectionStage({ scroll: true }));
+  bindReliableTap(techViewMimicBtn, () => openCurrentTechnicianMimic({ scroll: true }));
   bindReliableTap(techViewFaultsBtn, () => setTechScreen("faults", { scroll: true }));
   bindReliableTap(techGoCompleteBtn, () => setTechScreen("complete", { scroll: true }));
+}
+
+function getCurrentAdminModule() {
+  return ADMIN_MODULES.includes(state.adminModule) ? state.adminModule : "home";
+}
+
+function clearAdminModuleVisibilityForTechnician() {
+  frontDeskPanel?.classList.remove("nav-open");
+  ADMIN_MODULES.forEach((module) => workspace?.classList.remove(`admin-module-${module}`));
+}
+
+function applyAdminModuleVisibility() {
+  if (getCurrentUserRole() === "Technician") return;
+  const module = getCurrentAdminModule();
+  ADMIN_MODULES.forEach((item) => workspace?.classList.toggle(`admin-module-${item}`, item === module));
+  adminWorkspaceHost?.querySelectorAll("[data-admin-workspace]").forEach((workspacePanel) => {
+    workspacePanel.classList.toggle("hidden", workspacePanel.dataset.adminWorkspace !== module);
+  });
+  adminMainNav?.querySelectorAll("[data-admin-module]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.adminModule === module);
+  });
+  const [title, subtitle] = ADMIN_MODULE_COPY[module] || ADMIN_MODULE_COPY.home;
+  if (adminDeskTitle) adminDeskTitle.textContent = title;
+  const subtitleElement = document.querySelector("#adminDeskSubtitle");
+  if (subtitleElement) subtitleElement.textContent = subtitle;
+  if (module === "clients") renderAdminClientDesk();
+  if (module === "reports") {
+    renderReportReviews();
+    updateAdminReportWorkspaceFilter();
+  }
+  if (module === "defects") renderAdminDefectsWorkspace();
+}
+
+function setAdminModule(module, options = {}) {
+  if (getCurrentUserRole() === "Technician") return;
+  const previousModule = getCurrentAdminModule();
+  if (adminWorkspaceHost) state.adminModuleScroll[previousModule] = adminWorkspaceHost.scrollTop;
+  state.adminModule = ADMIN_MODULES.includes(module) ? module : "home";
+  renderFrontDeskPanel();
+  applyAdminModuleVisibility();
+  persistAdminUiState();
+  frontDeskPanel?.classList.remove("nav-open");
+  adminNavToggle?.setAttribute("aria-expanded", "false");
+  requestAnimationFrame(() => {
+    if (!adminWorkspaceHost) return;
+    adminWorkspaceHost.scrollTop = options.resetPosition ? 0 : Number(state.adminModuleScroll[state.adminModule] || 0);
+  });
+}
+
+function bindFrontDeskControls() {
+  adminMainNav?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-admin-module]");
+    if (!button) return;
+    setAdminModule(button.dataset.adminModule);
+  });
+  adminNavToggle?.addEventListener("click", () => {
+    const expanded = !frontDeskPanel?.classList.contains("nav-open");
+    frontDeskPanel?.classList.toggle("nav-open", expanded);
+    adminNavToggle.setAttribute("aria-expanded", String(expanded));
+  });
+  frontDeskPanel?.addEventListener("click", (event) => {
+    const actionButton = event.target.closest("[data-admin-action]");
+    if (actionButton) {
+      handleFrontDeskAction(actionButton.dataset.adminAction);
+      return;
+    }
+    const scheduleButton = event.target.closest("[data-admin-open-schedule]");
+    if (scheduleButton) {
+      loadScheduleIntoForm(scheduleButton.dataset.adminOpenSchedule);
+      setAdminModule("schedule", { resetPosition: true });
+      return;
+    }
+    const clientButton = event.target.closest("[data-admin-client-value]");
+    if (clientButton && adminDeskClientSelect) {
+      adminDeskClientSelect.value = clientButton.dataset.adminClientValue;
+      state.adminClientValue = clientButton.dataset.adminClientValue;
+      persistAdminUiState();
+      renderAdminClientDesk();
+      return;
+    }
+    const clientTab = event.target.closest("[data-client-module]");
+    if (clientTab) {
+      handleClientDeskTab(clientTab.dataset.clientModule);
+      return;
+    }
+    const defectButton = event.target.closest("[data-admin-defect-id]");
+    if (defectButton) {
+      state.adminSelectedDefectId = defectButton.dataset.adminDefectId;
+      persistAdminUiState();
+      renderAdminDefectsWorkspace();
+    }
+  });
+  adminDeskClientSelect?.addEventListener("change", () => {
+    state.adminClientValue = adminDeskClientSelect.value;
+    persistAdminUiState();
+    renderAdminClientDesk();
+  });
+  adminClientSearch?.addEventListener("input", () => {
+    state.adminClientSearch = adminClientSearch.value;
+    persistAdminUiState();
+    renderAdminClientDesk();
+  });
+  adminReportStatusTabs?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-report-filter]");
+    if (!button) return;
+    state.adminReportFilter = button.dataset.reportFilter;
+    persistAdminUiState();
+    renderReportReviews();
+    updateAdminReportWorkspaceFilter();
+  });
+  adminDefectSearch?.addEventListener("input", () => {
+    state.adminDefectSearch = adminDefectSearch.value;
+    persistAdminUiState();
+    renderAdminDefectsWorkspace();
+  });
+  adminDefectStatus?.addEventListener("change", () => {
+    state.adminDefectStatus = adminDefectStatus.value;
+    persistAdminUiState();
+    renderAdminDefectsWorkspace();
+  });
+}
+
+function handleFrontDeskAction(action) {
+  if (action === "requests") state.adminReportFilter = "suggestions";
+  if (action === "reports") state.adminReportFilter = "awaiting";
+  const moduleMap = {
+    schedule: "schedule",
+    reports: "reports",
+    requests: "reports",
+    clients: "clients",
+    "open-client": "clients",
+    mimics: "mimics",
+    defects: "defects"
+  };
+  setAdminModule(moduleMap[action] || "home", { resetPosition: true });
+}
+
+function handleClientDeskTab(module) {
+  state.adminClientModule = module || "overview";
+  persistAdminUiState();
+  renderAdminClientDesk();
+}
+
+function countOpenFaultsForAdmin(schedules = state.schedules) {
+  const scheduleFaults = schedules.reduce((total, schedule) => {
+    const summary = getLightTechnicianScheduleSummary(schedule);
+    return total + Number(summary.fail || 0);
+  }, 0);
+  const localFaults = Object.values(state.inspections || {}).filter((inspection) => {
+    return String(inspection?.status || "").toLowerCase() === "fail";
+  }).length;
+  return Math.max(scheduleFaults, localFaults);
+}
+
+function renderFrontDeskMetric(label, value, note = "") {
+  return `
+    <article class="front-desk-metric">
+      <strong>${escapeHtml(String(value))}</strong>
+      <span>${escapeHtml(label)}</span>
+      ${note ? `<small>${escapeHtml(note)}</small>` : ""}
+    </article>
+  `;
+}
+
+function renderAdminDeskScheduleRow(schedule, actionLabel = "Open") {
+  const summary = getLightTechnicianScheduleSummary(schedule);
+  const status = getTechnicianScheduleStatus(schedule);
+  const progress = summary.total ? `${summary.done}/${summary.total}` : `${schedule.plannedDeviceIds?.length || schedule.deviceCount || 0} items`;
+  return `
+    <article class="front-desk-row">
+      <div>
+        <strong>${escapeHtml(schedule.companyName || "-")} / ${escapeHtml(schedule.siteName || "-")}</strong>
+        <span>${escapeHtml(schedule.serviceType || schedule.scopeLabel || "Maintenance")} | ${escapeHtml(schedule.date || "No date")} ${escapeHtml(schedule.time || "")}</span>
+        <small>${escapeHtml(status)} | Progress ${escapeHtml(progress)}</small>
+      </div>
+      <button type="button" class="mini-button" data-admin-open-schedule="${escapeHtml(schedule.scheduleId || "")}">${escapeHtml(actionLabel)}</button>
+    </article>
+  `;
+}
+
+function updateAdminReportWorkspaceFilter() {
+  const filter = state.adminReportFilter || "awaiting";
+  adminReportStatusTabs?.querySelectorAll("[data-report-filter]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.reportFilter === filter);
+  });
+  const requestPanel = document.querySelector("#requestPanel");
+  const requestList = document.querySelector("#requestList");
+  const showingSuggestions = filter === "suggestions";
+  reportReviewList?.classList.toggle("hidden", showingSuggestions);
+  requestList?.classList.toggle("hidden", !showingSuggestions);
+  if (requestPanel) {
+    requestPanel.dataset.reviewMode = showingSuggestions ? "suggestions" : "reports";
+    const heading = requestPanel.querySelector("h2");
+    if (heading) heading.textContent = showingSuggestions ? "Suggested Pin Review" : "Submitted Report Review";
+  }
+}
+
+function getAdminDefectRecords() {
+  return Object.entries(state.inspections || {}).flatMap(([key, inspection]) => {
+    if (!inspection || String(inspection.status || "").toLowerCase() !== "fail") return [];
+    const scheduleId = inspection.scheduleId || inspection.jobId || "";
+    const schedule = state.schedules.find((item) => getScheduleKey(item) === scheduleId);
+    const deviceId = inspection.deviceId || inspection.id || key.split("::").pop() || key;
+    const device = state.setupDevices.find((item) => String(item.id || item.tag) === String(deviceId));
+    const closed = [inspection.resolutionStatus, inspection.followUpStatus, inspection.recheckStatus]
+      .some((value) => /closed|resolved|rectified|passed/i.test(String(value || "")));
+    return [{
+      key,
+      deviceId,
+      companyName: inspection.companyName || schedule?.companyName || device?.companyName || "Unknown client",
+      siteName: inspection.siteName || schedule?.siteName || device?.siteName || "Unknown site",
+      system: inspection.system || device?.system || device?.type || inspection.deviceType || "Fire system",
+      location: inspection.location || device?.location || device?.floor || schedule?.floorTitle || "Location not recorded",
+      notes: inspection.notes || inspection.defect || "Fault recorded without description.",
+      action: inspection.actionTaken || inspection.correctiveAction || "No corrective action recorded.",
+      status: closed ? "Closed" : "Open",
+      updatedAt: inspection.updatedAt || inspection.inspectedAt || inspection.timestamp || ""
+    }];
+  });
+}
+
+function renderAdminDefectsWorkspace() {
+  if (!adminDefectList || getCurrentUserRole() === "Technician") return;
+  if (adminDefectSearch && adminDefectSearch.value !== state.adminDefectSearch) adminDefectSearch.value = state.adminDefectSearch;
+  if (adminDefectStatus && adminDefectStatus.value !== state.adminDefectStatus) adminDefectStatus.value = state.adminDefectStatus;
+  const search = String(state.adminDefectSearch || "").trim().toLowerCase();
+  const statusFilter = state.adminDefectStatus || "open";
+  const records = getAdminDefectRecords().filter((record) => {
+    const statusMatches = statusFilter === "all" || record.status.toLowerCase() === statusFilter;
+    const textMatches = !search || `${record.companyName} ${record.siteName} ${record.system} ${record.deviceId} ${record.location}`.toLowerCase().includes(search);
+    return statusMatches && textMatches;
+  });
+  if (!records.some((record) => record.key === state.adminSelectedDefectId)) {
+    state.adminSelectedDefectId = records[0]?.key || "";
+  }
+  const selected = records.find((record) => record.key === state.adminSelectedDefectId);
+  adminDefectList.innerHTML = `
+    <div class="admin-record-list-pane">
+      ${records.length ? records.map((record) => `
+        <button type="button" class="admin-record-row ${record.key === state.adminSelectedDefectId ? "active" : ""}" data-admin-defect-id="${escapeHtml(record.key)}">
+          <div><strong>${escapeHtml(record.deviceId)}</strong><span>${escapeHtml(record.companyName)} / ${escapeHtml(record.siteName)}</span><small>${escapeHtml(record.system)} | ${escapeHtml(record.status)}</small></div>
+        </button>`).join("") : `<p class="hint">No defect matches the current filters.</p>`}
+    </div>
+    <aside class="admin-record-detail">
+      ${selected ? `<p class="eyebrow">${escapeHtml(selected.status)} Defect</p><h3>${escapeHtml(selected.deviceId)}</h3><dl><dt>Client / Site</dt><dd>${escapeHtml(selected.companyName)} / ${escapeHtml(selected.siteName)}</dd><dt>System</dt><dd>${escapeHtml(selected.system)}</dd><dt>Location</dt><dd>${escapeHtml(selected.location)}</dd><dt>Fault</dt><dd>${escapeHtml(selected.notes)}</dd><dt>Corrective action</dt><dd>${escapeHtml(selected.action)}</dd><dt>Updated</dt><dd>${escapeHtml(selected.updatedAt ? formatShortDateTime(selected.updatedAt) : "Not recorded")}</dd></dl>` : `<p class="hint">Select a defect to view its details.</p>`}
+    </aside>`;
+}
+
+function renderFrontDeskPanel() {
+  if (!frontDeskPanel || getCurrentUserRole() === "Technician") return;
+  const today = formatDateValue(new Date());
+  const schedules = state.schedules.filter(isScheduleVisibleInAdminPlanner);
+  const todayJobs = schedules.filter((schedule) => schedule.date === today && schedule.status !== "Completed");
+  const inProgress = schedules.filter((schedule) => getTechnicianScheduleStatus(schedule) === "In Progress");
+  const awaitingReview = schedules.filter(isScheduleAwaitingAdminReview);
+  const upcoming = schedules.filter((schedule) => schedule.date && schedule.date > today && schedule.status !== "Completed");
+  const pendingPins = state.requests.filter((request) => !isRequestApproved(request) && !isRequestRejected(request));
+  const openFaults = countOpenFaultsForAdmin(schedules);
+
+  if (adminDeskMetrics) {
+    adminDeskMetrics.innerHTML = [
+      renderFrontDeskMetric("Today's Jobs", todayJobs.length),
+      renderFrontDeskMetric("In Progress", inProgress.length),
+      renderFrontDeskMetric("Awaiting Admin Review", awaitingReview.length),
+      renderFrontDeskMetric("Open Faults", openFaults),
+      renderFrontDeskMetric("Pending Suggested Pins", pendingPins.length),
+      renderFrontDeskMetric("Upcoming Services", upcoming.length)
+    ].join("");
+  }
+
+  if (adminDeskTodayList) {
+    const rows = [...todayJobs, ...inProgress.filter((schedule) => schedule.date !== today)]
+      .filter((schedule, index, list) => list.findIndex((item) => item.scheduleId === schedule.scheduleId) === index)
+      .slice(0, 6);
+    adminDeskTodayList.innerHTML = rows.length
+      ? rows.map((schedule) => renderAdminDeskScheduleRow(schedule, "Open")).join("")
+      : `<p class="hint">No scheduled or in-progress job needs attention today.</p>`;
+  }
+
+  if (adminDeskReviewList) {
+    const reportRows = awaitingReview.slice(0, 3).map((schedule) => renderAdminDeskScheduleRow(schedule, "Review"));
+    const requestRows = pendingPins.slice(0, 3).map((request) => `
+      <article class="front-desk-row">
+        <div>
+          <strong>${escapeHtml(request.label || "Suggested pin")} - ${escapeHtml(request.type || "Device")}</strong>
+          <span>${escapeHtml(request.companyName || "-")} / ${escapeHtml(request.siteName || "-")} | ${escapeHtml(request.floor || "-")}</span>
+          <small>${escapeHtml(getRequestStatusLabel(request))} | ${escapeHtml(request.requestedBy || "Technician")}</small>
+        </div>
+        <button type="button" class="mini-button" data-admin-action="requests">Review</button>
+      </article>
+    `);
+    adminDeskReviewList.innerHTML = reportRows.length || requestRows.length
+      ? [...reportRows, ...requestRows].join("")
+      : `<p class="hint">No submitted reports or suggested pins are waiting now.</p>`;
+  }
+
+}
+
+function getSelectedAdminDeskProfile() {
+  if (adminDeskClientSelect?.value) return readScheduleSiteValue(adminDeskClientSelect.value);
+  return collectAdminClientProfiles()[0] || getCurrentSiteIdentity();
+}
+
+function collectAdminClientProfiles() {
+  const profiles = new Map();
+  const addProfile = (record = {}) => {
+    const companyName = String(record.companyName || record.clientName || "").trim();
+    const siteName = String(record.siteName || record.place || record.site || "").trim();
+    if (!companyName || !siteName) return;
+    const value = makeScheduleSiteValue(companyName, siteName);
+    if (!profiles.has(value)) profiles.set(value, { companyName, siteName });
+  };
+  addProfile(state.siteProfile);
+  collectScheduleSiteOptions().forEach(addProfile);
+  state.schedules.forEach(addProfile);
+  state.setupDevices.forEach(addProfile);
+  state.mimicFloors.forEach(addProfile);
+  state.libraryFloors.forEach(addProfile);
+  state.requests.forEach(addProfile);
+  return [...profiles.values()].sort((a, b) => `${a.companyName} ${a.siteName}`.localeCompare(`${b.companyName} ${b.siteName}`));
+}
+
+function renderAdminClientTabContent(profile, data) {
+  const { profileSchedules, profileRequests, profileDevices, profileMimics, todayCount, submittedCount, pendingRequestCount, faultCount } = data;
+  const module = state.adminClientModule || "overview";
+  if (module === "overview") {
+    return `
+      <div class="client-overview-grid">
+        ${renderFrontDeskMetric("Today", todayCount, "jobs")}
+        ${renderFrontDeskMetric("Awaiting Review", submittedCount, "reports")}
+        ${renderFrontDeskMetric("Open Faults", faultCount, "items")}
+        ${renderFrontDeskMetric("Suggested Pins", pendingRequestCount, "pending")}
+        ${renderFrontDeskMetric("Master Devices", profileDevices.length, "records")}
+        ${renderFrontDeskMetric("Mimic Pages", profileMimics.length, "floors")}
+      </div>
+      <article class="admin-client-summary-card">
+        <strong>Client overview</strong>
+        <span>Use the tabs above to view only the selected client's operational records.</span>
+      </article>`;
+  }
+  if (module === "schedule") {
+    const rows = [...profileSchedules].sort((a, b) => `${b.date || ""}${b.time || ""}`.localeCompare(`${a.date || ""}${a.time || ""}`));
+    return `<div class="admin-client-tab-toolbar"><strong>Client Schedule</strong><button type="button" data-admin-action="schedule">Open Full Schedule</button></div>
+      <div class="front-desk-list">${rows.length ? rows.slice(0, 20).map((item) => renderAdminDeskScheduleRow(item)).join("") : `<p class="hint">No jobs recorded for this client/site.</p>`}</div>`;
+  }
+  if (module === "systems") {
+    const counts = new Map();
+    profileDevices.forEach((device) => counts.set(device.type || "Other", (counts.get(device.type || "Other") || 0) + 1));
+    return `<div class="admin-client-tab-toolbar"><strong>Configured Systems & Devices</strong><button type="button" data-admin-action="mimics">Open Setup Tools</button></div>
+      <div class="admin-record-list">${counts.size ? [...counts.entries()].sort().map(([type, count]) => `<article class="admin-record-row"><div><strong>${escapeHtml(type)}</strong><span>${count} configured device(s)</span></div></article>`).join("") : `<p class="hint">No device master loaded for this client/site.</p>`}</div>`;
+  }
+  if (module === "mimic") {
+    return `<div class="admin-client-tab-toolbar"><strong>Mimic Floors / Areas</strong><button type="button" data-admin-action="mimics">Open Mimic Management</button></div>
+      <div class="admin-record-list">${profileMimics.length ? profileMimics.map((floor) => `<article class="admin-record-row"><div><strong>${escapeHtml(floor.floorTitle || floor.floorName || floor.title || floor.floorCode || "Mimic")}</strong><span>${escapeHtml(floor.floorCode || floor.id || "Floor")}</span></div></article>`).join("") : `<p class="hint">No mimic page loaded for this client/site.</p>`}</div>`;
+  }
+  if (module === "reports") {
+    const reports = profileSchedules.filter((schedule) => isScheduleAwaitingAdminReview(schedule) || isScheduleReturnedForCorrection(schedule) || isScheduleAdminApproved(schedule));
+    return `<div class="admin-client-tab-toolbar"><strong>Reports</strong><button type="button" data-admin-action="reports">Open Report Desk</button></div>
+      <div class="front-desk-list">${reports.length ? reports.map((item) => renderAdminDeskScheduleRow(item, "Review")).join("") : `<p class="hint">No submitted reports for this client/site.</p>`}</div>`;
+  }
+  if (module === "defects") {
+    return `<div class="admin-client-tab-toolbar"><strong>Defects</strong><button type="button" data-admin-action="defects">Open Defect Desk</button></div>
+      <div class="client-overview-grid">${renderFrontDeskMetric("Open Faults", faultCount, "items")}${renderFrontDeskMetric("Jobs With Faults", profileSchedules.filter((item) => getLightTechnicianScheduleSummary(item).fail > 0).length, "jobs")}</div>`;
+  }
+  const history = [...profileSchedules].sort((a, b) => `${b.date || ""}${b.time || ""}`.localeCompare(`${a.date || ""}${a.time || ""}`));
+  return `<div class="admin-client-tab-toolbar"><strong>Service History</strong><span>${escapeHtml(profile.companyName)} / ${escapeHtml(profile.siteName)}</span></div>
+    <div class="front-desk-list">${history.length ? history.slice(0, 30).map((item) => renderAdminDeskScheduleRow(item, "Open")).join("") : `<p class="hint">No service history found.</p>`}</div>`;
+}
+
+function renderAdminClientDesk() {
+  if (!adminClientDesk || getCurrentUserRole() === "Technician") return;
+  const options = collectAdminClientProfiles();
+  const requestedValue = state.adminClientValue || adminDeskClientSelect?.value || "";
+  const selectedValue = options.some((profile) => makeScheduleSiteValue(profile.companyName, profile.siteName) === requestedValue)
+    ? requestedValue
+    : options[0] ? makeScheduleSiteValue(options[0].companyName, options[0].siteName) : "";
+  state.adminClientValue = selectedValue;
+  if (adminDeskClientSelect) {
+    adminDeskClientSelect.innerHTML = options.length
+      ? options.map((profile) => `<option value="${escapeHtml(makeScheduleSiteValue(profile.companyName, profile.siteName))}">${escapeHtml(profile.companyName)} / ${escapeHtml(profile.siteName)}</option>`).join("")
+      : `<option value="">No client/site loaded</option>`;
+    adminDeskClientSelect.value = selectedValue;
+  }
+  if (adminClientSearch && adminClientSearch.value !== state.adminClientSearch) adminClientSearch.value = state.adminClientSearch;
+  const search = String(state.adminClientSearch || "").trim().toLowerCase();
+  const visibleOptions = options.filter((profile) => !search || `${profile.companyName} ${profile.siteName}`.toLowerCase().includes(search));
+  if (adminClientList) {
+    adminClientList.innerHTML = visibleOptions.length
+      ? visibleOptions.map((profile) => {
+          const value = makeScheduleSiteValue(profile.companyName, profile.siteName);
+          return `<button type="button" class="admin-client-list-item ${value === selectedValue ? "active" : ""}" data-admin-client-value="${escapeHtml(value)}"><strong>${escapeHtml(profile.companyName)}</strong><span>${escapeHtml(profile.siteName)}</span></button>`;
+        }).join("")
+      : `<p class="hint">No client or site matches this search.</p>`;
+  }
+  const profile = getSelectedAdminDeskProfile();
+  const profileSchedules = state.schedules.filter((schedule) => profileMatchesClient(schedule, profile));
+  const profileRequests = state.requests.filter((request) => profileMatchesClient(request, profile));
+  const profileDevices = state.setupDevices.filter((device) => profileMatchesClient(device, profile));
+  const profileMimics = [...state.mimicFloors, ...state.libraryFloors].filter((floor) => profileMatchesClient(floor, profile));
+  const today = formatDateValue(new Date());
+  const todayCount = profileSchedules.filter((schedule) => schedule.date === today && schedule.status !== "Completed").length;
+  const submittedCount = profileSchedules.filter(isScheduleAwaitingAdminReview).length;
+  const pendingRequestCount = profileRequests.filter((request) => !isRequestApproved(request) && !isRequestRejected(request)).length;
+  const faultCount = countOpenFaultsForAdmin(profileSchedules);
+
+  if (adminDeskClientTitle) {
+    adminDeskClientTitle.textContent = `${profile.companyName || "Client"} / ${profile.siteName || "Site"}`;
+  }
+  if (adminDeskClientMeta) {
+    adminDeskClientMeta.textContent = `${profileSchedules.length} job(s), ${profileDevices.length} master device(s), ${profileMimics.length} mimic page(s)`;
+  }
+  adminClientDesk.querySelectorAll("[data-client-module]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.clientModule === (state.adminClientModule || "overview"));
+  });
+  if (adminClientOverview) {
+    adminClientOverview.innerHTML = renderAdminClientTabContent(profile, {
+      profileSchedules, profileRequests, profileDevices, profileMimics,
+      todayCount, submittedCount, pendingRequestCount, faultCount
+    });
+  }
+}
+
+function renderTechnicianFrontDeskStats(jobs = getTechnicianMaintenanceSchedules(Infinity), activeSchedule = getActiveTechnicianMaintenanceSchedule()) {
+  if (!techFrontDeskStats) return;
+  if (getCurrentUserRole() !== "Technician") {
+    techFrontDeskStats.innerHTML = "";
+    return;
+  }
+  const today = formatDateValue(new Date());
+  const todayJobs = jobs.filter((schedule) => schedule.date === today);
+  const activeSummary = activeSchedule ? getLightTechnicianScheduleSummary(activeSchedule) : null;
+  const correctionRequired = jobs.filter(isScheduleReturnedForCorrection).length;
+  const submittedReports = jobs.filter((schedule) => isScheduleAwaitingAdminReview(schedule) || isScheduleAdminApproved(schedule)).length;
+  const linkedVerification = jobs.reduce((total, schedule) => total + Number(schedule.criticalDeviceIds?.length || 0), 0);
+  const progressLabel = activeSummary
+    ? `${activeSummary.done}/${activeSummary.total}`
+    : todayJobs.length
+      ? `${todayJobs.length} job(s)`
+      : "No active job";
+  techFrontDeskStats.innerHTML = `
+    ${renderFrontDeskMetric("My Jobs Today", todayJobs.length)}
+    ${renderFrontDeskMetric("Resume Current Job", activeSchedule ? "Ready" : "-", activeSchedule?.companyName || "")}
+    ${renderFrontDeskMetric("Progress", progressLabel)}
+    ${renderFrontDeskMetric("Correction Required", correctionRequired)}
+    ${renderFrontDeskMetric("Linked Verification", linkedVerification)}
+    ${renderFrontDeskMetric("Submitted Reports", submittedReports)}
+  `;
 }
 
 initializeAppShell();
@@ -1772,7 +2401,8 @@ function renderMarkers() {
     const pin = state.devicePins[device.id] || {};
     if (!isDeviceAllowedForTechScope(device, assignedIds) || !isDeviceVisibleForTechnicianSystem(device, techSchedule)) return;
     const marker = document.createElement("button");
-    marker.className = `marker ${deviceStatus(device.id, techSchedule)} ${getDeviceTypeClass(device.type)} ${isCriticalSopDevice(device) ? "critical-marker" : ""} ${getTechScopeMarkerClass(device, techSchedule, assignedIds)}`;
+    const markerStatus = techSchedule ? getAssignedDeviceCompletionStatus(device, techSchedule) : deviceStatus(device.id, techSchedule);
+    marker.className = `marker ${markerStatus} ${getDeviceTypeClass(device.type)} ${isCriticalSopDevice(device) ? "critical-marker" : ""} ${getTechScopeMarkerClass(device, techSchedule, assignedIds)}`;
     marker.style.left = `${pin.xPercent ?? device.x}%`;
     marker.style.top = `${pin.yPercent ?? device.y}%`;
     marker.textContent = device.short;
@@ -1821,7 +2451,9 @@ function renderSetupMapMarkers(techSchedule = getCurrentUserRole() === "Technici
   getDisplaySetupMarkers(markerDevices)
     .forEach(({ device, xPercent, yPercent }) => {
       const marker = document.createElement("button");
-      marker.className = `marker setup-marker ${deviceStatus(device.tag, techSchedule)} ${getDeviceTypeClass(device.type)} ${isCriticalSopDevice(device) ? "critical-marker" : ""} ${getTechScopeMarkerClass(device, techSchedule, assignedIds)}`;
+      const normalizedDevice = { ...device, id: device.tag, tag: device.tag };
+      const markerStatus = techSchedule ? getAssignedDeviceCompletionStatus(normalizedDevice, techSchedule) : deviceStatus(device.tag, techSchedule);
+      marker.className = `marker setup-marker ${markerStatus} ${getDeviceTypeClass(device.type)} ${isCriticalSopDevice(device) ? "critical-marker" : ""} ${getTechScopeMarkerClass(device, techSchedule, assignedIds)}`;
       marker.style.left = `${xPercent}%`;
       marker.style.top = `${yPercent}%`;
       marker.textContent = getShortCode(device);
@@ -1894,12 +2526,13 @@ function renderRequestMapMarkers() {
 function getCurrentFloorPendingRequests() {
   const floorAsset = getFloorAsset(floorSelect.value);
   return state.requests.filter((request) => {
-    return !isRequestApproved(request) && setupDeviceMatchesFloorAsset(request, floorAsset);
+    return !isRequestApproved(request) && !isRequestRejected(request) && setupDeviceMatchesFloorAsset(request, floorAsset);
   });
 }
 
 function isRequestApproved(request) {
-  return String(request?.status || "").toLowerCase().includes("approved");
+  const status = String(request?.status || "").toUpperCase();
+  return status.includes("APPROVED");
 }
 
 async function selectDevice(id, options = {}) {
@@ -1947,11 +2580,11 @@ async function selectDevice(id, options = {}) {
     ensureActiveJobCriticalWorkflows(activeSchedule);
     const access = getDeviceCriticalAccessState(device, activeSchedule);
     if (!access.allowed) {
-      showCriticalDependencyBlocked(device, access);
+      const blockedMessage = showCriticalDependencyBlocked(device, access);
       renderTechAssignedItemList();
       renderMarkers();
       if (access.parentDeviceId && access.parentDeviceId !== (device.id || device.tag)) {
-        await focusTechnicianAssignedDevice(access.parentDeviceId, { openChecklist: true });
+        await focusTechnicianAssignedDevice(access.parentDeviceId, { openChecklist: true, dependencyBlockedMessage: blockedMessage });
       }
       return;
     }
@@ -1979,10 +2612,12 @@ async function selectDevice(id, options = {}) {
   document.querySelector("#actionTaken").value = "";
   document.querySelector("#beforePhoto").value = "";
   document.querySelector("#afterPhoto").value = "";
+  updateInspectionPhotoEvidenceStatus(saved);
   const failButton = document.querySelector("#markFailBtn");
   const passButton = checklistForm.querySelector("button[type='submit']");
   if (failButton) failButton.textContent = "FAULT";
   if (passButton) passButton.textContent = getCurrentUserRole() === "Technician" ? "PASS & Save" : "PASS / Save";
+  if (saveNextInspectionBtn) saveNextInspectionBtn.textContent = getCurrentUserRole() === "Technician" ? "SAVE & NEXT" : "Save & Next Item";
   renderHistory(device.id);
 
   questionList.innerHTML = "";
@@ -2030,10 +2665,47 @@ function scrollActiveInspectionDetailIntoView() {
   scrollInspectionPanelIntoView();
 }
 
+const RELIABLE_TAP_MOVE_LIMIT_PX = 14;
+const RELIABLE_TAP_SUPPRESS_MS = 900;
+
+function getReliableTapPoint(event) {
+  const touch = event.changedTouches?.[0] || event.touches?.[0];
+  if (touch) return { x: touch.clientX, y: touch.clientY };
+  return { x: event.clientX ?? 0, y: event.clientY ?? 0 };
+}
+
+function reliableTapMoved(element, event) {
+  const startX = Number(element.dataset.tapStartX || 0);
+  const startY = Number(element.dataset.tapStartY || 0);
+  if (!startX && !startY) return false;
+  const point = getReliableTapPoint(event);
+  const distance = Math.hypot(point.x - startX, point.y - startY);
+  return distance > RELIABLE_TAP_MOVE_LIMIT_PX || element.dataset.tapMoved === "true";
+}
+
 function bindReliableTap(element, handler) {
+  const trackStart = (event) => {
+    if (event.pointerType === "mouse") return;
+    const point = getReliableTapPoint(event);
+    element.dataset.tapStartX = String(point.x);
+    element.dataset.tapStartY = String(point.y);
+    element.dataset.tapMoved = "false";
+  };
+  const trackMove = (event) => {
+    if (event.pointerType === "mouse") return;
+    if (reliableTapMoved(element, event)) {
+      element.dataset.tapMoved = "true";
+    }
+  };
   const activate = (event) => {
     const now = Date.now();
     const lastTouchActivation = Number(element.dataset.touchActivatedAt || 0);
+    const lastTapSuppressed = Number(element.dataset.tapSuppressedAt || 0);
+    if (event.type === "click" && now - lastTapSuppressed < RELIABLE_TAP_SUPPRESS_MS) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if ((event.type === "click" || event.type === "touchend") && now - lastTouchActivation < 900) {
       event.preventDefault();
       event.stopPropagation();
@@ -2041,15 +2713,62 @@ function bindReliableTap(element, handler) {
     }
     if (event.type === "pointerup" || event.type === "touchend") {
       if (event.pointerType === "mouse") return;
+      if (reliableTapMoved(element, event)) {
+        element.dataset.tapSuppressedAt = String(now);
+        element.dataset.tapMoved = "false";
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       element.dataset.touchActivatedAt = String(now);
       if (event.type === "touchend") event.preventDefault();
     }
     event.stopPropagation();
     handler(event);
   };
+  element.addEventListener("pointerdown", trackStart);
+  element.addEventListener("pointermove", trackMove);
+  element.addEventListener("pointercancel", () => {
+    element.dataset.tapMoved = "true";
+  });
+  element.addEventListener("touchstart", trackStart, { passive: true });
+  element.addEventListener("touchmove", trackMove, { passive: true });
   element.addEventListener("pointerup", activate);
   element.addEventListener("touchend", activate, { passive: false });
   element.addEventListener("click", activate);
+}
+
+function startRequestPinGesture(event) {
+  if (!state.requestPinMode || event.target !== markersLayer) return;
+  const point = getReliableTapPoint(event);
+  state.requestPinGesture = {
+    pointerId: event.pointerId ?? "touch",
+    startX: point.x,
+    startY: point.y,
+    moved: false
+  };
+}
+
+function updateRequestPinGesture(event) {
+  const gesture = state.requestPinGesture;
+  if (!gesture) return;
+  if (event.pointerId !== undefined && gesture.pointerId !== event.pointerId) return;
+  const point = getReliableTapPoint(event);
+  if (Math.hypot(point.x - gesture.startX, point.y - gesture.startY) > RELIABLE_TAP_MOVE_LIMIT_PX) {
+    gesture.moved = true;
+  }
+}
+
+function finishRequestPinGesture(event) {
+  const gesture = state.requestPinGesture;
+  if (!gesture) return;
+  updateRequestPinGesture(event);
+  state.requestPinGesture = null;
+  if (!state.requestPinMode || event.target !== markersLayer || gesture.moved) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const point = getMapPercentFromEvent(event);
+  captureMissingDevicePin(point.xPercent, point.yPercent);
 }
 
 function scrollInspectionPanelIntoView() {
@@ -2674,6 +3393,7 @@ function showCriticalDependencyBlocked(device, access) {
     tag: device?.id || device?.tag || "",
     parentDevice: access.parentDeviceTag || access.parentDeviceId || ""
   });
+  return access.parentDeviceId ? `${message} Opening prerequisite now.` : message;
 }
 
 function openCriticalSopForDevice(device, options = {}) {
@@ -2706,7 +3426,9 @@ function openCriticalSopForDevice(device, options = {}) {
       }
     });
   }
-  document.querySelector("#syncState").textContent = `${state.activeCriticalDevice.tag} critical SOP opened`;
+  document.querySelector("#syncState").textContent = options.dependencyBlockedMessage
+    ? `${options.dependencyBlockedMessage} ${state.activeCriticalDevice.tag} prerequisite opened.`
+    : `${state.activeCriticalDevice.tag} critical SOP opened`;
 }
 
 function scrollCriticalSopIntoView() {
@@ -2748,6 +3470,61 @@ function getChecklistQuestions(type) {
   return checklistTemplates.default;
 }
 
+function getInspectionPhotoEvidenceState(inspection = state.inspections[state.selectedId] || {}) {
+  const beforeInput = document.querySelector("#beforePhoto");
+  const afterInput = document.querySelector("#afterPhoto");
+  const beforeFile = beforeInput?.files?.[0] || null;
+  const afterFile = afterInput?.files?.[0] || null;
+  return {
+    beforeFile,
+    afterFile,
+    beforeName: beforeFile?.name || inspection.beforePhoto || "",
+    afterName: afterFile?.name || inspection.afterPhoto || "",
+    beforeData: inspection.beforePhotoData || "",
+    afterData: inspection.afterPhotoData || ""
+  };
+}
+
+function updateInspectionPhotoEvidenceStatus(inspection = state.inspections[state.selectedId] || {}) {
+  const evidence = getInspectionPhotoEvidenceState(inspection);
+  const beforeName = document.querySelector("#beforePhotoSavedName");
+  const afterName = document.querySelector("#afterPhotoSavedName");
+  const status = document.querySelector("#photoEvidenceStatus");
+  const viewButton = document.querySelector("#viewInspectionPhotoBtn");
+  const names = [evidence.beforeName, evidence.afterName].filter(Boolean);
+  if (beforeName) beforeName.textContent = evidence.beforeName ? `Before: ${evidence.beforeName}` : "No saved before photo";
+  if (afterName) afterName.textContent = evidence.afterName ? `After: ${evidence.afterName}` : "No saved after photo";
+  if (status) {
+    status.textContent = names.length
+      ? `Photo evidence ready: ${names.join(" / ")}`
+      : "No photo evidence yet.";
+  }
+  if (viewButton) {
+    viewButton.disabled = !(evidence.beforeFile || evidence.afterFile || evidence.beforeName || evidence.afterName || evidence.beforeData || evidence.afterData);
+  }
+}
+
+function viewInspectionPhotoEvidence() {
+  const evidence = getInspectionPhotoEvidenceState();
+  const file = evidence.beforeFile || evidence.afterFile;
+  const data = evidence.beforeData || evidence.afterData;
+  if (file) {
+    const url = URL.createObjectURL(file);
+    window.open(url, "_blank", "noopener");
+    window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+    return;
+  }
+  if (data) {
+    window.open(data, "_blank", "noopener");
+    return;
+  }
+  if (evidence.beforeName || evidence.afterName) {
+    document.querySelector("#syncState").textContent = "Photo filename is saved, but image preview data is not available on this device.";
+    return;
+  }
+  document.querySelector("#syncState").textContent = "No photo evidence has been attached for this device yet.";
+}
+
 checklistForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await saveInspection();
@@ -2757,13 +3534,16 @@ saveNextInspectionBtn?.addEventListener("click", async () => {
   await saveInspection(null, { openNextAssignedItem: true });
 });
 
+document.querySelector("#beforePhoto")?.addEventListener("change", () => updateInspectionPhotoEvidenceStatus());
+document.querySelector("#afterPhoto")?.addEventListener("change", () => updateInspectionPhotoEvidenceStatus());
+document.querySelector("#viewInspectionPhotoBtn")?.addEventListener("click", viewInspectionPhotoEvidence);
+
 document.querySelector("#markFailBtn").addEventListener("click", async () => {
   if (getCurrentUserRole() === "Technician" && !workspace.classList.contains("tech-fault-entry-active")) {
     workspace.classList.add("tech-fault-entry-active");
     const failButton = document.querySelector("#markFailBtn");
     if (failButton) failButton.textContent = "Save FAULT";
     document.querySelector("#syncState").textContent = "FAULT selected. Add defect description and photo evidence, then save.";
-    document.querySelector("#notes")?.focus();
     return;
   }
   await saveInspection("fail");
@@ -2774,6 +3554,10 @@ async function saveInspection(forcedStatus, options = {}) {
   if (!device) return;
   if (getCurrentUserRole() === "Technician") {
     const activeSchedule = getActiveTechnicianMaintenanceSchedule();
+    if (isTechnicianReportReadOnly(activeSchedule)) {
+      document.querySelector("#syncState").textContent = "This report is awaiting Admin Review. Admin must return it before technician edits are allowed.";
+      return;
+    }
     const access = getDeviceCriticalAccessState(device, activeSchedule);
     if (!access.allowed) {
       showCriticalDependencyBlocked(device, access);
@@ -2790,6 +3574,8 @@ async function saveInspection(forcedStatus, options = {}) {
   const notesValue = document.querySelector("#notes").value.trim();
   const actionValue = document.querySelector("#actionTaken").value.trim();
   const previousInspection = state.inspections[device.id] || {};
+  const beforePhotoData = beforeFile ? await readFileData(beforeFile) : previousInspection.beforePhotoData || "";
+  const afterPhotoData = afterFile ? await readFileData(afterFile) : previousInspection.afterPhotoData || "";
   const hasFaultPhoto = Boolean(
     beforeFile
     || afterFile
@@ -2811,18 +3597,21 @@ async function saveInspection(forcedStatus, options = {}) {
     }
   }
   const auditSession = completeAssignedItemSession(device, { status, critical: false });
+  const activeScheduleForSave = getActiveTechnicianMaintenanceSchedule();
   state.inspections[device.id] = {
     status,
     answers,
     notes: notesValue,
     action: actionValue,
-    beforePhoto: beforeFile?.name || "",
-    beforePhotoData: beforeFile ? await readFileData(beforeFile) : "",
-    afterPhoto: afterFile?.name || "",
-    afterPhotoData: afterFile ? await readFileData(afterFile) : "",
+    beforePhoto: beforeFile?.name || previousInspection.beforePhoto || "",
+    beforePhotoData,
+    afterPhoto: afterFile?.name || previousInspection.afterPhoto || "",
+    afterPhotoData,
     inspectedAt: new Date().toISOString(),
     inspectedBy: getCurrentUserName(),
     inspectedRole: getCurrentUserRole(),
+    jobId: state.activeJob?.jobId || "",
+    scheduleId: activeScheduleForSave?.scheduleId || state.activeJob?.scheduleId || "",
     checklistStartedAt: auditSession?.lastStartedAt || auditSession?.firstOpenedAt || "",
     checklistDurationMs: auditSession?.lastDurationMs || 0,
     checklistTotalDurationMs: auditSession?.durationMs || 0
@@ -2837,7 +3626,6 @@ async function saveInspection(forcedStatus, options = {}) {
   };
   state.history[device.id] = [historyItem, ...(state.history[device.id] || [])].slice(0, 8);
 
-  const activeScheduleForSave = getActiveTechnicianMaintenanceSchedule();
   const sharedSave = getCurrentUserRole() === "Technician"
     ? await saveSharedInspectionRecord(device, state.inspections[device.id], activeScheduleForSave)
     : { ok: true, localOnly: true };
@@ -3120,6 +3908,47 @@ function getSharedProgress(scheduleOrId = null) {
   return getSharedJobCache(scheduleOrId)?.progress || null;
 }
 
+function getSharedReportSubmission(scheduleOrId = null) {
+  return getSharedStore(scheduleOrId)?.reportSubmission || null;
+}
+
+function getScheduleReportSubmission(schedule) {
+  const scheduleId = getScheduleKey(schedule);
+  return getSharedReportSubmission(schedule)
+    || schedule?.reportSubmission
+    || (scheduleId && scheduleId === (state.activeJob?.scheduleId || state.activeJob?.schedule?.scheduleId || "") ? state.activeJob?.reportSubmission : null)
+    || null;
+}
+
+function getScheduleReportStatus(schedule) {
+  const explicit = String(schedule?.reportSubmissionStatus || getScheduleReportSubmission(schedule)?.status || "").toUpperCase();
+  if (explicit) return explicit;
+  const scheduleStatus = String(schedule?.status || "").toUpperCase();
+  if (["AWAITING_ADMIN_REVIEW", "SUBMITTED_BY_TECHNICIAN", "RETURNED_FOR_CORRECTION", "APPROVED_BY_ADMIN"].includes(scheduleStatus)) {
+    return scheduleStatus;
+  }
+  return "";
+}
+
+function isScheduleAwaitingAdminReview(schedule) {
+  const status = getScheduleReportStatus(schedule);
+  return status === "AWAITING_ADMIN_REVIEW" || status === "SUBMITTED_BY_TECHNICIAN";
+}
+
+function isScheduleAdminApproved(schedule) {
+  return getScheduleReportStatus(schedule) === "APPROVED_BY_ADMIN";
+}
+
+function isScheduleReturnedForCorrection(schedule) {
+  return getScheduleReportStatus(schedule) === "RETURNED_FOR_CORRECTION";
+}
+
+function isTechnicianReportReadOnly(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  return getCurrentUserRole() === "Technician"
+    && Boolean(schedule)
+    && (isScheduleAwaitingAdminReview(schedule) || isScheduleAdminApproved(schedule));
+}
+
 function isSharedStoreOnline(scheduleOrId = null) {
   const cache = getSharedJobCache(scheduleOrId);
   return Boolean(cache?.online);
@@ -3159,6 +3988,8 @@ function inspectionRecordToLocal(record = {}) {
     inspectedAt: record.inspectedAt || record.updatedAt || "",
     inspectedBy: record.technicianName || record.inspectedBy || "",
     inspectedRole: record.technicianRole || record.inspectedRole || "",
+    jobId: record.jobId || "",
+    scheduleId: record.scheduleId || "",
     checklistStartedAt: record.checklistStartedAt || "",
     checklistDurationMs: record.checklistDurationMs || 0,
     checklistTotalDurationMs: record.checklistTotalDurationMs || 0,
@@ -3188,6 +4019,16 @@ function applySharedRecordsToLocalState(store, schedule = null) {
       syncStatus: "synced"
     };
   });
+  if (schedule && store.reportSubmission) {
+    schedule.reportSubmission = store.reportSubmission;
+    schedule.reportSubmissionStatus = store.reportSubmission.status || schedule.reportSubmissionStatus || "";
+    if (state.activeJob?.scheduleId === schedule.scheduleId) {
+      state.activeJob.reportSubmission = store.reportSubmission;
+      if (isScheduleAwaitingAdminReview(schedule) || isScheduleAdminApproved(schedule)) {
+        state.activeJob.status = store.reportSubmission.status || state.activeJob.status;
+      }
+    }
+  }
   writeStoredJson("tmFireInspections", state.inspections);
   writeStoredJson("rmtCriticalSops", state.criticalSops);
   invalidateRuntimeCaches();
@@ -3473,6 +4314,7 @@ function completeActiveSchedule() {
   schedule.completedAt = state.activeJob.checkedOutAt;
   schedule.completedBy = getCurrentUserName();
   schedule.signOff = state.activeJob.signOff || null;
+  completeScopeCycleSchedule(schedule);
   persistSchedules();
   saveSchedulesToPc(false);
 }
@@ -3868,6 +4710,7 @@ function renderSchedulePanel() {
   syncScheduleScopeToServiceDefault();
   syncContractRuleControls();
   renderScheduleChecklistPreview();
+  renderAnnualCoverageSummary();
   syncCalendarDragSummary();
   renderExtinguisherTallyStatus();
   updateScheduleSaveButton();
@@ -3990,6 +4833,8 @@ function saveContractRuleForCurrentScheduleSite() {
   };
   writeStoredJson("rmtContractRules", state.contractRules);
   syncContractRuleControls();
+  renderScheduleChecklistPreview();
+  renderAnnualCoverageSummary();
   document.querySelector("#syncState").textContent = `${profile.companyName} contract rule saved at ${frequencyPercent}%`;
 }
 
@@ -4700,9 +5545,18 @@ function renderScheduleChecklistPreview() {
   const normalizedScopeValue = normalizeScheduleScopeForService(scheduleScope.value, scheduleServiceType.value);
   const scopeInfo = getScheduleScopeInfo(normalizedScopeValue);
   const devicePool = getScheduleDevicePoolForScope(scopeInfo, profile, scheduleFloor.value);
+  const frequencyPercent = normalizeMaintenanceFrequency(getContractFrequencyForProfile(profile));
+  const annualCycleId = getContractCycleIdForDate(scheduleDate?.value || new Date());
+  const rotationHistoryKey = scopeInfo.mode === "all"
+    ? getScopeHistoryKey(frequencyPercent, profile, "site-wide", annualCycleId)
+    : "";
   const plannedDevices = getScheduleDevicesForScope(devicePool, scopeInfo, {
     profile,
     floorId: scopeInfo.mode === "all" ? "site-wide" : scheduleFloor.value,
+    frequencyPercent,
+    annualCycleId,
+    rotationHistoryKey,
+    date: scheduleDate?.value || "",
     commitHistory: false
   });
   const plannedActiveCount = plannedDevices.filter((device) => isActiveSystem(device.type)).length;
@@ -4711,8 +5565,9 @@ function renderScheduleChecklistPreview() {
   const previewTypes = getSchedulePreviewTypes(devicePool, scopeInfo);
   const passiveDevicePool = devicePool.filter((device) => isPassiveScopeDevice(device));
   const cycleRecord = scopeInfo.mode === "all"
-    ? getScopeCycleRecord(getScopeHistoryKey(getContractFrequencyForProfile(profile), profile, "site-wide"), passiveDevicePool)
+    ? getScopeCycleRecord(rotationHistoryKey, passiveDevicePool, { annualCycleId })
     : null;
+  const mandatoryRecheckCount = plannedDevices.filter((device) => device.recheckPriority > 0).length;
   const existingSchedule = state.editingScheduleId
     ? state.schedules.find((schedule) => schedule.scheduleId === state.editingScheduleId)
     : null;
@@ -4745,13 +5600,14 @@ function renderScheduleChecklistPreview() {
     </div>
     ${scopeInfo.mode === "all" ? `
       <div class="checklist-preview-block">
-        <strong>Site-wide Rotation <span>${escapeHtml(getContractFrequencyForProfile(profile))}% passive + 100% active</span></strong>
+        <strong>Site-wide Rotation <span>${escapeHtml(frequencyPercent)}% passive + 100% active</span></strong>
         <ol>
           <li>Percentage is calculated from all passive devices under ${escapeHtml(profile.companyName)} / ${escapeHtml(profile.siteName)}.</li>
           <li>Selected this visit: ${plannedPassiveCount} passive checkpoint(s) and ${plannedActiveCount} active system(s).</li>
+          ${mandatoryRecheckCount ? `<li>Mandatory rechecks added: ${mandatoryRecheckCount}. They do not reduce the ${frequencyPercent}% new-device allocation.</li>` : ""}
           <li>Floor coverage: ${escapeHtml(formatScheduleFloorBreakdown(floorCounts, 8) || "No floor points selected")}.</li>
           <li>Technician starts at ${escapeHtml(floorAsset.title)}, then changes floor from the Mimic Level control beside the drawing.</li>
-          <li>Passive duplicate protection: ${cycleRecord ? `${cycleRecord.coveredIds.length}/${passiveDevicePool.length}` : "0/0"} passive devices already covered in this cycle.</li>
+          <li>Annual cycle: ${escapeHtml(annualCycleId)}. Completed coverage: ${cycleRecord ? `${cycleRecord.coveredIds.length}/${passiveDevicePool.length}` : "0/0"}; upcoming reserved: ${cycleRecord?.reservedIds?.length || 0}.</li>
           <li>This schedule picks from remaining unvisited passive devices first. Already-covered passive devices will not repeat until the 100% passive cycle is completed.</li>
           <li>Active / critical systems are intentionally repeated every visit because they are 100% active checks.</li>
           <li>After the full passive cycle is completed, any extra overlap prioritizes earlier failed or unable-to-check items.</li>
@@ -4803,6 +5659,65 @@ function renderScheduleChecklistPreview() {
   `;
 
   preview.querySelector("[data-preview-generate-report]")?.addEventListener("click", showReport);
+}
+
+function getAnnualCoverageSummary(profile = getScheduleSiteIdentity(), options = {}) {
+  const frequencyPercent = normalizeMaintenanceFrequency(options.frequencyPercent || getContractFrequencyForProfile(profile));
+  const annualCycleId = options.annualCycleId || getContractCycleIdForDate(options.date || scheduleDate?.value || new Date());
+  const scopeInfo = getScheduleScopeInfo("full-maintenance");
+  const devicePool = getScheduleDevicePoolForScope(scopeInfo, profile, "site-wide");
+  const passiveDevices = getUniqueScheduleDevices(devicePool).filter((device) => isPassiveScopeDevice(device));
+  const historyKey = getScopeHistoryKey(frequencyPercent, profile, "site-wide", annualCycleId);
+  const cycle = getScopeCycleRecord(historyKey, passiveDevices, { annualCycleId });
+  const eligibleCount = passiveDevices.length;
+  const uniqueCoveredCount = cycle.coveredIds.length;
+  const uniqueCoveragePercent = eligibleCount ? Math.round((uniqueCoveredCount / eligibleCount) * 100) : 0;
+  const totalInspections = Number(cycle.completedInspectionCount || uniqueCoveredCount || 0);
+  const repeatInspections = Number(cycle.repeatInspectionCount || Math.max(0, totalInspections - uniqueCoveredCount) || 0);
+  const faultRecheckRepeatCount = Number(cycle.faultRecheckRepeatCount || 0);
+  const reservedCount = Number(cycle.reservedIds?.length || 0);
+  return {
+    profile: normalizeClientProfile(profile),
+    frequencyPercent,
+    annualCycleId,
+    contractCycleId: annualCycleId,
+    historyKey,
+    cycle,
+    eligibleCount,
+    uniqueCoveredCount,
+    uniqueCoveragePercent,
+    totalInspections,
+    repeatInspections,
+    faultRecheckRepeatCount,
+    reservedCount
+  };
+}
+
+function renderAnnualCoverageSummary() {
+  if (!annualCoverageSummary) return;
+  const profile = getScheduleSiteIdentity();
+  const summary = getAnnualCoverageSummary(profile);
+  if (!summary.eligibleCount) {
+    annualCoverageSummary.innerHTML = `<p class="hint">No eligible sampled devices found for this client/site yet.</p>`;
+    return;
+  }
+
+  annualCoverageSummary.innerHTML = `
+    <div class="coverage-cycle-meta">
+      <strong>${escapeHtml(summary.profile.companyName)} / ${escapeHtml(summary.profile.siteName)}</strong>
+      <span>${escapeHtml(summary.annualCycleId)} | ${summary.frequencyPercent}% passive contract cycle</span>
+    </div>
+    <div class="coverage-metrics">
+      <div><strong>${summary.eligibleCount}</strong><span>Eligible sampled devices</span></div>
+      <div><strong>${summary.uniqueCoveredCount}</strong><span>Unique covered</span></div>
+      <div><strong>${summary.uniqueCoveragePercent}%</strong><span>Unique coverage</span></div>
+      <div><strong>${summary.totalInspections}</strong><span>Total inspections</span></div>
+      <div><strong>${summary.repeatInspections}</strong><span>Repeat inspections</span></div>
+      <div><strong>${summary.faultRecheckRepeatCount}</strong><span>Fault/recheck repeats</span></div>
+      <div><strong>${summary.reservedCount}</strong><span>Reserved upcoming</span></div>
+    </div>
+    <p class="hint">Completion coverage counts only completed jobs. Future scheduled jobs are shown as reserved so they do not unnecessarily reuse healthy devices.</p>
+  `;
 }
 
 function renderScheduleCalendar() {
@@ -4889,6 +5804,7 @@ function bindCalendarDayHandlers() {
       if (event.target.closest("[data-schedule-drag-id]")) return;
       scheduleDate.value = day.dataset.calendarDate;
       renderScheduleChecklistPreview();
+      renderAnnualCoverageSummary();
     });
 
     day.addEventListener("dragover", (event) => {
@@ -4959,6 +5875,7 @@ function bindCalendarTemplateHandlers() {
       scheduleScope.value = button.dataset.calendarScope;
       syncCalendarDragSummary();
       renderScheduleChecklistPreview();
+      renderAnnualCoverageSummary();
       document.querySelector("#syncState").textContent = `${scheduleServiceType.value} selected`;
     });
   });
@@ -4992,6 +5909,7 @@ async function createScheduleForDate(dateText, scope, jobType = "") {
   renderScheduleChecklistPreview();
 
   const schedule = buildSchedulePayload();
+  reserveScheduleScope(schedule);
   state.calendarMonth = String(schedule.date || "").slice(0, 7) || state.calendarMonth;
   state.schedules = [schedule, ...state.schedules.filter((item) => item.scheduleId !== schedule.scheduleId)].slice(0, 100);
   persistSchedules();
@@ -5008,8 +5926,22 @@ async function moveScheduleToDate(scheduleId, dateText) {
     return;
   }
 
+  const previousSchedule = { ...schedule };
+  releaseScheduleScopeReservation(previousSchedule);
   schedule.date = dateText;
   schedule.updatedAt = new Date().toISOString();
+  if (schedule.scopeSelectionMode === "site-wide" && schedule.rotationHistoryKey) {
+    const profile = { companyName: schedule.companyName, siteName: schedule.siteName };
+    const scopeInfo = getScheduleScopeInfo(normalizeScheduleScopeForService(schedule.scope || "full-maintenance", schedule.serviceType || ""));
+    const frequencyPercent = normalizeMaintenanceFrequency(schedule.contractFrequencyPercent || getContractFrequencyForProfile(profile));
+    const annualCycleId = getContractCycleIdForDate(dateText);
+    const rotationScopeKey = getScheduleRotationScopeKey(scopeInfo, schedule.scopeSelectionMode, schedule.floorId || schedule.startFloorId || floorSelect.value);
+    schedule.contractFrequencyPercent = frequencyPercent;
+    schedule.annualCycleId = annualCycleId;
+    schedule.contractCycleId = annualCycleId;
+    schedule.rotationHistoryKey = getScopeHistoryKey(frequencyPercent, profile, rotationScopeKey, annualCycleId);
+    reserveScheduleScope(schedule);
+  }
   persistSchedules();
   renderSchedulePanel();
   await saveSchedulesToPc(false);
@@ -5179,41 +6111,274 @@ function getSchedulePreviewTypes(floorDevices, scopeInfo) {
     }));
 }
 
-function getScheduleDevicePoolForScope(scopeInfo, profile = getScheduleSiteIdentity(), floorId = scheduleFloor?.value || floorSelect.value) {
-  return scopeInfo.mode === "all"
+function shouldApplyMaintenanceSampling(scopeInfo, serviceType = "") {
+  return scopeInfo.mode === "all" || (scopeInfo.mode === "system" && isMaintenanceServiceType(serviceType));
+}
+
+function getScheduleScopeSelectionMode(scopeInfo, serviceType = "") {
+  if (scopeInfo.mode === "all") return "site-wide";
+  if (scopeInfo.mode === "system" && isMaintenanceServiceType(serviceType)) return "site-wide";
+  return "selected-floor";
+}
+
+function getScheduleRotationScopeKey(scopeInfo, scopeSelectionMode, floorId = scheduleFloor?.value || floorSelect.value) {
+  if (scopeSelectionMode !== "site-wide") return floorId || "floor";
+  return scopeInfo.mode === "system" ? `site-wide:${scopeInfo.id}` : "site-wide";
+}
+
+function getScheduleDevicePoolForScope(scopeInfo, profile = getScheduleSiteIdentity(), floorId = scheduleFloor?.value || floorSelect.value, options = {}) {
+  const scopeSelectionMode = options.scopeSelectionMode || getScheduleScopeSelectionMode(scopeInfo, options.serviceType || "");
+  const pool = scopeSelectionMode === "site-wide"
     ? getDevicesForScheduleSite(profile)
     : getDevicesForScheduleFloor(floorId, profile);
+  return scopeInfo.mode === "system"
+    ? pool.filter((device) => deviceMatchesScheduleScope(device, scopeInfo.id))
+    : pool;
 }
 
 function getScheduleDevicesForScope(floorDevices, scopeInfo, options = {}) {
-  if (scopeInfo.mode === "all") {
-    return getMaintenanceScopeDevices(floorDevices, {
+  if (scopeInfo.mode === "all" || options.useMaintenanceSampling) {
+    return getMaintenanceScopeSelection(floorDevices, {
       profile: options.profile || getScheduleSiteIdentity(),
       floorId: options.floorId || scheduleFloor?.value || floorSelect.value,
       frequencyPercent: options.frequencyPercent,
+      annualCycleId: options.annualCycleId,
+      contractCycleId: options.contractCycleId,
+      rotationHistoryKey: options.rotationHistoryKey,
+      date: options.date,
+      scheduleId: options.scheduleId,
+      excludeScheduleId: options.excludeScheduleId,
       commitHistory: Boolean(options.commitHistory)
-    });
+    }).devices;
   }
   if (scopeInfo.mode === "first-setup" || scopeInfo.mode === "all") return floorDevices;
   return floorDevices.filter((device) => deviceMatchesScheduleScope(device, scopeInfo.id));
 }
 
 function getMaintenanceScopeDevices(floorDevices, options = {}) {
-  const frequencyPercent = Number(options.frequencyPercent || getContractFrequencyForProfile(options.profile || getScheduleSiteIdentity()));
-  if (frequencyPercent >= 100) return [...floorDevices];
-  const activeDevices = floorDevices.filter((device) => isActiveSystem(device.type));
-  const passiveDevices = floorDevices.filter((device) => isPassiveScopeDevice(device));
-  const passiveTarget = Math.max(1, Math.ceil(passiveDevices.length * (frequencyPercent / 100)));
-  const historyKey = getScopeHistoryKey(frequencyPercent, options.profile, options.floorId);
-  const useBalancedSiteRotation = options.floorId === "site-wide";
-  const selectedPassive = options.commitHistory
-    ? selectRotatingDevices(passiveDevices, passiveTarget, frequencyPercent, historyKey, useBalancedSiteRotation)
-    : previewRotatingDevices(passiveDevices, passiveTarget, historyKey, useBalancedSiteRotation);
-  return [...activeDevices, ...selectedPassive];
+  return getMaintenanceScopeSelection(floorDevices, options).devices;
 }
 
-function getScopeHistoryKey(percentage, profile = getScheduleSiteIdentity(), floorId = floorSelect.value) {
+function describeMaintenanceScopeSelection(plannedDevices, options = {}) {
+  const profile = options.profile || getScheduleSiteIdentity();
+  const frequencyPercent = normalizeMaintenanceFrequency(options.frequencyPercent || getContractFrequencyForProfile(profile));
+  const annualCycleId = options.annualCycleId || options.contractCycleId || getContractCycleIdForDate(options.date || scheduleDate?.value);
+  const rotationHistoryKey = options.rotationHistoryKey || getScopeHistoryKey(frequencyPercent, profile, options.floorId, annualCycleId);
+  const uniqueDevices = getUniqueScheduleDevices(plannedDevices);
+  const criticalDevices = uniqueDevices.filter((device) => isActiveSystem(device.type));
+  const mandatoryIds = new Set(options.existingSchedule?.mandatoryRecheckDeviceIds || []);
+  const mandatoryRecheckDevices = uniqueDevices.filter((device) => mandatoryIds.has(device.id));
+  const sampledPassiveDevices = uniqueDevices.filter((device) => {
+    return isPassiveScopeDevice(device) && !mandatoryIds.has(device.id);
+  });
+  return {
+    devices: uniqueDevices,
+    activeDevices: criticalDevices,
+    criticalDevices,
+    sampledPassiveDevices,
+    mandatoryRecheckDevices,
+    passiveTarget: sampledPassiveDevices.length,
+    frequencyPercent,
+    annualCycleId,
+    contractCycleId: annualCycleId,
+    rotationHistoryKey,
+    cycle: getScopeCycleRecord(rotationHistoryKey, sampledPassiveDevices, { annualCycleId })
+  };
+}
+
+function getMaintenanceScopeSelection(floorDevices, options = {}) {
+  const profile = options.profile || getScheduleSiteIdentity();
+  const frequencyPercent = normalizeMaintenanceFrequency(options.frequencyPercent || getContractFrequencyForProfile(profile));
+  const uniqueDevices = getUniqueScheduleDevices(floorDevices);
+  const activeDevices = uniqueDevices.filter((device) => isActiveSystem(device.type));
+  const passiveDevices = uniqueDevices.filter((device) => isPassiveScopeDevice(device));
+  const annualCycleId = options.annualCycleId || options.contractCycleId || getContractCycleIdForDate(options.date || scheduleDate?.value);
+  const historyKey = options.rotationHistoryKey || getScopeHistoryKey(frequencyPercent, profile, options.floorId, annualCycleId);
+  const cycle = getScopeCycleRecord(historyKey, passiveDevices, {
+    annualCycleId,
+    excludeScheduleId: options.excludeScheduleId || options.scheduleId || ""
+  });
+
+  if (frequencyPercent >= 100) {
+    return {
+      devices: uniqueScheduleDevices([...activeDevices, ...passiveDevices]),
+      activeDevices,
+      criticalDevices: activeDevices,
+      sampledPassiveDevices: passiveDevices,
+      mandatoryRecheckDevices: [],
+      passiveTarget: passiveDevices.length,
+      frequencyPercent,
+      annualCycleId,
+      contractCycleId: annualCycleId,
+      rotationHistoryKey: historyKey,
+      cycle
+    };
+  }
+
+  const passiveTarget = Math.max(1, Math.ceil(passiveDevices.length * (frequencyPercent / 100)));
+  const useBalancedSiteRotation = options.floorId === "site-wide";
+  const reservedIds = new Set(cycle.reservedIds || []);
+  const mandatoryRecheckDevices = pickMandatoryRecheckDevices(passiveDevices, {
+    reservedIds,
+    previousIds: cycle.lastSelectedIds,
+    excludeScheduleId: options.excludeScheduleId || options.scheduleId || ""
+  });
+  const mandatoryIds = new Set(mandatoryRecheckDevices.map((device) => device.id));
+  const coveredSet = new Set(cycle.coveredIds || []);
+  const basePool = passiveDevices.filter((device) => !mandatoryIds.has(device.id) && !reservedIds.has(device.id));
+  const unvisitedDevices = basePool.filter((device) => !coveredSet.has(device.id));
+  const selectedSampled = [];
+
+  if (unvisitedDevices.length) {
+    selectedSampled.push(...pickRotatingDevices(
+      unvisitedDevices,
+      Math.min(passiveTarget, unvisitedDevices.length),
+      cycle.lastSelectedIds,
+      useBalancedSiteRotation
+    ));
+  }
+
+  if (selectedSampled.length < passiveTarget) {
+    const cycleComplete = passiveDevices.length > 0 && coveredSet.size >= passiveDevices.length;
+    const remainingCount = passiveTarget - selectedSampled.length;
+    if (cycleComplete) {
+      selectedSampled.push(...pickPriorityRecheckDevices(basePool, remainingCount, selectedSampled, cycle.lastSelectedIds));
+    }
+    if (selectedSampled.length < passiveTarget) {
+      selectedSampled.push(...pickRotatingDevices(
+        basePool.filter((device) => !selectedSampled.some((item) => item.id === device.id) && !cycle.lastSelectedIds.includes(device.id)),
+        passiveTarget - selectedSampled.length,
+        cycle.lastSelectedIds,
+        useBalancedSiteRotation
+      ));
+    }
+    if (selectedSampled.length < passiveTarget) {
+      selectedSampled.push(...pickRotatingDevices(
+        passiveDevices.filter((device) => !mandatoryIds.has(device.id) && !selectedSampled.some((item) => item.id === device.id)),
+        passiveTarget - selectedSampled.length,
+        cycle.lastSelectedIds,
+        useBalancedSiteRotation
+      ));
+    }
+  }
+
+  const sampledPassiveDevices = selectedSampled.slice(0, passiveTarget);
+  const passiveSelection = uniqueScheduleDevices([...mandatoryRecheckDevices, ...sampledPassiveDevices]);
+  const devices = uniqueScheduleDevices([...activeDevices, ...passiveSelection]);
+
+  if (options.commitHistory && options.scheduleId) {
+    reserveScopeCycleSelection(historyKey, passiveDevices, cycle, passiveSelection, {
+      scheduleId: options.scheduleId,
+      annualCycleId,
+      mandatoryRecheckDevices,
+      date: options.date || scheduleDate?.value || ""
+    });
+  }
+
+  return {
+    devices,
+    activeDevices,
+    criticalDevices: activeDevices,
+    sampledPassiveDevices,
+    mandatoryRecheckDevices,
+    passiveTarget,
+    frequencyPercent,
+    annualCycleId,
+    contractCycleId: annualCycleId,
+    rotationHistoryKey: historyKey,
+    cycle
+  };
+}
+
+function normalizeMaintenanceFrequency(value) {
+  const frequency = Number(value || 10);
+  return [10, 20, 30, 50, 100].includes(frequency) ? frequency : 10;
+}
+
+function getContractCycleIdForDate(dateLike = scheduleDate?.value || new Date()) {
+  const text = String(dateLike || "").trim();
+  const yearFromText = text.match(/^(\d{4})/)?.[1];
+  const year = yearFromText || new Date(dateLike || Date.now()).getFullYear() || new Date().getFullYear();
+  return `annual-${year}`;
+}
+
+function getLegacyScopeHistoryKey(percentage, profile = getScheduleSiteIdentity(), floorId = floorSelect.value) {
   return `${getContractRuleKey(profile)}::${floorId || "floor"}::${percentage}`;
+}
+
+function getScopeHistoryKey(percentage, profile = getScheduleSiteIdentity(), floorId = floorSelect.value, annualCycleId = getContractCycleIdForDate()) {
+  return `${getLegacyScopeHistoryKey(percentage, profile, floorId)}::${annualCycleId}`;
+}
+
+function uniqueScheduleDevices(devices = []) {
+  const seen = new Set();
+  return devices.filter((device) => {
+    const id = device?.id || device?.tag || "";
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function getScopeRecheckPriority(device) {
+  const current = state.inspections[device.id] || {};
+  const history = Array.isArray(state.history[device.id]) ? state.history[device.id] : [];
+  const latestHistory = history[0] || {};
+  const values = [
+    current.status,
+    current.notes,
+    current.action,
+    current.actionTaken,
+    latestHistory.status,
+    latestHistory.notes,
+    latestHistory.action,
+    latestHistory.actionTaken,
+    device.recheckReason,
+    device.adminRecheckReason
+  ].join(" ").toLowerCase();
+  const failCount = history.filter((item) => String(item.status || "").toLowerCase().includes("fail")).length;
+  const statusText = String(current.status || latestHistory.status || "").toLowerCase();
+  const explicitlyUnresolved = values.includes("unresolved");
+  const explicitlyResolved = !explicitlyUnresolved && /\b(resolved|closed)\b/.test(values);
+  const recentlyRectified = values.includes("rectified") || values.includes("repaired") || values.includes("replaced") || values.includes("verify");
+  if ((statusText.includes("fail") || values.includes("fault") || values.includes("malfunction") || explicitlyUnresolved) && !explicitlyResolved && !recentlyRectified) {
+    return { score: 100, reason: "unresolved fault/defect" };
+  }
+  if (recentlyRectified) {
+    return { score: 90, reason: "recently rectified - verify" };
+  }
+  if (failCount > 1 || values.includes("recurring")) {
+    return { score: 80, reason: "recurring fault" };
+  }
+  if (device.forceRecheck || device.adminForcedRecheck || device.recheckRequired || values.includes("admin-forced") || values.includes("force recheck")) {
+    return { score: 70, reason: "admin-forced recheck" };
+  }
+  if (values.includes("unable") || values.includes("no access") || values.includes("cannot access") || values.includes("unverified")) {
+    return { score: 60, reason: "no-access/unverified" };
+  }
+  return { score: 0, reason: "" };
+}
+
+function pickMandatoryRecheckDevices(deviceList, options = {}) {
+  const reservedIds = options.reservedIds || new Set();
+  return deviceList
+    .map((device) => ({ device, priority: getScopeRecheckPriority(device) }))
+    .filter((item) => item.priority.score > 0)
+    .filter((item) => isMandatoryRecheckDevice(item.device, item.priority))
+    .filter((item) => !reservedIds.has(item.device.id))
+    .sort((a, b) => b.priority.score - a.priority.score || getRotationRank(a.device.id, options.previousIds || []) - getRotationRank(b.device.id, options.previousIds || []))
+    .map((item) => ({
+      ...item.device,
+      recheckPriority: item.priority.score,
+      recheckReason: item.priority.reason
+    }));
+}
+
+function isMandatoryRecheckDevice(device, priority = getScopeRecheckPriority(device)) {
+  if (device.forceRecheck || device.adminForcedRecheck || device.recheckRequired) return true;
+  return priority.reason === "unresolved fault/defect"
+    || priority.reason === "admin-forced recheck"
+    || priority.reason === "no-access/unverified";
 }
 
 function getScheduleFloorCounts(scheduleDevices = []) {
@@ -5510,10 +6675,10 @@ function getDevicesForScheduleRecord(schedule) {
   };
   const normalizedScope = normalizeScheduleScopeForService(schedule?.scope || "full-maintenance", schedule?.serviceType || "");
   const scopeInfo = getScheduleScopeInfo(normalizedScope);
-  if (scopeInfo.mode === "all" || schedule?.scopeSelectionMode === "site-wide") {
-    return getDevicesForScheduleSite(profile);
-  }
-  return getDevicesForScheduleFloor(schedule?.floorId || floorSelect.value, profile);
+  return getScheduleDevicePoolForScope(scopeInfo, profile, schedule?.floorId || floorSelect.value, {
+    serviceType: schedule?.serviceType || "",
+    scopeSelectionMode: schedule?.scopeSelectionMode
+  });
 }
 
 function getScheduleScopeInfo(value) {
@@ -5564,44 +6729,89 @@ function normalizeScheduleScopeForService(scope = "", serviceType = "") {
 }
 
 async function saveSchedule() {
+  const existingSchedule = state.editingScheduleId
+    ? state.schedules.find((item) => item.scheduleId === state.editingScheduleId)
+    : null;
   const schedule = buildSchedulePayload();
+  if (existingSchedule && existingSchedule.rotationHistoryKey !== schedule.rotationHistoryKey) {
+    releaseScheduleScopeReservation(existingSchedule);
+  }
+  reserveScheduleScope(schedule);
   state.calendarMonth = String(schedule.date || "").slice(0, 7) || state.calendarMonth;
   state.schedules = [schedule, ...state.schedules.filter((item) => item.scheduleId !== schedule.scheduleId)].slice(0, 100);
   state.editingScheduleId = null;
   persistSchedules();
   renderSchedulePanel();
+  renderFrontDeskPanel();
   await saveSchedulesToPc(false);
   document.querySelector("#syncState").textContent = `${schedule.scheduleId} saved for ${schedule.companyName}`;
 }
 
 function buildSchedulePayload() {
   const now = new Date();
+  const scheduleId = state.editingScheduleId || `SCH-${formatRunStamp(now)}-${String(now.getMilliseconds()).padStart(3, "0")}`;
+  const scheduleDateValue = scheduleDate.value || formatDateValue(now);
   const profile = getScheduleSiteIdentity();
   const extra = getScheduleExtraDetails();
   const startFloorAsset = getFloorAsset(scheduleFloor.value);
-  const normalizedScopeValue = normalizeScheduleScopeForService(scheduleScope.value, scheduleServiceType.value);
+  const serviceTypeValue = scheduleServiceType.value;
+  const normalizedScopeValue = normalizeScheduleScopeForService(scheduleScope.value, serviceTypeValue);
   const scopeInfo = getScheduleScopeInfo(normalizedScopeValue);
-  const scopeSelectionMode = scopeInfo.mode === "all" ? "site-wide" : "selected-floor";
-  const devicePool = getScheduleDevicePoolForScope(scopeInfo, profile, scheduleFloor.value);
+  const scopeSelectionMode = getScheduleScopeSelectionMode(scopeInfo, serviceTypeValue);
+  const devicePool = getScheduleDevicePoolForScope(scopeInfo, profile, scheduleFloor.value, {
+    serviceType: serviceTypeValue,
+    scopeSelectionMode
+  });
   const contractFrequencyPercent = getContractFrequencyForProfile(profile);
+  const annualCycleId = getContractCycleIdForDate(scheduleDateValue);
+  const rotationScopeKey = getScheduleRotationScopeKey(scopeInfo, scopeSelectionMode, scheduleFloor.value);
+  const rotationHistoryKey = scopeSelectionMode === "site-wide" ? getScopeHistoryKey(contractFrequencyPercent, profile, rotationScopeKey, annualCycleId) : "";
+  const useMaintenanceSampling = shouldApplyMaintenanceSampling(scopeInfo, serviceTypeValue);
   const existingSchedule = state.editingScheduleId
     ? state.schedules.find((item) => item.scheduleId === state.editingScheduleId)
     : null;
-  let plannedDevices = getScheduleDevicesForScope(devicePool, scopeInfo, {
-    profile,
-    floorId: scopeSelectionMode === "site-wide" ? "site-wide" : scheduleFloor.value,
-    frequencyPercent: contractFrequencyPercent,
-    commitHistory: scopeInfo.mode === "all" && !state.editingScheduleId
-  });
+  let scopeSelection = useMaintenanceSampling
+    ? getMaintenanceScopeSelection(devicePool, {
+      profile,
+      floorId: scopeSelectionMode === "site-wide" ? rotationScopeKey : scheduleFloor.value,
+      frequencyPercent: contractFrequencyPercent,
+      date: scheduleDateValue,
+      scheduleId,
+      excludeScheduleId: existingSchedule?.scheduleId || "",
+      rotationHistoryKey,
+      commitHistory: false
+    })
+    : null;
+  let plannedDevices = scopeSelection
+    ? scopeSelection.devices
+    : getScheduleDevicesForScope(devicePool, scopeInfo, {
+      profile,
+      floorId: scopeSelectionMode === "site-wide" ? rotationScopeKey : scheduleFloor.value,
+      frequencyPercent: contractFrequencyPercent,
+      date: scheduleDateValue,
+      scheduleId,
+      useMaintenanceSampling,
+      commitHistory: false
+    });
   if (existingSchedule?.plannedDeviceIds?.length && existingSchedule.scopeSelectionMode === scopeSelectionMode) {
     const existingIds = new Set(existingSchedule.plannedDeviceIds);
     plannedDevices = devicePool.filter((device) => existingIds.has(device.id));
+    scopeSelection = useMaintenanceSampling
+      ? describeMaintenanceScopeSelection(plannedDevices, {
+        profile,
+        floorId: scopeSelectionMode === "site-wide" ? rotationScopeKey : scheduleFloor.value,
+        frequencyPercent: contractFrequencyPercent,
+        date: scheduleDateValue,
+        rotationHistoryKey,
+        existingSchedule
+      })
+      : null;
   }
   const passiveDevices = plannedDevices.filter((device) => isPassiveScopeDevice(device));
   const activeDevices = plannedDevices.filter((device) => isActiveSystem(device.type));
   const plannedFloorCounts = getScheduleFloorCounts(plannedDevices);
   return {
-    scheduleId: state.editingScheduleId || `SCH-${formatRunStamp(now)}-${String(now.getMilliseconds()).padStart(3, "0")}`,
+    scheduleId,
     status: "Scheduled",
     companyName: profile.companyName,
     siteName: profile.siteName,
@@ -5612,15 +6822,23 @@ function buildSchedulePayload() {
     floorCode: getFloorCode(scheduleFloor.value),
     startFloorId: scheduleFloor.value,
     startFloorTitle: startFloorAsset.title,
-    date: scheduleDate.value || formatDateValue(now),
+    date: scheduleDateValue,
     time: scheduleTime.value || "09:00",
     technician: scheduleTechnician.value.trim() || "Unassigned",
-    serviceType: scheduleServiceType.value,
+    serviceType: serviceTypeValue,
     scope: normalizedScopeValue,
     scopeLabel: scopeInfo.label,
     scopeSelectionMode,
     contractFrequencyPercent,
-    rotationHistoryKey: scopeSelectionMode === "site-wide" ? getScopeHistoryKey(contractFrequencyPercent, profile, "site-wide") : "",
+    annualCycleId: scopeSelection?.annualCycleId || annualCycleId,
+    contractCycleId: scopeSelection?.contractCycleId || annualCycleId,
+    rotationHistoryKey,
+    scopeFrozen: true,
+    sampledDeviceIds: scopeSelection?.sampledPassiveDevices?.map((device) => device.id) || passiveDevices.map((device) => device.id),
+    mandatoryRecheckDeviceIds: scopeSelection?.mandatoryRecheckDevices?.map((device) => device.id) || [],
+    criticalDeviceIds: scopeSelection?.criticalDevices?.map((device) => device.id) || activeDevices.map((device) => device.id),
+    adminForcedDeviceIds: plannedDevices.filter((device) => device.forceRecheck || device.adminForcedRecheck).map((device) => device.id),
+    passiveTargetCount: scopeSelection?.passiveTarget || passiveDevices.length,
     plannedDeviceIds: plannedDevices.map((device) => device.id),
     plannedFloorCounts,
     priority: schedulePriority.value,
@@ -5785,6 +7003,9 @@ function getTechnicianMaintenanceSchedules(limit = Infinity) {
 
 function getTechnicianScheduleStatus(schedule) {
   const activeScheduleId = state.activeJob?.scheduleId || state.activeJob?.schedule?.scheduleId || "";
+  if (isScheduleAwaitingAdminReview(schedule)) return "Awaiting Admin Review";
+  if (isScheduleAdminApproved(schedule)) return "Completed";
+  if (isScheduleReturnedForCorrection(schedule)) return "Returned For Correction";
   if (state.activeJob?.status !== "Completed" && activeScheduleId === schedule?.scheduleId) return "In Progress";
   if (schedule?.status === "In Progress" || isScheduleResumeAvailable(schedule)) return "In Progress";
   if (schedule?.status === "Completed") return "Completed";
@@ -5792,7 +7013,10 @@ function getTechnicianScheduleStatus(schedule) {
 }
 
 function getTechnicianScheduleActionLabel(schedule) {
-  return getTechnicianScheduleStatus(schedule) === "In Progress" ? "Resume Job" : "Open Job";
+  const status = getTechnicianScheduleStatus(schedule);
+  if (status === "Awaiting Admin Review") return "View Submitted Job";
+  if (status === "Returned For Correction") return "Resume Correction";
+  return status === "In Progress" ? "Resume Job" : "Open Job";
 }
 
 function getTechnicianScheduleStartFloor(schedule) {
@@ -5847,15 +7071,92 @@ function getLightTechnicianScheduleSummary(schedule) {
 
 function getTechnicianFireSystemDefinitions() {
   return [
-    { id: "fire-alarm", label: "Fire Alarm", hint: "Panel, MCP, smoke, heat", scopeId: "fire-alarm" },
-    { id: "emergency-exit", label: "Emergency / Exit", hint: "EL and exit signs", scopeId: "emergency-exit" },
-    { id: "hose-reel", label: "Hose Reel", hint: "Hose reel points", scopeId: "hose-reel" },
-    { id: "pump-system", label: "Pump / Water", hint: "Pump, riser, hydrant panels", scopeId: "pump-system" },
-    { id: "gas-release", label: "Gas / CO2 / FM200", hint: "Suppression systems", scopeId: "gas-release" },
-    { id: "wet-chemical", label: "Wet Chemical", hint: "Kitchen hood system", scopeId: "wet-chemical" },
-    { id: "intercom-flow", label: "Intercom / Flow", hint: "FI and flow switch", scopeId: "intercom-flow" },
-    { id: "extinguisher", label: "Extinguisher", hint: "Portable units", scopeId: "extinguisher" },
-    { id: "all", label: "All Assigned", hint: "Show full job scope", scopeId: "" }
+    {
+      id: "fire-alarm",
+      label: "Fire Alarm",
+      hint: "MFAP, MCP, smoke, heat",
+      scopeId: "fire-alarm",
+      dependencyDefinitionIds: ["fire-alarm"],
+      systemCheckLabel: "Panel Check",
+      fieldLabel: "MCP / Smoke / Heat",
+      completionLabel: "Normal Status",
+      matchKeywords: ["main fire alarm panel", "mfap", ".mfap.", "fire alarm panel", "manual call point", "break glass", "mcp", ".mcp.", "smoke detector", ".sd.", "heat detector", ".hd.", "fire alarm bell"]
+    },
+    {
+      id: "hose-reel",
+      label: "Hose Reel",
+      hint: "Hose reel points and configured supply parent",
+      scopeId: "hose-reel",
+      dependencyDefinitionIds: ["hose-reel-pump"],
+      missingParentStatus: "unconfirmed",
+      systemCheckLabel: "Parent / Supply Check",
+      fieldLabel: "Hose Reel Points",
+      completionLabel: "System Normal Status",
+      matchKeywords: ["hose reel panel", "hrp", ".hrp.", "hose reel", ".hr.", " hr"]
+    },
+    {
+      id: "pump-system",
+      label: "Sprinkler / Wet Riser / Hydrant",
+      hint: "Water-based pumps, riser, hydrant, flow switch",
+      scopeId: "pump-system",
+      dependencyDefinitionIds: ["water-based-pump"],
+      missingParentStatus: "unconfirmed",
+      systemCheckLabel: "Pump / Panel Check",
+      fieldLabel: "Flow Switch / Riser / Hydrant",
+      completionLabel: "Water System Normal Status",
+      matchKeywords: ["sprinkler panel", "spp", ".spp.", "wet riser panel", "wrp", ".wrp.", "pressurized hydrant panel", "php", ".php.", "hydrant panel", "sprinkler", "wet riser", ".wr.", "dry riser", ".dr.", "hydrant", "flow switch", ".fs.", " fs", "landing valve", "breeching"]
+    },
+    {
+      id: "gas-release",
+      label: "Gas / Special Suppression",
+      hint: "CO2, FM200 and configured gas systems",
+      scopeId: "gas-release",
+      dependencyDefinitionIds: ["gas-release"],
+      systemCheckLabel: "Release Panel Check",
+      fieldLabel: "Configured Release Devices",
+      completionLabel: "Normal / Restored",
+      matchKeywords: ["gas release", "gas system", "fm200", "fk-5", "co2 system", "pyrogen"]
+    },
+    {
+      id: "wet-chemical",
+      label: "Wet Chemical",
+      hint: "Kitchen hood system",
+      scopeId: "wet-chemical",
+      dependencyDefinitionIds: ["wet-chemical"],
+      systemCheckLabel: "Wet Chemical Panel Check",
+      fieldLabel: "Configured Wet Chemical Devices",
+      completionLabel: "Normal / Restored",
+      matchKeywords: ["wet chemical", "wcc", ".wcc.", ".wc."]
+    },
+    {
+      id: "extinguisher",
+      label: "Portable Fire Extinguisher",
+      hint: "Portable units",
+      scopeId: "extinguisher",
+      systemCheckLabel: "Record Check",
+      fieldLabel: "Portable Units",
+      completionLabel: "Return / Summary",
+      matchKeywords: ["fire extinguisher", "extinguisher", "9fe", "2co", "abc fire"]
+    },
+    {
+      id: "emergency-exit",
+      label: "Emergency Light / Exit Sign",
+      hint: "EL and exit signs",
+      scopeId: "emergency-exit",
+      systemCheckLabel: "Circuit / Area Check",
+      fieldLabel: "EL / EX Points",
+      completionLabel: "Lighting Summary",
+      matchKeywords: ["emergency light", ".el.", "exit sign", ".ex."]
+    },
+    {
+      id: "other-configured",
+      label: "Other Configured Systems",
+      hint: "FI and site-specific devices",
+      systemCheckLabel: "System Check",
+      fieldLabel: "Configured Devices",
+      completionLabel: "Completion",
+      catchAll: true
+    }
   ];
 }
 
@@ -5863,11 +7164,318 @@ function getTechnicianFireSystemDefinition(systemKey) {
   return getTechnicianFireSystemDefinitions().find((item) => item.id === systemKey) || null;
 }
 
-function deviceMatchesTechnicianFireSystem(device, systemKey) {
+function normalizeTechnicianSystemConfig(config) {
+  if (!config) return { primarySystemId: "", secondarySystemIds: [] };
+  if (typeof config === "string") return { primarySystemId: config, secondarySystemIds: [] };
+  if (Array.isArray(config)) {
+    return {
+      primarySystemId: config[0] || "",
+      secondarySystemIds: uniqueValues(config.slice(1).filter(Boolean))
+    };
+  }
+  return {
+    primarySystemId: config.primarySystemId || config.primarySystem || config.systemId || config.system || "",
+    secondarySystemIds: uniqueValues([
+      ...(config.secondarySystemIds || []),
+      ...(config.secondarySystems || []),
+      ...(config.alsoShowInSystems || [])
+    ].filter(Boolean))
+  };
+}
+
+function getTechnicianDeviceSystemConfig(device, schedule = null) {
+  const id = device?.id || device?.tag || "";
+  const tag = device?.tag || device?.id || "";
+  const type = device?.type || "";
+  const normalizedType = normalizeScopeText(type);
+  const directConfig = normalizeTechnicianSystemConfig(device?.systemConfig || device?.fireSystemConfig || device?.technicianSystemConfig);
+  if (directConfig.primarySystemId || directConfig.secondarySystemIds.length) return directConfig;
+
+  const siteConfig = getCriticalDependencySiteConfig(schedule);
+  const overrideMaps = [
+    siteConfig.deviceSystemOverrides,
+    siteConfig.deviceSystems,
+    siteConfig.deviceSystemMap,
+    siteConfig.deviceSystemRelationships
+  ].filter(Boolean);
+  const keys = uniqueValues([id, tag, type, normalizedType].filter(Boolean));
+  for (const map of overrideMaps) {
+    for (const key of keys) {
+      const config = normalizeTechnicianSystemConfig(map[key]);
+      if (config.primarySystemId || config.secondarySystemIds.length) return config;
+    }
+  }
+
+  const typeMaps = [
+    siteConfig.deviceTypeSystemOverrides,
+    siteConfig.deviceTypeSystems,
+    siteConfig.deviceTypeSystemMap
+  ].filter(Boolean);
+  for (const map of typeMaps) {
+    for (const key of [type, normalizedType].filter(Boolean)) {
+      const config = normalizeTechnicianSystemConfig(map[key]);
+      if (config.primarySystemId || config.secondarySystemIds.length) return config;
+    }
+  }
+  return { primarySystemId: "", secondarySystemIds: [] };
+}
+
+function deviceMatchesTechnicianDefinition(device, definition, schedule = null) {
+  if (!device || !definition || definition.catchAll) return false;
+  const configured = getTechnicianDeviceSystemConfig(device, schedule);
+  const configuredIds = uniqueValues([configured.primarySystemId, ...(configured.secondarySystemIds || [])].filter(Boolean));
+  if (configuredIds.length) return configuredIds.includes(definition.id);
+  if (definition.scopeId && deviceMatchesScheduleScope(device, definition.scopeId)) return true;
+  return deviceMatchesKeywords(device, definition.matchKeywords || []);
+}
+
+function getTechnicianFireSystemDefinitionsForDevice(device, definitions = getTechnicianFireSystemDefinitions(), schedule = null) {
+  const normalDefinitions = definitions.filter((definition) => !definition.catchAll);
+  const configured = getTechnicianDeviceSystemConfig(device, schedule);
+  const configuredIds = uniqueValues([configured.primarySystemId, ...(configured.secondarySystemIds || [])].filter(Boolean));
+  if (configuredIds.length) {
+    const configuredDefinitions = normalDefinitions.filter((definition) => configuredIds.includes(definition.id));
+    if (configuredDefinitions.length) return configuredDefinitions;
+  }
+  const matches = normalDefinitions.filter((definition) => deviceMatchesTechnicianDefinition(device, definition, schedule));
+  if (matches.length) return [matches[0]];
+  const catchAll = definitions.find((definition) => definition.catchAll);
+  return catchAll ? [catchAll] : [];
+}
+
+function getPrimaryTechnicianFireSystemDefinition(device, definitions = getTechnicianFireSystemDefinitions(), schedule = null) {
+  return getTechnicianFireSystemDefinitionsForDevice(device, definitions, schedule)[0] || null;
+}
+
+function deviceMatchesTechnicianFireSystem(device, systemKey, schedule = null) {
   if (!systemKey || systemKey === "all") return true;
   const definition = getTechnicianFireSystemDefinition(systemKey);
-  if (!definition?.scopeId) return true;
-  return deviceMatchesScheduleScope(device, definition.scopeId);
+  if (!definition) return false;
+  return getTechnicianFireSystemDefinitionsForDevice(device, getTechnicianFireSystemDefinitions(), schedule)
+    .some((item) => item.id === definition.id);
+}
+
+function getTechnicianSystemDependencyDefinitions(definition, schedule = null) {
+  const ids = new Set(getTechnicianSystemParentDependencyIds(schedule, definition));
+  if (!ids.size) return [];
+  return criticalDependencyDefinitions.filter((dependency) => ids.has(dependency.id));
+}
+
+function getTechnicianSystemParentSupplyConfig(schedule, definition) {
+  const siteConfig = getCriticalDependencySiteConfig(schedule);
+  const relationships = siteConfig.parentSupplyRelationships || siteConfig.systemRelationships || {};
+  return relationships?.[definition?.id] || {};
+}
+
+function getTechnicianSystemParentDependencyIds(schedule, definition) {
+  const relationship = getTechnicianSystemParentSupplyConfig(schedule, definition);
+  return uniqueValues([
+    ...(definition?.dependencyDefinitionIds || []),
+    ...(relationship.dependencyDefinitionIds || []),
+    ...(relationship.parentDependencyDefinitionIds || [])
+  ].filter(Boolean));
+}
+
+function getTechnicianSystemConfiguredParentIds(schedule, definition) {
+  const relationship = getTechnicianSystemParentSupplyConfig(schedule, definition);
+  return uniqueValues([
+    ...(relationship.parentDeviceIds || []),
+    ...(relationship.parentDeviceTags || []),
+    relationship.parentDeviceId,
+    relationship.parentDeviceTag
+  ].filter(Boolean));
+}
+
+function getTechnicianSystemMissingParentStatus(schedule, definition) {
+  const relationship = getTechnicianSystemParentSupplyConfig(schedule, definition);
+  if (relationship.status === "confirmed" || relationship.required === true) return "setup-incomplete";
+  if (relationship.status === "not-required" || relationship.required === false) return "not-required";
+  if (relationship.status === "unconfirmed") return "unconfirmed";
+  return definition?.missingParentStatus || "not-required";
+}
+
+function isTechnicianSystemParentDevice(device, definition, schedule = null) {
+  const parentDefinition = getCriticalDependencyDefinitionForParent(device);
+  const parentIds = getTechnicianSystemParentDependencyIds(schedule, definition);
+  return Boolean(parentDefinition && parentIds.includes(parentDefinition.id));
+}
+
+function getTechnicianSystemParentDevices(schedule, definition, devicesForSystem, assignedDevices) {
+  const configuredParentIds = new Set(getTechnicianSystemConfiguredParentIds(schedule, definition));
+  const candidates = [];
+  [...(devicesForSystem || []), ...(assignedDevices || [])].forEach((device) => {
+    const id = device?.id || device?.tag || "";
+    if (!id || candidates.some((existing) => (existing.id || existing.tag) === id)) return;
+    candidates.push(device);
+  });
+  return candidates.filter((device) => {
+    const id = device?.id || device?.tag || "";
+    return configuredParentIds.has(id) || isTechnicianSystemParentDevice(device, definition, schedule);
+  });
+}
+
+function getTechnicianDeviceSummary(devicesForSystem, schedule) {
+  const summary = {
+    total: devicesForSystem.length,
+    done: 0,
+    pass: 0,
+    fail: 0,
+    partial: 0,
+    pending: 0,
+    blocked: 0,
+    ready: false
+  };
+  devicesForSystem.forEach((device) => {
+    const status = getAssignedDeviceCompletionStatus(device, schedule);
+    if (status === "pass") summary.pass += 1;
+    if (status === "fail") summary.fail += 1;
+    if (status === "partial") summary.partial += 1;
+    if (status === "locked") summary.blocked += 1;
+    if (status === "pending") summary.pending += 1;
+    if (status !== "pending" && status !== "partial" && status !== "locked") summary.done += 1;
+  });
+  summary.ready = summary.total > 0 && summary.done === summary.total && summary.partial === 0 && summary.pending === 0 && summary.blocked === 0;
+  return summary;
+}
+
+function getTechnicianSystemWorkflowRuns(schedule, definition, parentDevices = []) {
+  if (!schedule || !getTechnicianSystemParentDependencyIds(schedule, definition).length) return [];
+  ensureActiveJobCriticalWorkflows(schedule);
+  const parentDependencyIds = getTechnicianSystemParentDependencyIds(schedule, definition);
+  const parentIds = new Set(parentDevices.map((device) => device.id || device.tag));
+  return getCriticalWorkflowRunsForSchedule(schedule)
+    .filter((run) => parentDependencyIds.includes(run.definitionId))
+    .filter((run) => !parentIds.size || parentIds.has(run.parentDeviceId) || parentIds.has(run.parentDeviceTag));
+}
+
+function getTechnicianSystemStageModel(group, schedule) {
+  const dependencyDefinitions = getTechnicianSystemDependencyDefinitions(group, schedule);
+  const parentDevices = group.parentDevices || [];
+  const fieldDevices = group.fieldDevices || [];
+  const parentRuns = getTechnicianSystemWorkflowRuns(schedule, group, parentDevices);
+  const parentStages = parentRuns.map((run) => ({
+    run,
+    stage: getCachedCriticalWorkflowRunState(run, schedule)
+  }));
+  const missingParentStatus = getTechnicianSystemMissingParentStatus(schedule, group);
+  const hasExpectedParentRelationship = Boolean(dependencyDefinitions.length && fieldDevices.length);
+  const setupIncomplete = Boolean(hasExpectedParentRelationship && !parentDevices.length && missingParentStatus === "setup-incomplete");
+  const parentSupplyUnconfirmed = Boolean(hasExpectedParentRelationship && !parentDevices.length && missingParentStatus === "unconfirmed");
+  const prerequisiteFailed = parentStages.some((item) => item.stage?.prerequisiteFailed);
+  const prerequisitesComplete = parentStages.length > 0 && parentStages.every((item) => item.stage?.prerequisiteComplete && !item.stage?.prerequisiteFailed);
+  const fieldSummary = getTechnicianDeviceSummary(fieldDevices, schedule);
+  const firstParent = parentDevices[0] || null;
+  const finalReadyRun = parentStages.find((item) => item.stage?.status === "final_required")?.run || parentRuns[0] || null;
+
+  let systemCheck;
+  if (setupIncomplete) {
+    systemCheck = {
+      status: "setup-incomplete",
+      title: `1. ${group.systemCheckLabel || "System Check"}`,
+      note: "Setup incomplete: assigned field devices exist, but no approved parent/system prerequisite is configured.",
+      actionLabel: "Ask admin to complete setup",
+      disabled: true
+    };
+  } else if (parentSupplyUnconfirmed) {
+    systemCheck = {
+      status: "unconfirmed",
+      title: `1. ${group.systemCheckLabel || "System Check"}`,
+      note: "Parent/supply arrangement is unconfirmed. Do not assume a dedicated pump; admin must confirm dedicated, shared, or not-required relationship.",
+      actionLabel: "Unconfirmed",
+      disabled: true
+    };
+  } else if (parentDevices.length) {
+    systemCheck = {
+      status: prerequisiteFailed ? "blocked" : prerequisitesComplete ? "complete" : "active",
+      title: `1. ${group.systemCheckLabel || "System Check"}`,
+      note: prerequisiteFailed
+        ? "Prerequisite has a failed/unsafe result. Correct it before field testing."
+        : prerequisitesComplete
+          ? `${parentRuns.length} prerequisite record(s) complete.`
+          : `Complete ${parentRuns.map((run) => run.parentDeviceTag).filter(Boolean).join(" / ") || parentDevices.map((device) => device.id || device.tag).filter(Boolean).join(" / ") || "system prerequisite"} before field testing.`,
+      actionLabel: prerequisitesComplete ? "Review System Check" : "Open System Check",
+      deviceId: firstParent?.id || firstParent?.tag || "",
+      disabled: false
+    };
+  } else {
+    systemCheck = {
+      status: "complete",
+      title: `1. ${group.systemCheckLabel || "System Check"}`,
+      note: "No configured parent prerequisite for this system.",
+      actionLabel: "No prerequisite",
+      disabled: true
+    };
+  }
+
+  const fieldLocked = setupIncomplete || prerequisiteFailed || (parentDevices.length > 0 && !prerequisitesComplete);
+  const fieldDevicesComplete = fieldSummary.total === 0 || fieldSummary.ready;
+  const fieldDevicesTitle = fieldSummary.total
+    ? `${fieldSummary.done}/${fieldSummary.total} done`
+    : "No separate field devices";
+  const fieldStage = {
+    status: fieldLocked ? "locked" : fieldDevicesComplete ? "complete" : "active",
+    title: `2. ${group.fieldLabel || "Field Devices"}`,
+    note: fieldLocked
+      ? "Pins remain visible, but inspection is locked until the system check is completed."
+      : `${fieldDevicesTitle}. Use the mimic pins as the main workspace.`,
+    actionLabel: fieldLocked ? "View Locked Mimic" : "Open Mimic",
+    disabled: false
+  };
+
+  let completionStage;
+  if (setupIncomplete) {
+    completionStage = {
+      status: "locked",
+      title: `3. ${group.completionLabel || "Completion"}`,
+      note: "Completion is locked until admin configures the required parent/system prerequisite.",
+      actionLabel: "Locked",
+      disabled: true
+    };
+  } else if (parentSupplyUnconfirmed) {
+    completionStage = {
+      status: "locked",
+      title: `3. ${group.completionLabel || "Completion"}`,
+      note: "System completion remains unconfirmed until admin verifies the actual parent/supply arrangement. Field device results can still be recorded.",
+      actionLabel: "Unconfirmed",
+      disabled: true
+    };
+  } else if (parentDevices.length) {
+    const allComplete = parentStages.length > 0 && parentStages.every((item) => item.stage?.status === "complete");
+    const finalReady = parentStages.some((item) => item.stage?.status === "final_required");
+    completionStage = {
+      status: allComplete ? "complete" : finalReady ? "active" : "locked",
+      title: `3. ${group.completionLabel || "Completion"}`,
+      note: allComplete
+        ? "Configured completion/restoration requirement is complete."
+        : finalReady
+          ? "Field devices are complete. Open the system check to finish final restoration."
+          : "Locked until prerequisite and required field devices are completed.",
+      actionLabel: allComplete ? "Review Completion" : finalReady ? "Open Completion" : "Locked",
+      deviceId: finalReadyRun?.parentDeviceId || finalReadyRun?.parentDeviceTag || "",
+      disabled: !(allComplete || finalReady)
+    };
+  } else {
+    completionStage = {
+      status: fieldSummary.ready ? "complete" : "locked",
+      title: `3. ${group.completionLabel || "Completion"}`,
+      note: fieldSummary.ready
+        ? "Field devices complete. Job sign-off can be reviewed."
+        : "Finish assigned field devices before completion.",
+      actionLabel: fieldSummary.ready ? "Go Complete Job" : "Locked",
+      disabled: !fieldSummary.ready,
+      completion: true
+    };
+  }
+
+  return {
+    setupIncomplete,
+    parentSupplyUnconfirmed,
+    parentDevices,
+    fieldDevices,
+    fieldSummary,
+    parentRuns,
+    stages: [systemCheck, fieldStage, completionStage]
+  };
 }
 
 function getTechnicianFireSystemGroups(schedule) {
@@ -5878,35 +7486,29 @@ function getTechnicianFireSystemGroups(schedule) {
   }
   const assignedDevices = getScheduledAssignedDevices(schedule);
   const definitions = getTechnicianFireSystemDefinitions();
-  const groups = definitions.map((definition) => {
-    const devicesForSystem = definition.id === "all"
-      ? assignedDevices
-      : assignedDevices.filter((device) => deviceMatchesTechnicianFireSystem(device, definition.id));
-    const summary = {
-      total: devicesForSystem.length,
-      done: 0,
-      pass: 0,
-      fail: 0,
-      partial: 0,
-      pending: 0,
-      blocked: 0
-    };
-    devicesForSystem.forEach((device) => {
-      const status = getAssignedDeviceCompletionStatus(device, schedule);
-      if (status === "pass") summary.pass += 1;
-      if (status === "fail") summary.fail += 1;
-      if (status === "partial") summary.partial += 1;
-      if (status === "locked") summary.blocked += 1;
-      if (status === "pending") summary.pending += 1;
-      if (status !== "pending" && status !== "partial") summary.done += 1;
+  const groupedDevices = new Map(definitions.map((definition) => [definition.id, []]));
+  assignedDevices.forEach((device) => {
+    getTechnicianFireSystemDefinitionsForDevice(device, definitions, schedule).forEach((definition) => {
+      groupedDevices.get(definition.id)?.push(device);
     });
-    summary.done = Math.max(0, summary.done - summary.blocked);
-    return {
+  });
+  const groups = definitions.map((definition) => {
+    const devicesForSystem = groupedDevices.get(definition.id) || [];
+    const parentDevices = getTechnicianSystemParentDevices(schedule, definition, devicesForSystem, assignedDevices);
+    const fieldDevices = devicesForSystem.filter((device) => !isTechnicianSystemParentDevice(device, definition, schedule));
+    const summary = getTechnicianDeviceSummary(devicesForSystem, schedule);
+    const group = {
       ...definition,
       devices: devicesForSystem,
+      parentDevices,
+      fieldDevices,
       summary
     };
-  }).filter((group) => group.devices.length || group.id === "all");
+    group.stageModel = getTechnicianSystemStageModel(group, schedule);
+    return {
+      ...group
+    };
+  }).filter((group) => group.devices.length);
   cache.fireSystemGroups.set(cacheKey, groups);
   return groups;
 }
@@ -5925,17 +7527,23 @@ function getVisibleTechnicianDevicesForSystem(schedule) {
   return devicesForSchedule.filter((device) => deviceMatchesTechnicianFireSystem(device, systemKey));
 }
 
+function getVisibleTechnicianFieldDevicesForSystem(schedule) {
+  const systemKey = getActiveTechnicianSystemKey(schedule);
+  if (!systemKey) return getScheduledAssignedDevices(schedule);
+  const group = getTechnicianFireSystemGroups(schedule).find((item) => item.id === systemKey);
+  return group?.fieldDevices || [];
+}
+
 function isDeviceVisibleForTechnicianSystem(device, schedule = getTechMarkerScopeSchedule()) {
   if (getCurrentUserRole() !== "Technician") return true;
   const systemKey = getActiveTechnicianSystemKey(schedule);
-  return deviceMatchesTechnicianFireSystem(device, systemKey);
+  return deviceMatchesTechnicianFireSystem(device, systemKey, schedule);
 }
 
 function renderTechFireSystemButtons(schedule) {
   const groups = getTechnicianFireSystemGroups(schedule);
   const activeKey = getActiveTechnicianSystemKey(schedule);
-  const visibleGroups = groups.filter((group) => group.id !== "all" || groups.length > 2);
-  if (!visibleGroups.length) {
+  if (!groups.length) {
     return `<p class="hint">No fire-system scope is ready for this job. Ask admin to check the schedule/device master.</p>`;
   }
   return `
@@ -5943,16 +7551,214 @@ function renderTechFireSystemButtons(schedule) {
       <strong>Choose Fire System</strong>
       <span>Pick the system first. The app will show the matching mimic pins only.</span>
       <div class="tech-system-grid">
-        ${visibleGroups.map((group) => `
-          <button type="button" class="${activeKey === group.id ? "active" : ""}" data-tech-system="${escapeHtml(group.id)}" data-tech-system-schedule="${escapeHtml(schedule.scheduleId)}">
+        ${groups.map((group) => {
+          const stateClass = group.stageModel?.setupIncomplete
+            ? "setup-incomplete"
+            : group.stageModel?.parentSupplyUnconfirmed
+              ? "unconfirmed"
+              : "";
+          return `
+          <button type="button" class="${activeKey === group.id ? "active" : ""} ${stateClass}" data-tech-system="${escapeHtml(group.id)}" data-tech-system-schedule="${escapeHtml(schedule.scheduleId)}">
             <strong>${escapeHtml(group.label)}</strong>
             <span>${group.summary.done}/${group.summary.total} done</span>
-            <small>${escapeHtml(group.hint)}</small>
+            <small>${escapeHtml(group.stageModel?.setupIncomplete ? "Setup incomplete" : group.stageModel?.parentSupplyUnconfirmed ? "Parent/supply unconfirmed" : group.hint)}</small>
           </button>
-        `).join("")}
+        `;
+        }).join("")}
       </div>
     </div>
   `;
+}
+
+function getTechStageStatusLabel(status) {
+  if (status === "complete") return "Complete";
+  if (status === "active") return "Ready";
+  if (status === "setup-incomplete") return "Setup incomplete";
+  if (status === "unconfirmed") return "Unconfirmed";
+  if (status === "blocked") return "Blocked";
+  return "Locked";
+}
+
+function renderTechSystemStageCard(stage, index, schedule, group) {
+  const actionAttrs = stage.deviceId
+    ? `data-tech-stage-device="${escapeHtml(stage.deviceId)}"`
+    : stage.completion
+      ? `data-tech-stage-complete="${escapeHtml(schedule.scheduleId)}"`
+      : `data-tech-stage-mimic="${escapeHtml(group.id)}" data-tech-stage-schedule="${escapeHtml(schedule.scheduleId)}"`;
+  return `
+    <article class="tech-stage-card ${escapeHtml(stage.status || "locked")}">
+      <div>
+        <strong>${escapeHtml(stage.title || `Stage ${index + 1}`)}</strong>
+        <span>${escapeHtml(stage.note || "")}</span>
+      </div>
+      <div class="tech-stage-actions">
+        <small>${escapeHtml(getTechStageStatusLabel(stage.status))}</small>
+        <button type="button" class="secondary" ${actionAttrs} ${stage.disabled ? "disabled" : ""}>
+          ${escapeHtml(stage.actionLabel || "Open")}
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function renderTechSystemStagePanel(schedule = getTechMarkerScopeSchedule()) {
+  if (!techSystemStagePanel) return;
+  const systemKey = getActiveTechnicianSystemKey(schedule);
+  if (getCurrentUserRole() !== "Technician" || !schedule || !systemKey) {
+    techSystemStagePanel.classList.add("hidden");
+    techSystemStagePanel.innerHTML = "";
+    delete techSystemStagePanel.dataset.stageSignature;
+    return;
+  }
+  const groups = getTechnicianFireSystemGroups(schedule);
+  const activeGroup = groups.find((group) => group.id === systemKey);
+  if (!activeGroup) {
+    techSystemStagePanel.classList.add("hidden");
+    techSystemStagePanel.innerHTML = "";
+    delete techSystemStagePanel.dataset.stageSignature;
+    return;
+  }
+  techSystemStagePanel.classList.remove("hidden");
+  const stageSignature = JSON.stringify({
+    scheduleId: schedule.scheduleId || "",
+    activeGroupId: activeGroup.id,
+    groups: groups.map((group) => ({
+      id: group.id,
+      done: group.summary.done,
+      total: group.summary.total,
+      setupIncomplete: Boolean(group.stageModel?.setupIncomplete),
+      parentSupplyUnconfirmed: Boolean(group.stageModel?.parentSupplyUnconfirmed)
+    })),
+    stages: (activeGroup.stageModel?.stages || []).map((stage) => ({
+      status: stage.status || "",
+      title: stage.title || "",
+      note: stage.note || "",
+      actionLabel: stage.actionLabel || "",
+      deviceId: stage.deviceId || "",
+      disabled: Boolean(stage.disabled),
+      completion: Boolean(stage.completion)
+    }))
+  });
+  if (techSystemStagePanel.dataset.stageSignature === stageSignature) return;
+  techSystemStagePanel.dataset.stageSignature = stageSignature;
+  techSystemStagePanel.innerHTML = `
+    <div class="tech-system-tabs" role="tablist" aria-label="Assigned fire systems">
+      ${groups.map((group) => {
+        const stateClass = group.stageModel?.setupIncomplete
+          ? "setup-incomplete"
+          : group.stageModel?.parentSupplyUnconfirmed
+            ? "unconfirmed"
+            : "";
+        return `
+        <button type="button" class="${group.id === activeGroup.id ? "active" : ""} ${stateClass}" data-tech-stage-system="${escapeHtml(group.id)}" data-tech-stage-schedule="${escapeHtml(schedule.scheduleId)}">
+          ${escapeHtml(group.label)}
+          <span>${group.summary.done}/${group.summary.total}</span>
+        </button>
+      `;
+      }).join("")}
+    </div>
+    <div class="tech-stage-heading">
+      <div>
+        <strong>${escapeHtml(activeGroup.label)}</strong>
+        <span>System prerequisite -> field devices -> completion</span>
+      </div>
+      <span class="job-status-badge">${activeGroup.summary.done}/${activeGroup.summary.total}</span>
+    </div>
+    <div class="tech-system-stages">
+      ${(activeGroup.stageModel?.stages || []).map((stage, index) => renderTechSystemStageCard(stage, index, schedule, activeGroup)).join("")}
+    </div>
+  `;
+  techSystemStagePanel.querySelectorAll("[data-tech-stage-system]").forEach((button) => {
+    bindReliableTap(button, () => openTechnicianFireSystem(button.dataset.techStageSchedule, button.dataset.techStageSystem));
+  });
+  techSystemStagePanel.querySelectorAll("[data-tech-stage-device]").forEach((button) => {
+    bindReliableTap(button, () => focusTechnicianAssignedDevice(button.dataset.techStageDevice, { openChecklist: true }));
+  });
+  techSystemStagePanel.querySelectorAll("[data-tech-stage-mimic]").forEach((button) => {
+    bindReliableTap(button, () => focusTechnicianSystemMimic(button.dataset.techStageSchedule, button.dataset.techStageMimic));
+  });
+  techSystemStagePanel.querySelectorAll("[data-tech-stage-complete]").forEach((button) => {
+    bindReliableTap(button, () => setTechScreen("complete", { scroll: true }));
+  });
+}
+
+function getTechnicianSystemStageRoute(schedule, systemKey = state.activeTechSystemKey) {
+  if (!schedule || !systemKey) return null;
+  const groups = getTechnicianFireSystemGroups(schedule);
+  const group = groups.find((item) => item.id === systemKey);
+  if (!group) return null;
+  const stages = group.stageModel?.stages || [];
+  const [systemCheckStage, fieldStage, completionStage] = stages;
+  if (systemCheckStage?.deviceId && !systemCheckStage.disabled && systemCheckStage.status !== "complete") {
+    return {
+      stage: "system-check",
+      screen: "inspection",
+      group,
+      deviceId: systemCheckStage.deviceId,
+      message: `${group.label} Stage 1: complete ${systemCheckStage.deviceId} before field-device inspection.`
+    };
+  }
+  if (completionStage?.status === "active" && !completionStage.disabled) {
+    return {
+      stage: "completion",
+      screen: completionStage.deviceId ? "inspection" : "complete",
+      group,
+      deviceId: completionStage.deviceId || "",
+      message: `${group.label} Stage 3: complete the configured final restoration / normal-status confirmation.`
+    };
+  }
+  return {
+    stage: "field-devices",
+    screen: "mimic",
+    group,
+    message: `${group.label} Stage 2: use the mimic to inspect assigned field devices.`
+  };
+}
+
+async function routeTechnicianSystemStage(schedule, systemKey = state.activeTechSystemKey, options = {}) {
+  const route = getTechnicianSystemStageRoute(schedule, systemKey);
+  if (!route) return null;
+  state.activeTechPreviewScheduleId = schedule.scheduleId;
+  state.activeTechSystemKey = route.group.id;
+  persistTechnicianActiveContext(schedule.scheduleId, state.activeTechSystemKey, floorSelect.value);
+  renderTechSystemStagePanel(schedule);
+  if (route.screen === "inspection" && route.deviceId) {
+    await focusTechnicianAssignedDevice(route.deviceId, {
+      openChecklist: true,
+      scrollIntoView: options.scroll !== false
+    });
+    renderTechSystemStagePanel(schedule);
+    document.querySelector("#syncState").textContent = route.message;
+    return route;
+  }
+  if (route.screen === "complete") {
+    setTechScreen("complete", { scroll: options.scroll !== false });
+    document.querySelector("#syncState").textContent = route.message;
+    return route;
+  }
+  await focusTechnicianSystemMimic(schedule.scheduleId, route.group.id, { scroll: options.scroll !== false });
+  document.querySelector("#syncState").textContent = route.message;
+  return route;
+}
+
+async function focusTechnicianSystemMimic(scheduleId, systemKey, options = {}) {
+  const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
+  if (!schedule) return;
+  state.activeTechSystemKey = systemKey || state.activeTechSystemKey || "";
+  const group = getTechnicianFireSystemGroups(schedule).find((item) => item.id === state.activeTechSystemKey);
+  const target = group?.fieldDevices?.[0] || group?.parentDevices?.[0] || group?.devices?.[0] || null;
+  if (target?.floorId && floorExists(target.floorId)) {
+    setTechnicianMapFloor(target.floorId, {
+      companyName: schedule.companyName,
+      siteName: schedule.siteName
+    });
+  }
+  prepareTechnicianMimicWorkspace();
+  persistTechnicianActiveContext(schedule.scheduleId, state.activeTechSystemKey, floorSelect.value);
+  renderTechSystemStagePanel(schedule);
+  renderMarkers();
+  updateTechnicianMimicBackAction(schedule, state.activeTechSystemKey);
+  setTechScreen("mimic", { scroll: options.scroll !== false, renderMarkers: false });
 }
 
 async function startOrResumeTechnicianSchedule(scheduleId) {
@@ -5973,35 +7779,43 @@ async function startOrResumeTechnicianSchedule(scheduleId) {
 }
 
 async function openTechnicianFireSystem(scheduleId, systemKey) {
+  const requestId = (state.techSystemOpenRequestId || 0) + 1;
+  state.techSystemOpenRequestId = requestId;
   const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
   if (!schedule) return false;
   await ensureTechnicianFieldDataLoaded(schedule);
-  state.activeTechSystemKey = systemKey || "all";
+  if (isStaleTechnicianSystemOpenRequest({ techSystemOpenRequestId: requestId })) return false;
+  const groups = getTechnicianFireSystemGroups(schedule);
+  const requestedGroup = groups.find((group) => group.id === systemKey) || groups[0] || null;
+  const targetSystemKey = requestedGroup?.id || "";
+  state.activeTechSystemKey = targetSystemKey;
   state.activeTechPreviewScheduleId = scheduleId;
-  const firstDevice = getVisibleTechnicianDevicesForSystem(schedule)[0];
+  const firstDevice = requestedGroup?.parentDevices?.[0] || requestedGroup?.fieldDevices?.[0] || requestedGroup?.devices?.[0];
   const targetFloorId = firstDevice?.floorId || getBestSchedulePreviewFloorId(schedule, {
     companyName: schedule.companyName,
     siteName: schedule.siteName
   });
-  const started = await startScheduledJob(scheduleId, {
-    stayOnJobSummary: true,
-    targetFloorId,
-    skipFullJobSave: true
-  });
-  if (!started) return false;
-  state.activeTechPreviewScheduleId = scheduleId;
   if (targetFloorId && floorExists(targetFloorId)) {
     setTechnicianMapFloor(targetFloorId, {
       companyName: schedule.companyName,
       siteName: schedule.siteName
     });
   }
+  persistTechnicianActiveContext(scheduleId, targetSystemKey, floorSelect.value);
+  const started = await startScheduledJob(scheduleId, {
+    stayOnJobSummary: true,
+    targetFloorId,
+    skipFullJobSave: true,
+    expectedTechSystemKey: targetSystemKey,
+    techSystemOpenRequestId: requestId
+  });
+  if (isStaleTechnicianSystemOpenRequest({ techSystemOpenRequestId: requestId })) return false;
+  if (!started) return false;
+  state.activeTechPreviewScheduleId = scheduleId;
+  state.activeTechSystemKey = targetSystemKey;
   persistTechnicianActiveContext(scheduleId, state.activeTechSystemKey, floorSelect.value);
   renderTechWorkPanel();
-  renderMarkers();
-  setTechScreen("mimic", { scroll: true, renderMarkers: false });
-  const label = getTechnicianFireSystemDefinition(state.activeTechSystemKey)?.label || "assigned";
-  document.querySelector("#syncState").textContent = `${label} mimic loaded. Tap a pin to inspect.`;
+  await routeTechnicianSystemStage(schedule, targetSystemKey, { scroll: true });
   return true;
 }
 
@@ -6022,6 +7836,7 @@ function renderTechWorkPanel() {
       ? "Contract: 100% full inspection"
       : `Contract: ${frequencyPercent}% passive + 100% active`;
   }
+  renderTechnicianFrontDeskStats(jobs, activeSchedule);
 
   const activeSummary = document.querySelector("#techActiveJobSummary");
   const activeJob = state.activeJob && state.activeJob.status !== "Completed" ? state.activeJob : null;
@@ -6060,6 +7875,7 @@ function renderTechWorkPanel() {
       }
   }
 
+  renderTechSystemStagePanel(activeSchedule);
   renderTechExtinguisherAssignedJobs();
   if (activeSchedule || state.activeTechPreviewScheduleId) {
     renderTechAssignedItemList();
@@ -6067,6 +7883,7 @@ function renderTechWorkPanel() {
     if (techItemProgress) techItemProgress.textContent = "Open a job";
     techAssignedItemList.innerHTML = `<p class="hint">Open an assigned job first. The checklist and mimic pins load after that.</p>`;
     renderTechCompletionPanel(null, [], false);
+    renderTechSystemStagePanel(null);
   }
 
   const list = document.querySelector("#techAssignedJobs");
@@ -6112,10 +7929,7 @@ function renderTechWorkPanel() {
     bindReliableTap(button, () => startOrResumeTechnicianSchedule(button.dataset.techStartSchedule));
   });
   activeSummary?.querySelectorAll("[data-tech-summary-mimic]").forEach((button) => {
-    bindReliableTap(button, () => {
-      state.activeTechSystemKey = "all";
-      showTechnicianScheduleOnMap(button.dataset.techSummaryMimic, { scrollToMap: true });
-    });
+    bindReliableTap(button, () => openCurrentTechnicianMimic({ scroll: true }));
   });
   activeSummary?.querySelectorAll("[data-tech-system]").forEach((button) => {
     bindReliableTap(button, () => openTechnicianFireSystem(button.dataset.techSystemSchedule, button.dataset.techSystem));
@@ -6207,7 +8021,10 @@ function isAssignedDeviceStillOpen(device, schedule = getActiveTechnicianMainten
 
 function getNextAssignedDeviceAfter(currentDeviceId) {
   const schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule();
-  const assignedDevices = getScheduledAssignedDevices(schedule);
+  const activeSystemKey = getActiveTechnicianSystemKey(schedule);
+  const assignedDevices = activeSystemKey
+    ? getVisibleTechnicianFieldDevicesForSystem(schedule)
+    : getScheduledAssignedDevices(schedule);
   if (!assignedDevices.length) return null;
   const currentIndex = assignedDevices.findIndex((device) => (device.id || device.tag) === currentDeviceId);
   const searchOrder = currentIndex >= 0
@@ -6562,23 +8379,40 @@ function renderTechCompletionPanel(schedule, assignedDevices, isActiveSchedule) 
 
   const summary = getAssignedCompletionSummary(schedule);
   const draft = readTechSignOffDraft();
-  const canComplete = Boolean(isActiveSchedule && summary.ready);
+  const awaitingReview = isScheduleAwaitingAdminReview(schedule);
+  const approved = isScheduleAdminApproved(schedule);
+  const returned = isScheduleReturnedForCorrection(schedule);
+  const readOnly = awaitingReview || approved;
+  const canComplete = Boolean(isActiveSchedule && summary.ready && !readOnly);
   const disabledReason = !isActiveSchedule
     ? "Start this assigned job before sign-off."
+    : awaitingReview
+      ? "Submitted. Awaiting Admin Review. Technician can view but cannot edit unless Admin returns it."
+      : approved
+        ? "Admin approved. This job is read-only."
     : summary.ready
-      ? "All assigned items are completed. Sign and complete the job."
+      ? "All assigned items are completed. Sign and submit the report to Admin Review."
       : summary.blocked
         ? `${summary.blocked} item(s) locked by critical prerequisites / final restoration.`
       : `${summary.pending + summary.partial} item(s) still pending / SOP started.`;
+  const statusLabel = awaitingReview
+    ? "Awaiting Admin Review"
+    : approved
+      ? "Admin Approved"
+      : returned
+        ? "Returned For Correction"
+        : canComplete
+          ? "Ready to Submit"
+          : "Not Ready";
 
   techCompletionPanel.classList.remove("hidden");
   techCompletionPanel.innerHTML = `
     <div class="tech-completion-head">
       <div>
         <p class="eyebrow">Final Step</p>
-        <h3>Sign-Off & Complete Job</h3>
+        <h3>Sign-Off & Submit Report</h3>
       </div>
-      <span class="job-status-badge ${canComplete ? "complete" : ""}">${summary.done}/${summary.total} done</span>
+      <span class="job-status-badge ${canComplete ? "complete" : ""}">${summary.done}/${summary.total} done - ${escapeHtml(statusLabel)}</span>
     </div>
     <div class="tech-completion-stats">
       <span><strong>${summary.pass}</strong>Done</span>
@@ -6588,6 +8422,7 @@ function renderTechCompletionPanel(schedule, assignedDevices, isActiveSchedule) 
       <span><strong>${summary.blocked || 0}</strong>Locked</span>
     </div>
     <p class="hint">${escapeHtml(disabledReason)}</p>
+    ${readOnly ? `<div class="submission-review-status"><strong>${escapeHtml(statusLabel)}</strong><span>Admin must return this job before technician edits are allowed.</span></div>` : ""}
     <div class="tech-sign-grid ${canComplete ? "" : "locked"}">
       <label>
         Technician Sign-Off Name
@@ -6619,7 +8454,7 @@ function renderTechCompletionPanel(schedule, assignedDevices, isActiveSchedule) 
         I confirm all assigned checklist items and critical SOP steps are completed for this scheduled job.
       </label>
     </div>
-    <button id="techCompleteJobBtn" type="button" ${canComplete ? "" : "disabled"}>Complete Job & Save Sign-Off</button>
+    <button id="techCompleteJobBtn" type="button" ${canComplete ? "" : "disabled"}>Submit Report for Review</button>
   `;
 
   setupSignaturePad(canComplete);
@@ -6662,6 +8497,10 @@ async function completeTechnicianAssignedJob() {
     document.querySelector("#syncState").textContent = "Start the assigned job before completing it.";
     return;
   }
+  if (isTechnicianReportReadOnly(schedule)) {
+    document.querySelector("#syncState").textContent = "This report is already submitted for Admin Review. Admin must return it before edits are allowed.";
+    return;
+  }
   const summary = getAssignedCompletionSummary(schedule);
   if (!summary.ready) {
     document.querySelector("#syncState").textContent = summary.blocked
@@ -6675,12 +8514,68 @@ async function completeTechnicianAssignedJob() {
     document.querySelector("#syncState").textContent = "Fill technician name, witness name, signature, and final confirmation.";
     return;
   }
-  const completed = await completeActiveJobWithSignOff(signOff);
-  if (!completed) return;
+  const confirmed = window.confirm("Submit this completed inspection to Admin Review? Technician editing will be locked unless Admin returns it for correction.");
+  if (!confirmed) return;
+  const signedAt = new Date().toISOString();
+  const sharedSignOff = await submitSharedJobSignOff({
+    ...signOff,
+    signedAt
+  }, schedule);
+  if (!sharedSignOff.ok) {
+    if (sharedSignOff.offline) {
+      document.querySelector("#syncState").textContent = "Cannot submit report: shared server is unavailable. Local draft remains, but completion is blocked.";
+    } else if (sharedSignOff.blocked) {
+      const progress = sharedSignOff.payload?.progress;
+      document.querySelector("#syncState").textContent = `Cannot submit report: server still sees ${progress?.pending || 0} pending, ${progress?.partial || 0} SOP started, ${progress?.blocked || 0} locked.`;
+    } else if (sharedSignOff.conflict) {
+      document.querySelector("#syncState").textContent = "Cannot submit report: sign-off was updated elsewhere. Reload before signing.";
+    } else {
+      document.querySelector("#syncState").textContent = "Cannot submit report: shared sign-off validation failed.";
+    }
+    renderTechAssignedItemList();
+    return;
+  }
+  const submission = buildReportSubmissionRecord(schedule, { ...signOff, signedAt }, summary);
+  const submitResult = await submitSharedReportSubmission(schedule, submission);
+  if (!submitResult.ok) {
+    if (submitResult.offline) {
+      document.querySelector("#syncState").textContent = "Cannot submit report: shared server is unavailable. Your work remains saved but not submitted.";
+    } else if (submitResult.blocked) {
+      const progress = submitResult.payload?.progress;
+      document.querySelector("#syncState").textContent = `Cannot submit report: server still sees ${progress?.pending || 0} pending, ${progress?.partial || 0} SOP started, ${progress?.blocked || 0} locked.`;
+    } else if (submitResult.conflict) {
+      document.querySelector("#syncState").textContent = "Cannot submit report: review record changed elsewhere. Reload and try again.";
+    } else {
+      document.querySelector("#syncState").textContent = "Cannot submit report for review.";
+    }
+    return;
+  }
+  state.activeJob.status = "AWAITING_ADMIN_REVIEW";
+  state.activeJob.reportSubmission = submitResult.submission;
+  state.activeJob.signOff = sharedSignOff.signOff || {
+    ...signOff,
+    signedAt,
+    signedBy: getCurrentUserName(),
+    signedById: getCurrentUserId(),
+    signedRole: getCurrentUserRole()
+  };
+  schedule.status = "AWAITING_ADMIN_REVIEW";
+  schedule.reportSubmissionStatus = "AWAITING_ADMIN_REVIEW";
+  schedule.reportSubmission = submitResult.submission;
+  schedule.reportSubmittedAt = submitResult.submission?.submittedAt || signedAt;
+  schedule.reportSubmittedBy = getCurrentUserName();
+  schedule.signOff = state.activeJob.signOff;
+  addJobEvent("Report submitted", `${getCurrentUserName()} submitted ${schedule.scheduleId} for Admin Review`);
+  syncActiveJobProgressToSchedule();
+  persistActiveJob();
+  persistSchedules();
+  await saveSchedulesToPc(false);
   checklistForm?.classList.add("hidden");
   emptyState?.classList.remove("hidden");
-  setTechScreen("jobs", { scroll: true });
-  document.querySelector("#syncState").textContent = `${schedule.scheduleId} completed with technician sign-off`;
+  renderTechWorkPanel();
+  renderMarkers();
+  setTechScreen("complete", { scroll: true });
+  document.querySelector("#syncState").textContent = `${schedule.scheduleId} submitted. Awaiting Admin Review.`;
 }
 
 function renderTechAssignedItemList() {
@@ -6713,7 +8608,8 @@ function renderTechAssignedItemList() {
     return;
   }
 
-  const visibleSystemDevices = getVisibleTechnicianDevicesForSystem(schedule);
+  renderTechSystemStagePanel(schedule);
+  const visibleSystemDevices = getVisibleTechnicianFieldDevicesForSystem(schedule);
   const floorGroups = getAssignedFloorGroups(assignedDevices, schedule);
   const visibleFloorGroups = getAssignedFloorGroups(visibleSystemDevices, schedule);
   const selectedFloorHasItems = visibleSystemDevices.some((device) => device.floorId === floorSelect.value);
@@ -6741,6 +8637,7 @@ function renderTechAssignedItemList() {
     </div>
     <div class="tech-current-floor-note">
       Showing ${visibleDevices.length} ${escapeHtml(activeSystemLabel)} item(s) on ${escapeHtml(visibleFloor?.title || currentFloor.title)}.
+      ${visibleSystemDevices.length ? "" : `<span>Use the system stage cards above for this configured prerequisite/SOP.</span>`}
     </div>
     <div class="tech-item-cards">
       ${visibleDevices.map((device) => renderTechAssignedItemCard(device, schedule)).join("")}
@@ -6778,7 +8675,7 @@ function getAssignedFloorGroups(devicesForSchedule, schedule = null) {
     };
     group.count += 1;
     const status = getAssignedDeviceCompletionStatus(device, schedule);
-    if (status !== "pending" && status !== "partial") group.done += 1;
+    if (status !== "pending" && status !== "partial" && status !== "locked") group.done += 1;
     groups.set(floorId, group);
   });
   return [...groups.values()].sort((a, b) => {
@@ -6884,7 +8781,7 @@ function focusTechnicianFloor(floorId) {
   requestAnimationFrame(scrollInspectionPanelIntoView);
 }
 
-async function focusTechnicianAssignedDevice(deviceId, { openChecklist = false, scrollToMap = false } = {}) {
+async function focusTechnicianAssignedDevice(deviceId, { openChecklist = false, scrollToMap = false, dependencyBlockedMessage = "", scrollIntoView = true } = {}) {
   const schedule = getTechMarkerScopeSchedule();
   const device = getScheduledAssignedDevices(schedule).find((item) => item.id === deviceId);
   if (!device) return;
@@ -6915,7 +8812,7 @@ async function focusTechnicianAssignedDevice(deviceId, { openChecklist = false, 
   state.focusedMapTag = scrollToMap ? device.id : null;
   renderMarkers();
   if (openChecklist) {
-    await selectDevice(device.id);
+    await selectDevice(device.id, { dependencyBlockedMessage, scrollIntoView });
     renderTechAssignedItemList();
     return;
   }
@@ -6971,6 +8868,48 @@ function getBestSchedulePreviewFloorId(schedule, profile) {
   return getFirstFloorIdForProfile(profile);
 }
 
+function updateFrozenScheduleScopeMetadata(schedule, devicePool, scopeInfo, profile) {
+  const plannedIds = uniqueValues(Array.isArray(schedule.plannedDeviceIds) ? schedule.plannedDeviceIds : []);
+  const plannedSet = new Set(plannedIds);
+  const plannedDevices = getUniqueScheduleDevices(devicePool).filter((device) => plannedSet.has(device.id));
+  const activeDevices = plannedDevices.filter((device) => isActiveSystem(device.type));
+  const passiveDevices = plannedDevices.filter((device) => isPassiveScopeDevice(device));
+  const frequencyPercent = normalizeMaintenanceFrequency(schedule.contractFrequencyPercent || getContractFrequencyForProfile(profile));
+  const annualCycleId = schedule.annualCycleId || schedule.contractCycleId || getContractCycleIdForDate(schedule.date || schedule.createdAt);
+  const scopeSelectionMode = schedule.scopeSelectionMode || getScheduleScopeSelectionMode(scopeInfo, schedule.serviceType || "");
+  const rotationScopeKey = getScheduleRotationScopeKey(scopeInfo, scopeSelectionMode, schedule.floorId || schedule.startFloorId || floorSelect.value);
+  const totalPassivePool = getUniqueScheduleDevices(devicePool).filter((device) => isPassiveScopeDevice(device)).length;
+  const savedMandatoryIds = uniqueValues(schedule.mandatoryRecheckDeviceIds || []).filter((id) => plannedSet.has(id));
+  const mandatoryIds = new Set(savedMandatoryIds);
+
+  schedule.contractFrequencyPercent = frequencyPercent;
+  schedule.annualCycleId = annualCycleId;
+  schedule.contractCycleId = schedule.contractCycleId || annualCycleId;
+  schedule.scopeSelectionMode = scopeSelectionMode;
+  schedule.scopeFrozen = true;
+  schedule.rotationHistoryKey = scopeSelectionMode === "site-wide"
+    ? schedule.rotationHistoryKey || getScopeHistoryKey(frequencyPercent, profile, rotationScopeKey, annualCycleId)
+    : schedule.rotationHistoryKey || "";
+  schedule.deviceCount = plannedIds.length;
+  schedule.totalFloorDeviceCount = Number(schedule.totalFloorDeviceCount || devicePool.length || 0);
+  schedule.totalSiteDeviceCount = scopeSelectionMode === "site-wide" ? Number(schedule.totalSiteDeviceCount || devicePool.length || 0) : schedule.totalSiteDeviceCount;
+  schedule.passiveCount = passiveDevices.length;
+  schedule.activeCount = activeDevices.length;
+  schedule.criticalDeviceIds = Array.isArray(schedule.criticalDeviceIds) && schedule.criticalDeviceIds.length
+    ? uniqueValues(schedule.criticalDeviceIds)
+    : activeDevices.map((device) => device.id);
+  schedule.mandatoryRecheckDeviceIds = savedMandatoryIds;
+  schedule.adminForcedDeviceIds = Array.isArray(schedule.adminForcedDeviceIds) && schedule.adminForcedDeviceIds.length
+    ? uniqueValues(schedule.adminForcedDeviceIds)
+    : plannedDevices.filter((device) => device.forceRecheck || device.adminForcedRecheck).map((device) => device.id);
+  schedule.sampledDeviceIds = Array.isArray(schedule.sampledDeviceIds) && schedule.sampledDeviceIds.length
+    ? uniqueValues(schedule.sampledDeviceIds)
+    : passiveDevices.filter((device) => !mandatoryIds.has(device.id)).map((device) => device.id);
+  schedule.passiveTargetCount = Number(schedule.passiveTargetCount || Math.max(1, Math.ceil(totalPassivePool * (frequencyPercent / 100))) || passiveDevices.length || 0);
+  if (plannedDevices.length) schedule.plannedFloorCounts = getScheduleFloorCounts(plannedDevices);
+  return plannedDevices;
+}
+
 function ensureSchedulePlannedScope(schedule) {
   if (!schedule || isExtinguisherJobSchedule(schedule)) return schedule;
   const cache = getRuntimeCaches();
@@ -6988,8 +8927,18 @@ function ensureSchedulePlannedScope(schedule) {
     companyName: schedule.companyName,
     siteName: schedule.siteName
   };
-  const devicePool = getScheduleDevicePoolForScope(scopeInfo, profile, schedule.floorId || schedule.startFloorId || floorSelect.value);
+  const scheduleServiceType = schedule.serviceType || "";
+  const existingScopeSelectionMode = schedule.scopeSelectionMode || getScheduleScopeSelectionMode(scopeInfo, scheduleServiceType);
+  const devicePool = getScheduleDevicePoolForScope(scopeInfo, profile, schedule.floorId || schedule.startFloorId || floorSelect.value, {
+    serviceType: scheduleServiceType,
+    scopeSelectionMode: existingScopeSelectionMode
+  });
   const plannedIds = Array.isArray(schedule.plannedDeviceIds) ? schedule.plannedDeviceIds : [];
+  if (schedule.scopeFrozen === true && plannedIds.length) {
+    updateFrozenScheduleScopeMetadata(schedule, devicePool, scopeInfo, profile);
+    cache.scopeEnsured.set(getScheduleKey(schedule), getScheduleVersionKey(schedule));
+    return schedule;
+  }
   const availableIds = new Set(devicePool.map((device) => device.id).filter(Boolean));
   const validPlannedCount = plannedIds.filter((id) => availableIds.has(id)).length;
   const stalePlannedIds = plannedIds.length > 0 && devicePool.length > 0 && validPlannedCount === 0;
@@ -6999,20 +8948,35 @@ function ensureSchedulePlannedScope(schedule) {
     && knownPoolCount > 0
     && devicePool.length > knownPoolCount * 2
     && validPlannedCount < Math.ceil(plannedIds.length / 2);
+  const hasUsableExistingPlannedScope = plannedIds.length > 0 && !stalePlannedIds && !poolExpandedAfterSave;
+  if (hasUsableExistingPlannedScope) {
+    schedule.scopeFrozen = true;
+    updateFrozenScheduleScopeMetadata(schedule, devicePool, scopeInfo, profile);
+    cache.scopeEnsured.set(getScheduleKey(schedule), getScheduleVersionKey(schedule));
+    return schedule;
+  }
   const shouldRefreshScope = !plannedIds.length
-    || (scopeInfo.mode === "all" && schedule.scopeSelectionMode !== "site-wide")
     || stalePlannedIds
     || poolExpandedAfterSave;
   if (!shouldRefreshScope) {
     cache.scopeEnsured.set(getScheduleKey(schedule), getScheduleVersionKey(schedule));
     return schedule;
   }
-  const frequencyPercent = Number(schedule.contractFrequencyPercent || getContractFrequencyForProfile(profile));
-  const scopeSelectionMode = scopeInfo.mode === "all" ? "site-wide" : "selected-floor";
+  const frequencyPercent = normalizeMaintenanceFrequency(schedule.contractFrequencyPercent || getContractFrequencyForProfile(profile));
+  const scopeSelectionMode = getScheduleScopeSelectionMode(scopeInfo, scheduleServiceType);
+  const annualCycleId = schedule.annualCycleId || schedule.contractCycleId || getContractCycleIdForDate(schedule.date || schedule.createdAt);
+  const rotationScopeKey = getScheduleRotationScopeKey(scopeInfo, scopeSelectionMode, schedule.floorId || schedule.startFloorId || floorSelect.value);
+  const rotationHistoryKey = scopeSelectionMode === "site-wide"
+    ? getScopeHistoryKey(frequencyPercent, profile, rotationScopeKey, annualCycleId)
+    : "";
   const plannedDevices = getScheduleDevicesForScope(devicePool, scopeInfo, {
     profile,
-    floorId: scopeSelectionMode === "site-wide" ? "site-wide" : schedule.floorId,
+    floorId: scopeSelectionMode === "site-wide" ? rotationScopeKey : schedule.floorId,
     frequencyPercent,
+    annualCycleId,
+    rotationHistoryKey,
+    date: schedule.date || "",
+    useMaintenanceSampling: shouldApplyMaintenanceSampling(scopeInfo, scheduleServiceType),
     commitHistory: false
   });
   const startFloor = getFloorAsset(schedule.floorId || schedule.startFloorId || floorSelect.value);
@@ -7024,11 +8988,20 @@ function ensureSchedulePlannedScope(schedule) {
   schedule.passiveCount = plannedDevices.filter((device) => isPassiveScopeDevice(device)).length;
   schedule.activeCount = plannedDevices.filter((device) => isActiveSystem(device.type)).length;
   schedule.scopeSelectionMode = scopeSelectionMode;
-  schedule.rotationHistoryKey = scopeSelectionMode === "site-wide" ? getScopeHistoryKey(frequencyPercent, profile, "site-wide") : "";
+  schedule.annualCycleId = annualCycleId;
+  schedule.contractCycleId = schedule.contractCycleId || annualCycleId;
+  schedule.rotationHistoryKey = rotationHistoryKey;
+  schedule.scopeFrozen = true;
   schedule.startFloorId = schedule.startFloorId || schedule.floorId;
   schedule.startFloorTitle = schedule.startFloorTitle || startFloor.title;
   schedule.floorTitle = scopeSelectionMode === "site-wide" ? `Whole site (start: ${startFloor.title})` : startFloor.title;
   schedule.plannedFloorCounts = getScheduleFloorCounts(plannedDevices);
+  schedule.criticalDeviceIds = plannedDevices.filter((device) => isActiveSystem(device.type)).map((device) => device.id);
+  schedule.mandatoryRecheckDeviceIds = plannedDevices.filter((device) => device.recheckPriority > 0).map((device) => device.id);
+  schedule.sampledDeviceIds = plannedDevices
+    .filter((device) => isPassiveScopeDevice(device) && !device.recheckPriority)
+    .map((device) => device.id);
+  schedule.passiveTargetCount = schedule.sampledDeviceIds.length || schedule.passiveCount;
   cache.scopeEnsured.set(getScheduleKey(schedule), getScheduleVersionKey(schedule));
   return schedule;
 }
@@ -7038,8 +9011,10 @@ async function resumeScheduledJob(schedule, options = {}) {
   if (isTechnician) {
     loadStoredRunState();
     await ensureTechnicianFieldDataLoaded(schedule);
+    if (isStaleTechnicianSystemOpenRequest(options)) return false;
   }
   const sharedCache = options.sharedCache || await requestSharedJobState(schedule);
+  if (isStaleTechnicianSystemOpenRequest(options)) return false;
   if (sharedCache) {
     applySharedRecordsToLocalState(sharedCache.store, schedule);
   } else {
@@ -7068,7 +9043,7 @@ async function resumeScheduledJob(schedule, options = {}) {
   const techSystemKey = isTechnician
     ? options.preserveTechSystem === false
       ? ""
-      : state.activeTechSystemKey || savedJob.activeTechSystemKey || ""
+      : options.expectedTechSystemKey || state.activeTechSystemKey || savedJob.activeTechSystemKey || ""
     : savedJob.activeTechSystemKey || "";
   state.activeJob = {
     ...savedJob,
@@ -7147,9 +9122,11 @@ async function startScheduledJob(scheduleId, options = {}) {
   if (isTechnician) {
     loadStoredRunState();
     await ensureTechnicianFieldDataLoaded(schedule);
+    if (isStaleTechnicianSystemOpenRequest(options)) return false;
   }
   ensureSchedulePlannedScope(schedule);
   const sharedCache = await requestSharedJobState(schedule);
+  if (isStaleTechnicianSystemOpenRequest(options)) return false;
   if ((!state.activeJob || state.activeJob.status === "Completed") && isScheduleResumeAvailable(schedule)) {
     return resumeScheduledJob(schedule, { ...options, sharedCache });
   }
@@ -7158,6 +9135,7 @@ async function startScheduledJob(scheduleId, options = {}) {
     if (currentScheduleId === schedule.scheduleId) {
       state.activeTechPreviewScheduleId = schedule.scheduleId;
       if (isTechnician) {
+        if (options.expectedTechSystemKey) state.activeTechSystemKey = options.expectedTechSystemKey;
         persistTechnicianActiveContext(schedule.scheduleId, state.activeTechSystemKey, floorSelect.value);
         renderTechWorkPanel();
         if (state.techScreen === "mimic") renderMarkers();
@@ -7253,7 +9231,7 @@ async function startScheduledJob(scheduleId, options = {}) {
     startedAt: now.toISOString(),
     serviceFrequencyPercent: scheduleFrequencyPercent,
     schedule,
-    activeTechSystemKey: isTechnician ? state.activeTechSystemKey || "" : "",
+    activeTechSystemKey: isTechnician ? options.expectedTechSystemKey || state.activeTechSystemKey || "" : "",
     activeFloorId: floorSelect.value,
     events: [],
     itemSessions: {},
@@ -7261,6 +9239,7 @@ async function startScheduledJob(scheduleId, options = {}) {
   };
   ensureActiveJobCriticalWorkflows(schedule);
   state.activeTechPreviewScheduleId = schedule.scheduleId;
+  if (isTechnician && options.expectedTechSystemKey) state.activeTechSystemKey = options.expectedTechSystemKey;
   state.activeTechFloorId = floorSelect.value;
   schedule.status = "In Progress";
   schedule.startedAt = now.toISOString();
@@ -7323,26 +9302,142 @@ function deleteSchedule(scheduleId) {
   document.querySelector("#syncState").textContent = `${scheduleId} deleted`;
 }
 
+function reserveScheduleScope(schedule) {
+  if (!schedule?.rotationHistoryKey || schedule.status === "Completed" || schedule.status === "Cancelled") return;
+  const passiveDevices = getPassiveDevicesForScheduleCycle(schedule);
+  if (!passiveDevices.length) return;
+  const selectedIds = new Set(uniqueValues(schedule.plannedDeviceIds || []));
+  const selectedDevices = passiveDevices.filter((device) => selectedIds.has(device.id));
+  const mandatoryIds = new Set(schedule.mandatoryRecheckDeviceIds || []);
+  const mandatoryRecheckDevices = passiveDevices.filter((device) => mandatoryIds.has(device.id));
+  const cycle = getScopeCycleRecord(schedule.rotationHistoryKey, passiveDevices, {
+    annualCycleId: schedule.annualCycleId || schedule.contractCycleId,
+    excludeScheduleId: schedule.scheduleId
+  });
+  reserveScopeCycleSelection(schedule.rotationHistoryKey, passiveDevices, cycle, selectedDevices, {
+    scheduleId: schedule.scheduleId,
+    annualCycleId: schedule.annualCycleId || schedule.contractCycleId,
+    mandatoryRecheckDevices,
+    date: schedule.date || ""
+  });
+}
+
+function getPassiveDevicesForScheduleCycle(schedule) {
+  if (!schedule?.rotationHistoryKey) return [];
+  const profile = {
+    companyName: schedule.companyName,
+    siteName: schedule.siteName
+  };
+  const normalizedScope = normalizeScheduleScopeForService(schedule.scope || "full-maintenance", schedule.serviceType || "");
+  const scopeInfo = getScheduleScopeInfo(normalizedScope);
+  const pool = getScheduleDevicePoolForScope(scopeInfo, profile, schedule.floorId || schedule.startFloorId || floorSelect.value, {
+    serviceType: schedule.serviceType || "",
+    scopeSelectionMode: schedule.scopeSelectionMode
+  });
+  return getUniqueScheduleDevices(pool).filter((device) => isPassiveScopeDevice(device));
+}
+
+function completeScopeCycleSchedule(schedule) {
+  if (!schedule?.rotationHistoryKey) return;
+  const passiveDevices = getPassiveDevicesForScheduleCycle(schedule);
+  if (!passiveDevices.length) return;
+  const validIds = new Set(passiveDevices.map((device) => device.id));
+  const cycle = getScopeCycleRecord(schedule.rotationHistoryKey, passiveDevices, {
+    annualCycleId: schedule.annualCycleId || schedule.contractCycleId,
+    excludeScheduleId: schedule.scheduleId
+  });
+  const plannedPassiveIds = uniqueValues(schedule.plannedDeviceIds || []).filter((id) => validIds.has(id));
+  if (!plannedPassiveIds.length) return;
+  const completedPassiveIds = getCompletedAnnualCoverageDeviceIds(schedule, plannedPassiveIds);
+  const coveredBefore = new Set(cycle.coveredIds || []);
+  const newCoveredIds = completedPassiveIds.filter((id) => !coveredBefore.has(id));
+  const repeatIds = completedPassiveIds.filter((id) => coveredBefore.has(id));
+  completedPassiveIds.forEach((id) => coveredBefore.add(id));
+  const coveredIds = [...coveredBefore].filter((id) => validIds.has(id));
+  const completionRecords = { ...(cycle.completionRecords || {}) };
+  if (completedPassiveIds.length) {
+    completionRecords[schedule.scheduleId] = {
+      scheduleId: schedule.scheduleId,
+      deviceIds: completedPassiveIds,
+      newCoveredIds,
+      repeatIds,
+      recheckIds: uniqueValues(schedule.mandatoryRecheckDeviceIds || []).filter((id) => completedPassiveIds.includes(id)),
+      completedAt: state.activeJob?.checkedOutAt || new Date().toISOString(),
+      completedBy: getCurrentUserName()
+    };
+  } else {
+    delete completionRecords[schedule.scheduleId];
+  }
+  const reservations = sanitizeScopeReservations(cycle.reservations || {}, validIds, schedule.scheduleId);
+  const reservedIds = uniqueValues(Object.values(reservations).flatMap((reservation) => reservation.deviceIds || [])).filter((id) => validIds.has(id));
+  const completedInspectionCount = Object.values(completionRecords).reduce((sum, record) => sum + (record.deviceIds || []).length, 0);
+  const repeatInspectionCount = Object.values(completionRecords).reduce((sum, record) => sum + (record.repeatIds || []).length, 0);
+  const faultRecheckRepeatCount = Object.values(completionRecords).reduce((sum, record) => sum + (record.recheckIds || []).length, 0);
+  const now = new Date().toISOString();
+  state.scopeCycle[schedule.rotationHistoryKey] = {
+    schemaVersion: "scope-cycle-v2",
+    annualCycleId: schedule.annualCycleId || schedule.contractCycleId || cycle.annualCycleId,
+    contractCycleId: schedule.contractCycleId || schedule.annualCycleId || cycle.contractCycleId,
+    eligibleIds: [...validIds],
+    coveredIds,
+    reservations,
+    reservedIds,
+    completionRecords,
+    completedInspectionCount,
+    repeatInspectionCount,
+    faultRecheckRepeatCount,
+    lastSelectedIds: uniqueValues(schedule.sampledDeviceIds || completedPassiveIds).filter((id) => completedPassiveIds.includes(id) && validIds.has(id)),
+    cycleStartedAt: cycle.cycleStartedAt || schedule.createdAt || now,
+    completedAt: coveredIds.length >= validIds.size ? cycle.completedAt || now : "",
+    updatedAt: now
+  };
+  state.scopeHistory[schedule.rotationHistoryKey] = coveredIds;
+  writeStoredJson("rmtScopeCycle", state.scopeCycle);
+  writeStoredJson("tmFireScopeHistory", state.scopeHistory);
+}
+
+function getCompletedAnnualCoverageDeviceIds(schedule, plannedPassiveIds = []) {
+  const scheduleId = getScheduleKey(schedule);
+  return uniqueValues(plannedPassiveIds).filter((deviceId) => {
+    const sharedRecord = scheduleId ? getSharedInspectionRecord(deviceId, schedule) : null;
+    const localRecord = state.inspections?.[deviceId] || null;
+    return isAnnualCoverageInspectionComplete(sharedRecord)
+      || isAnnualCoverageInspectionCompleteForSchedule(localRecord, schedule);
+  });
+}
+
+function isAnnualCoverageInspectionCompleteForSchedule(record = null, schedule = null) {
+  if (!isAnnualCoverageInspectionComplete(record)) return false;
+  const scheduleId = getScheduleKey(schedule);
+  if (record?.scheduleId && scheduleId && record.scheduleId !== scheduleId) return false;
+  return true;
+}
+
+function isAnnualCoverageInspectionComplete(record = null) {
+  if (!record) return false;
+  const status = normalizeScopeText(record.status || record.result || "");
+  if (!status) return false;
+  return status === "pass"
+    || status === "passed"
+    || status === "fail"
+    || status === "failed"
+    || status === "fault"
+    || status === "done"
+    || status === "completed";
+}
+
 function releaseScheduleScopeReservation(schedule) {
   if (!schedule?.rotationHistoryKey || schedule.status === "Completed") return;
+  const passiveDevices = getPassiveDevicesForScheduleCycle(schedule);
+  const validIds = new Set(passiveDevices.map((device) => device.id));
   const cycle = state.scopeCycle[schedule.rotationHistoryKey];
-  if (!cycle?.coveredIds?.length) return;
-  const otherReservedIds = new Set(
-    state.schedules
-      .filter((item) => item.scheduleId !== schedule.scheduleId)
-      .filter((item) => item.rotationHistoryKey === schedule.rotationHistoryKey)
-      .flatMap((item) => item.plannedDeviceIds || [])
-  );
-  const releaseIds = new Set(
-    (schedule.plannedDeviceIds || [])
-      .filter((id) => !otherReservedIds.has(id))
-  );
-  if (!releaseIds.size) return;
-  cycle.coveredIds = cycle.coveredIds.filter((id) => !releaseIds.has(id));
-  cycle.completedAt = "";
+  if (!cycle) return;
+  const reservations = sanitizeScopeReservations(cycle.reservations || {}, validIds, schedule.scheduleId);
+  cycle.reservations = reservations;
+  cycle.reservedIds = uniqueValues(Object.values(reservations).flatMap((reservation) => reservation.deviceIds || [])).filter((id) => validIds.has(id));
   cycle.updatedAt = new Date().toISOString();
   state.scopeCycle[schedule.rotationHistoryKey] = cycle;
-  state.scopeHistory[schedule.rotationHistoryKey] = cycle.coveredIds;
+  state.scopeHistory[schedule.rotationHistoryKey] = cycle.coveredIds || [];
   writeStoredJson("rmtScopeCycle", state.scopeCycle);
   writeStoredJson("tmFireScopeHistory", state.scopeHistory);
 }
@@ -7433,6 +9528,7 @@ bindCalendarTemplateHandlers();
     syncCalendarDragSummary();
     renderExtinguisherTallyStatus();
     renderScheduleChecklistPreview();
+    renderAnnualCoverageSummary();
   });
   input.addEventListener("input", () => {
     if ([scheduleManualClient, scheduleManualPlace, scheduleManualAddress].includes(input)) {
@@ -7442,6 +9538,7 @@ bindCalendarTemplateHandlers();
     syncCalendarDragSummary();
     renderExtinguisherTallyStatus();
     renderScheduleChecklistPreview();
+    renderAnnualCoverageSummary();
   });
 });
 [techExtCustomerMode, techExtClientSite, techExtManualClient, techExtManualPlace, techExtManualAddress, techExtDate, techExtTime, techExtTechnician, techExtJobType, techExtDetails, techExtStickerText, techExtBrand, techExtMfgMonthYear, techExtAgentType, techExtSerialNumber, techExtSizeKg, techExtPressurized9, techExtPowderStatus, techExtDischargeHose, techExtBelt, techExtWorkflowStatus, techExtBombaInspectionDate, techExtBombaExpiryDate, techExtReturnTargetDate, techExtLoanUnitDetails, techExtRemarks, techExtTotalUnits, techExtCollectedUnits, techExtLoanUnits, techExtReturnedUnits, techExtLoanReturnedUnits, techExtCashReceived, techExtReceiptRef].filter(Boolean).forEach((input) => {
@@ -7474,9 +9571,11 @@ bindCalendarTemplateHandlers();
   });
 });
 document.querySelector("#generateScopeBtn").addEventListener("click", () => {
+  setAdminModule("settings");
   document.querySelector("#scopePanel").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 document.querySelector("#showStaffTrackingBtn").addEventListener("click", () => {
+  setAdminModule("staff");
   document.querySelector("#staffTrackingPanel").scrollIntoView({ behavior: "smooth", block: "start" });
 });
 document.querySelector("#regenerateScopeBtn").addEventListener("click", () => generateServiceScope({ commitHistory: true }));
@@ -7512,6 +9611,18 @@ document.querySelector("#clearActiveTagBtn").addEventListener("click", clearActi
 document.querySelector("#undoPinBtn").addEventListener("click", undoLastPin);
 document.querySelector("#editSelectedPinBtn").addEventListener("click", editSelectedPin);
 document.querySelector("#deleteSelectedPinBtn").addEventListener("click", deleteSelectedPin);
+markersLayer.addEventListener("pointerdown", startRequestPinGesture);
+markersLayer.addEventListener("pointermove", updateRequestPinGesture);
+markersLayer.addEventListener("pointerup", finishRequestPinGesture);
+markersLayer.addEventListener("pointercancel", () => {
+  state.requestPinGesture = null;
+});
+markersLayer.addEventListener("touchstart", startRequestPinGesture, { passive: true });
+markersLayer.addEventListener("touchmove", updateRequestPinGesture, { passive: true });
+markersLayer.addEventListener("touchend", finishRequestPinGesture, { passive: false });
+markersLayer.addEventListener("touchcancel", () => {
+  state.requestPinGesture = null;
+});
 markersLayer.addEventListener("click", (event) => {
   if (state.requestPinMode && event.target === markersLayer) {
     const point = getMapPercentFromEvent(event);
@@ -7589,58 +9700,189 @@ async function handleDeviceMasterPcSave() {
 document.querySelector("#setupSavePc").addEventListener("click", handleDeviceMasterPcSave);
 document.querySelector("#setupSavePcBottom").addEventListener("click", handleDeviceMasterPcSave);
 
-showRequestBtn.addEventListener("click", openRequestModal);
+showRequestBtn?.addEventListener("click", openRequestModal);
+techSuggestMissingBtn?.addEventListener("click", openRequestModal);
 document.querySelector("#emptySuggestBtn").addEventListener("click", openRequestModal);
 document.querySelector("#closeRequestBtn").addEventListener("click", closeRequestModal);
 document.querySelector("#clearRequestsBtn").addEventListener("click", () => {
   state.requests = [];
-  writeStoredJson("tmFireRequests", state.requests);
+  persistMissingDeviceRequests();
   renderRequests();
   updateSummary();
 });
 document.querySelector("#requestModal").addEventListener("click", (event) => {
   if (event.target.id === "requestModal") closeRequestModal();
 });
-document.querySelector("#requestForm").addEventListener("submit", (event) => {
+document.querySelector("#requestForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (getCurrentUserRole() === "Technician" && !state.pendingRequestPin) {
+  const role = getCurrentUserRole();
+  const existingRequest = state.editingRequestId
+    ? state.requests.find((request) => request.id === state.editingRequestId)
+    : null;
+  if (role === "Technician" && !state.pendingRequestPin && !existingRequest) {
     startMissingDevicePinMode();
     return;
   }
-  const pin = state.pendingRequestPin || {};
+  const photoInput = document.querySelector("#requestPhoto");
+  const photoEvidence = await readPhotoAttachmentFiles(photoInput, "missing-device");
+  if (role === "Technician" && !existingRequest && !photoEvidence.length) {
+    document.querySelector("#syncState").textContent = "Missing device request needs at least one photo before sending to Admin.";
+    photoInput?.focus();
+    return;
+  }
+  const pin = state.pendingRequestPin || existingRequest || {};
   const profile = getCurrentSiteIdentity();
+  const activeSchedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule();
+  const now = new Date().toISOString();
+  const activeSystem = getTechnicianFireSystemDefinition(state.activeTechSystemKey);
+  const id = existingRequest?.id || `REQ-${Date.now()}`;
   const request = {
-    id: `REQ-${Date.now()}`,
+    ...(existingRequest || {}),
+    id,
+    requestId: existingRequest?.requestId || id,
+    schemaVersion: "missing-device-request-v1",
     type: document.querySelector("#requestType").value,
     label: document.querySelector("#requestLabel").value.trim() || "Admin to assign",
     location: document.querySelector("#requestLocation").value.trim(),
+    note: document.querySelector("#requestReason").value.trim(),
     reason: document.querySelector("#requestReason").value.trim(),
-    photo: document.querySelector("#requestPhoto").files[0]?.name || "",
+    photo: photoEvidence[0]?.name || existingRequest?.photo || "",
+    photoEvidence: photoEvidence.length ? photoEvidence : existingRequest?.photoEvidence || [],
     floor: pin.floor || getFloorAsset(floorSelect.value).title,
     floorId: pin.floorId || floorSelect.value,
     companyName: pin.companyName || profile.companyName,
     siteName: pin.siteName || profile.siteName,
+    jobId: state.activeJob?.jobId || "",
+    scheduleId: activeSchedule?.scheduleId || state.activeJob?.scheduleId || "",
+    system: activeSystem?.label || state.activeTechSystemKey || "",
+    systemKey: state.activeTechSystemKey || "",
     xPercent: Number.isFinite(Number(pin.xPercent)) ? Number(pin.xPercent) : null,
     yPercent: Number.isFinite(Number(pin.yPercent)) ? Number(pin.yPercent) : null,
     pinText: formatRequestPin(pin),
-    status: "pending admin review",
-    requestedBy: getCurrentUserName(),
-    requestedRole: getCurrentUserRole(),
-    requestedAt: new Date().toISOString()
+    status: existingRequest?.status && !isRequestApproved(existingRequest) && !isRequestRejected(existingRequest)
+      ? existingRequest.status
+      : "PENDING_ADMIN_REVIEW",
+    requestedBy: existingRequest?.requestedBy || getCurrentUserName(),
+    requestedRole: existingRequest?.requestedRole || getCurrentUserRole(),
+    technicianId: existingRequest?.technicianId || getCurrentUserId(),
+    technicianName: existingRequest?.technicianName || getCurrentUserName(),
+    requestedAt: existingRequest?.requestedAt || now,
+    plannedDeviceCountAtRequest: activeSchedule?.plannedDeviceIds?.length || existingRequest?.plannedDeviceCountAtRequest || 0,
+    scopeUnchanged: true
   };
-  state.requests.unshift(request);
-  writeStoredJson("tmFireRequests", state.requests);
+  if (existingRequest && canEditMasterData()) {
+    request.status = "PENDING_ADMIN_REVIEW";
+    request.adjustedAt = now;
+    request.adjustedBy = getCurrentUserName();
+    request.reviewHistory = [
+      ...(existingRequest.reviewHistory || []),
+      { action: "ADJUSTED", by: getCurrentUserName(), at: now }
+    ];
+  }
+  const saveResult = await saveMissingDeviceRequestRecord(request);
+  if (saveResult.conflict) {
+    document.querySelector("#syncState").textContent = "Request was updated elsewhere. Reloading Admin requests.";
+    await loadSavedRequests({ render: true });
+    return;
+  }
+  if (saveResult.offline) {
+    request.syncStatus = "draft";
+    request.unsynced = true;
+    upsertMissingDeviceRequest(request);
+  }
   event.target.reset();
   clearMissingDevicePinMode();
   closeRequestModal();
   renderRequests();
   renderMarkers();
   updateSummary();
-  document.querySelector("#syncState").textContent = "Missing point pinned for admin review";
+  document.querySelector("#syncState").textContent = saveResult.offline
+    ? "Missing point saved as local draft only. Send again when server is available."
+    : `Missing point sent to Admin Review. Scope remains ${request.plannedDeviceCountAtRequest} planned item(s).`;
 });
 
-function openRequestModal() {
-  if (getCurrentUserRole() === "Technician" && !state.pendingRequestPin) {
+function stripRequestPhotoDataForStorage(request = {}) {
+  const clean = { ...request };
+  clean.photoEvidence = (Array.isArray(request.photoEvidence) ? request.photoEvidence : []).map((photo) => {
+    const next = { ...photo };
+    delete next.dataUrl;
+    return next;
+  });
+  return clean;
+}
+
+function persistMissingDeviceRequests() {
+  writeStoredJson("tmFireRequests", state.requests.map(stripRequestPhotoDataForStorage));
+}
+
+function upsertMissingDeviceRequest(request) {
+  const index = state.requests.findIndex((item) => item.id === request.id);
+  if (index >= 0) {
+    state.requests[index] = request;
+  } else {
+    state.requests.unshift(request);
+  }
+  persistMissingDeviceRequests();
+}
+
+async function loadSavedRequests(options = {}) {
+  const { render = true } = options;
+  loadStoredPlanningState();
+  try {
+    const response = await fetch("/api/missing-device-requests", { cache: "no-store" });
+    if (!response.ok) return state.requests;
+    const payload = await response.json();
+    if (Array.isArray(payload.requests)) {
+      state.requests = payload.requests;
+      persistMissingDeviceRequests();
+      if (render) {
+        renderRequests();
+        renderMarkers();
+        updateSummary();
+      }
+    }
+  } catch (error) {
+    console.warn("Unable to load missing device requests", error);
+  }
+  return state.requests;
+}
+
+async function saveMissingDeviceRequestRecord(request) {
+  const expectedRevision = Number(request.revision || 0);
+  try {
+    const response = await fetch("/api/missing-device-requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expectedRevision,
+        request
+      })
+    });
+    const payload = await response.json();
+    if (response.status === 409 && payload.conflict) {
+      if (payload.current) upsertMissingDeviceRequest(payload.current);
+      return { ok: false, conflict: true, payload };
+    }
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to save missing device request");
+    upsertMissingDeviceRequest(payload.request);
+    return { ok: true, request: payload.request };
+  } catch (error) {
+    console.warn("Missing device request server unavailable", error);
+    return { ok: false, offline: true, error };
+  }
+}
+
+function resetRequestForm() {
+  const form = document.querySelector("#requestForm");
+  form?.reset();
+  const submitButton = form?.querySelector("button[type='submit']");
+  if (submitButton) submitButton.textContent = "Send To Admin Review";
+  state.editingRequestId = null;
+}
+
+function openRequestModal(requestId = "") {
+  const request = requestId ? state.requests.find((item) => item.id === requestId) : null;
+  if (getCurrentUserRole() === "Technician" && !state.pendingRequestPin && !request) {
     if (state.requestPinMode) {
       clearMissingDevicePinMode();
       document.querySelector("#syncState").textContent = "Missing point pin cancelled";
@@ -7649,12 +9891,31 @@ function openRequestModal() {
     startMissingDevicePinMode();
     return;
   }
+  resetRequestForm();
+  if (request) {
+    state.editingRequestId = request.id;
+    state.pendingRequestPin = {
+      floor: request.floor,
+      floorId: request.floorId,
+      companyName: request.companyName,
+      siteName: request.siteName,
+      xPercent: request.xPercent,
+      yPercent: request.yPercent
+    };
+    setSelectValue(document.querySelector("#requestType"), request.type || "", request.type || "");
+    document.querySelector("#requestLabel").value = request.label || "";
+    document.querySelector("#requestLocation").value = request.location || "";
+    document.querySelector("#requestReason").value = request.reason || request.note || "";
+    const submitButton = document.querySelector("#requestForm")?.querySelector("button[type='submit']");
+    if (submitButton) submitButton.textContent = "Save Request Adjustment";
+  }
   updateRequestPinField();
   document.querySelector("#requestModal").classList.remove("hidden");
 }
 
 function closeRequestModal() {
   document.querySelector("#requestModal").classList.add("hidden");
+  state.editingRequestId = null;
   if (getCurrentUserRole() === "Technician") {
     clearMissingDevicePinMode();
   }
@@ -7665,6 +9926,7 @@ function startMissingDevicePinMode() {
   state.pendingRequestPin = null;
   workspace.classList.add("request-pin-mode");
   if (showRequestBtn) showRequestBtn.textContent = "Cancel Pin";
+  if (techSuggestMissingBtn) techSuggestMissingBtn.textContent = "Cancel Missing Pin";
   renderMarkers();
   mapStage.scrollIntoView({ behavior: "smooth", block: "center" });
   document.querySelector("#syncState").textContent = "Tap the mimic where the missing device is located";
@@ -7684,6 +9946,7 @@ function captureMissingDevicePin(xPercent, yPercent) {
   state.requestPinMode = false;
   workspace.classList.remove("request-pin-mode");
   if (showRequestBtn) showRequestBtn.textContent = getCurrentUserRole() === "Technician" ? "Pin Missing Point" : "Suggest Device";
+  if (techSuggestMissingBtn) techSuggestMissingBtn.textContent = "+ Missing Device / Suggest Pin";
   renderMarkers();
   updateRequestPinField();
   document.querySelector("#requestModal").classList.remove("hidden");
@@ -7695,6 +9958,7 @@ function clearMissingDevicePinMode() {
   state.pendingRequestPin = null;
   workspace.classList.remove("request-pin-mode");
   if (showRequestBtn) showRequestBtn.textContent = getCurrentUserRole() === "Technician" ? "Pin Missing Point" : "Suggest Device";
+  if (techSuggestMissingBtn) techSuggestMissingBtn.textContent = "+ Missing Device / Suggest Pin";
   updateRequestPinField();
   renderMarkers();
 }
@@ -7712,43 +9976,195 @@ function formatRequestPin(pin) {
   return `${pin.floor || "Selected floor"} @ X ${roundPercent(pin.xPercent)}%, Y ${roundPercent(pin.yPercent)}%`;
 }
 
+function isRequestRejected(request) {
+  const status = String(request?.status || "").toUpperCase();
+  return status.includes("REJECTED");
+}
+
+function getRequestStatusLabel(request) {
+  const status = String(request?.status || "PENDING_ADMIN_REVIEW").toUpperCase();
+  if (status.includes("APPROVED")) return "Approved to Master";
+  if (status.includes("REJECTED")) return "Rejected";
+  if (request?.unsynced) return "Local Draft";
+  return "Pending Admin Review";
+}
+
+function getRequestPhotoLabel(request) {
+  const count = Array.isArray(request?.photoEvidence) ? request.photoEvidence.length : 0;
+  if (count) return `${count} photo(s) attached`;
+  return request?.photo || "No photo attached";
+}
+
+function renderReportReviews() {
+  if (!reportReviewList) return;
+  const reportFilter = state.adminReportFilter || "awaiting";
+  const reviewSchedules = state.schedules.filter((schedule) => {
+    const submissionStatus = String(getScheduleReportSubmission(schedule)?.status || schedule.reportStatus || "").toUpperCase();
+    const isSent = submissionStatus.includes("SENT");
+    if (reportFilter === "awaiting") return isScheduleAwaitingAdminReview(schedule);
+    if (reportFilter === "returned") return isScheduleReturnedForCorrection(schedule);
+    if (reportFilter === "approved") return isScheduleAdminApproved(schedule) && !isSent;
+    if (reportFilter === "sent") return isSent;
+    return isScheduleAwaitingAdminReview(schedule)
+      || isScheduleReturnedForCorrection(schedule)
+      || isScheduleAdminApproved(schedule)
+      || isSent;
+  });
+  if (!reviewSchedules.length) {
+    reportReviewList.innerHTML = `<p class="hint">No reports match this review status.</p>`;
+    return;
+  }
+
+  reportReviewList.innerHTML = reviewSchedules.map((schedule) => {
+    const summary = getLightTechnicianScheduleSummary(schedule);
+    const submission = getScheduleReportSubmission(schedule) || {};
+    const status = getTechnicianScheduleStatus(schedule);
+    const pendingRequests = getPendingMissingRequestsForSchedule(schedule);
+    const canAdminReview = canEditMasterData() && isScheduleAwaitingAdminReview(schedule);
+    return `
+      <article class="request-card report-review-card">
+        <div>
+          <strong>${escapeHtml(schedule.companyName || "-")} / ${escapeHtml(schedule.siteName || "-")}</strong>
+          <p><b>Job:</b> ${escapeHtml(schedule.scheduleId || "-")} | <b>Status:</b> ${escapeHtml(status)}</p>
+          <p><b>Submitted by:</b> ${escapeHtml(submission.submittedBy || schedule.reportSubmittedBy || "-")} ${submission.submittedAt ? `on ${escapeHtml(formatShortDateTime(submission.submittedAt))}` : ""}</p>
+          <p><b>Progress:</b> ${summary.done}/${summary.total} completed | PASS ${summary.pass} | FAULT ${summary.fail} | Pending ${summary.pending + summary.partial + Number(summary.blocked || 0)}</p>
+          <p><b>Pending missing-device suggestions:</b> ${pendingRequests.length}</p>
+        </div>
+        <div class="request-actions">
+          <span class="status-pill">${escapeHtml(status)}</span>
+          ${canAdminReview ? `
+            <button type="button" class="mini-button approve-report-btn" data-schedule-id="${escapeHtml(schedule.scheduleId)}">Approve</button>
+            <button type="button" class="mini-button danger return-report-btn" data-schedule-id="${escapeHtml(schedule.scheduleId)}">Return for Correction</button>
+          ` : ""}
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  reportReviewList.querySelectorAll(".approve-report-btn").forEach((button) => {
+    button.addEventListener("click", () => approveSubmittedReport(button.dataset.scheduleId));
+  });
+  reportReviewList.querySelectorAll(".return-report-btn").forEach((button) => {
+    button.addEventListener("click", () => returnSubmittedReportForCorrection(button.dataset.scheduleId));
+  });
+}
+
+async function approveSubmittedReport(scheduleId) {
+  if (!canEditMasterData()) return;
+  const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
+  if (!schedule) return;
+  const result = await submitReportReviewAction(schedule, "APPROVED_BY_ADMIN", "Admin approved technician submission.");
+  if (!result.ok) {
+    document.querySelector("#syncState").textContent = result.conflict
+      ? "Report review changed elsewhere. Reload before approving."
+      : "Unable to approve report review.";
+    return;
+  }
+  schedule.status = "Completed";
+  schedule.reportSubmissionStatus = "APPROVED_BY_ADMIN";
+  schedule.reportSubmission = result.submission;
+  schedule.reviewedAt = result.submission?.reviewedAt || new Date().toISOString();
+  schedule.reviewedBy = getCurrentUserName();
+  schedule.completedAt = schedule.reviewedAt;
+  schedule.completedBy = getCurrentUserName();
+  if (state.activeJob?.scheduleId === schedule.scheduleId) {
+    state.activeJob.status = "Completed";
+    state.activeJob.reportSubmission = result.submission;
+    persistActiveJob();
+  }
+  completeScopeCycleSchedule(schedule);
+  persistSchedules();
+  await saveSchedulesToPc(false);
+  renderRequests();
+  renderSchedulePanel();
+  renderTechWorkPanel();
+  document.querySelector("#syncState").textContent = `${schedule.scheduleId} approved by Admin.`;
+}
+
+async function returnSubmittedReportForCorrection(scheduleId) {
+  if (!canEditMasterData()) return;
+  const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
+  if (!schedule) return;
+  const result = await submitReportReviewAction(schedule, "RETURNED_FOR_CORRECTION", "Admin returned this job for correction.");
+  if (!result.ok) {
+    document.querySelector("#syncState").textContent = result.conflict
+      ? "Report review changed elsewhere. Reload before returning."
+      : "Unable to return report for correction.";
+    return;
+  }
+  schedule.status = "RETURNED_FOR_CORRECTION";
+  schedule.reportSubmissionStatus = "RETURNED_FOR_CORRECTION";
+  schedule.reportSubmission = result.submission;
+  schedule.returnedForCorrectionAt = result.submission?.reviewedAt || new Date().toISOString();
+  schedule.returnedForCorrectionBy = getCurrentUserName();
+  if (state.activeJob?.scheduleId === schedule.scheduleId) {
+    state.activeJob.status = "RETURNED_FOR_CORRECTION";
+    state.activeJob.reportSubmission = result.submission;
+    persistActiveJob();
+  }
+  persistSchedules();
+  await saveSchedulesToPc(false);
+  renderRequests();
+  renderSchedulePanel();
+  renderTechWorkPanel();
+  document.querySelector("#syncState").textContent = `${schedule.scheduleId} returned for correction. Technician editing is enabled again.`;
+}
+
 function renderRequests() {
   const requestList = document.querySelector("#requestList");
+  renderReportReviews();
+  if (!requestList) return;
   if (!state.requests.length) {
     requestList.innerHTML = `<p class="hint">No missing device requests yet.</p>`;
+    renderFrontDeskPanel();
+    updateAdminReportWorkspaceFilter();
     return;
   }
 
   requestList.innerHTML = state.requests.map((request) => `
-    <article class="request-card">
+    <article class="request-card ${escapeHtml(String(request.status || "pending").toLowerCase())}">
       <div>
         <strong>${escapeHtml(request.label)} - ${escapeHtml(request.type)}</strong>
         <p>${escapeHtml(request.companyName || "-")} / ${escapeHtml(request.siteName || "-")} | ${escapeHtml(request.floor)}</p>
+        ${request.scheduleId ? `<p><b>Job:</b> ${escapeHtml(request.scheduleId)} | <b>System:</b> ${escapeHtml(request.system || request.systemKey || "-")}</p>` : ""}
         <p><b>Location:</b> ${escapeHtml(request.location)}</p>
         ${request.pinText ? `<p><b>Pin:</b> ${escapeHtml(request.pinText)}</p>` : ""}
         <p><b>Reason:</b> ${escapeHtml(request.reason)}</p>
-        <p><b>Photo:</b> ${escapeHtml(request.photo || "No photo attached")}</p>
+        <p><b>Photo:</b> ${escapeHtml(getRequestPhotoLabel(request))}</p>
         <p><b>Requested by:</b> ${escapeHtml(request.requestedBy || "-")} ${request.requestedAt ? `on ${escapeHtml(formatShortDateTime(request.requestedAt))}` : ""}</p>
+        ${request.approvedTag ? `<p><b>Approved tag:</b> ${escapeHtml(request.approvedTag)}</p>` : ""}
       </div>
       <div class="request-actions">
-        <span class="status-pill">${escapeHtml(request.status)}</span>
-        ${!isRequestApproved(request) && !isExtinguisherAdminRequest(request) ? `<button type="button" class="mini-button approve-request-btn" data-request-id="${escapeHtml(request.id)}">Approve To Master</button>` : ""}
+        <span class="status-pill">${escapeHtml(getRequestStatusLabel(request))}</span>
+        ${!isRequestApproved(request) && !isRequestRejected(request) && !isExtinguisherAdminRequest(request) ? `
+          <button type="button" class="mini-button adjust-request-btn" data-request-id="${escapeHtml(request.id)}">Adjust</button>
+          <button type="button" class="mini-button approve-request-btn" data-request-id="${escapeHtml(request.id)}">Approve To Master</button>
+          <button type="button" class="mini-button danger reject-request-btn" data-request-id="${escapeHtml(request.id)}">Reject</button>
+        ` : ""}
       </div>
     </article>
   `).join("");
 
+  requestList.querySelectorAll(".adjust-request-btn").forEach((button) => {
+    button.addEventListener("click", () => openRequestModal(button.dataset.requestId));
+  });
   requestList.querySelectorAll(".approve-request-btn").forEach((button) => {
     button.addEventListener("click", () => approveMissingDeviceRequest(button.dataset.requestId));
   });
+  requestList.querySelectorAll(".reject-request-btn").forEach((button) => {
+    button.addEventListener("click", () => rejectMissingDeviceRequest(button.dataset.requestId));
+  });
+  renderFrontDeskPanel();
+  updateAdminReportWorkspaceFilter();
 }
 
-function approveMissingDeviceRequest(requestId) {
+async function approveMissingDeviceRequest(requestId) {
   if (!canEditMasterData()) {
     document.querySelector("#syncState").textContent = "Only admin can approve missing device requests";
     return;
   }
   const request = state.requests.find((item) => item.id === requestId);
-  if (!request || isRequestApproved(request)) return;
+  if (!request || isRequestApproved(request) || isRequestRejected(request)) return;
 
   if (request.floorId && floorExists(request.floorId)) {
     renderFloorOptions(request.floorId, {
@@ -7774,15 +10190,41 @@ function approveMissingDeviceRequest(requestId) {
     capturedAt: new Date().toISOString()
   });
 
-  request.status = "approved to master";
+  request.status = "APPROVED_TO_MASTER";
   request.approvedTag = tag;
   request.approvedAt = new Date().toISOString();
   request.approvedBy = getCurrentUserName();
-  writeStoredJson("tmFireRequests", state.requests);
+  request.reviewHistory = [
+    ...(request.reviewHistory || []),
+    { action: "APPROVED_TO_MASTER", by: getCurrentUserName(), at: request.approvedAt, approvedTag: tag }
+  ];
+  await saveMissingDeviceRequestRecord(request);
   renderRequests();
   renderMarkers();
   updateSummary();
   document.querySelector("#syncState").textContent = `${tag} added to device master for admin review`;
+}
+
+async function rejectMissingDeviceRequest(requestId) {
+  if (!canEditMasterData()) {
+    document.querySelector("#syncState").textContent = "Only admin can reject missing device requests";
+    return;
+  }
+  const request = state.requests.find((item) => item.id === requestId);
+  if (!request || isRequestApproved(request) || isRequestRejected(request)) return;
+  const rejectedAt = new Date().toISOString();
+  request.status = "REJECTED";
+  request.rejectedAt = rejectedAt;
+  request.rejectedBy = getCurrentUserName();
+  request.reviewHistory = [
+    ...(request.reviewHistory || []),
+    { action: "REJECTED", by: getCurrentUserName(), at: rejectedAt }
+  ];
+  await saveMissingDeviceRequestRecord(request);
+  renderRequests();
+  renderMarkers();
+  updateSummary();
+  document.querySelector("#syncState").textContent = `${request.label || request.id} rejected. Request history retained.`;
 }
 
 function normalizeApprovedRequestTag(request) {
@@ -9040,8 +11482,9 @@ function escapeRegExp(value) {
 
 function getMapPercentFromEvent(event) {
   const rect = mapImage.getBoundingClientRect();
-  const xPercent = ((event.clientX - rect.left) / rect.width) * 100;
-  const yPercent = ((event.clientY - rect.top) / rect.height) * 100;
+  const point = getReliableTapPoint(event);
+  const xPercent = ((point.x - rect.left) / rect.width) * 100;
+  const yPercent = ((point.y - rect.top) / rect.height) * 100;
   return {
     xPercent: Math.max(0, Math.min(100, xPercent)),
     yPercent: Math.max(0, Math.min(100, yPercent))
@@ -9707,6 +12150,145 @@ async function submitSharedJobSignOff(signOff, schedule) {
     return { ok: true, signOff: payload.signOff, progress: payload.progress };
   } catch (error) {
     console.warn("Shared sign-off unavailable", error);
+    markSharedJobUnavailable(scheduleId, error);
+    return { ok: false, offline: true, error };
+  }
+}
+
+function getPendingMissingRequestsForSchedule(schedule) {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId) return [];
+  return state.requests.filter((request) => {
+    return request.scheduleId === scheduleId
+      && !isRequestApproved(request)
+      && !isRequestRejected(request);
+  });
+}
+
+function buildReportSubmissionRecord(schedule, signOff, summary) {
+  const groups = getTechnicianFireSystemGroups(schedule);
+  const pendingRequests = getPendingMissingRequestsForSchedule(schedule);
+  return {
+    recordId: `report-submission::${schedule.scheduleId}`,
+    jobId: state.activeJob?.jobId || `JOB-${schedule.scheduleId}`,
+    scheduleId: schedule.scheduleId,
+    status: "AWAITING_ADMIN_REVIEW",
+    submittedById: getCurrentUserId(),
+    submittedBy: getCurrentUserName(),
+    submittedRole: getCurrentUserRole(),
+    submittedAt: new Date().toISOString(),
+    completedSystems: groups.map((group) => ({
+      systemKey: group.id,
+      label: group.label,
+      total: group.summary?.total || group.devices.length || 0,
+      done: group.summary?.done || 0,
+      pass: group.summary?.pass || 0,
+      fail: group.summary?.fail || 0
+    })),
+    plannedCount: summary.total,
+    completedCount: summary.done,
+    passCount: summary.pass,
+    faultCount: summary.fail,
+    pendingCount: summary.pending + summary.partial + Number(summary.blocked || 0),
+    pendingMissingDeviceSuggestionCount: pendingRequests.length,
+    pendingMissingDeviceRequestIds: pendingRequests.map((request) => request.id),
+    clientAcknowledgement: {
+      technicianName: signOff.technicianName || "",
+      witnessName: signOff.supervisorName || "",
+      clientName: signOff.clientName || "",
+      signatureCaptured: Boolean(signOff.signatureData),
+      signedAt: signOff.signedAt || new Date().toISOString()
+    }
+  };
+}
+
+async function submitSharedReportSubmission(schedule, submission) {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId) return { ok: false, localOnly: true };
+  const latest = await requestSharedJobState(schedule, { migrate: false });
+  if (!latest?.online) {
+    return { ok: false, offline: true, reason: "Shared server is unavailable. Report submission is blocked until sync is restored." };
+  }
+  const expectedRevision = Number(latest.store?.reportSubmission?.revision || 0);
+  try {
+    const response = await fetch(`/api/jobs/${encodeURIComponent(scheduleId)}/report-submission`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expectedRevision,
+        schedule: getScheduleSnapshotForSharedApi(schedule),
+        submission
+      })
+    });
+    const payload = await response.json();
+    if (response.status === 409) {
+      return {
+        ok: false,
+        conflict: Boolean(payload.conflict),
+        blocked: Boolean(payload.blocked),
+        payload
+      };
+    }
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to submit report for review");
+    const cache = ensureSharedCacheForSchedule(schedule);
+    const store = {
+      ...cache.store,
+      reportSubmission: payload.submission,
+      status: payload.submission?.status || "AWAITING_ADMIN_REVIEW"
+    };
+    setSharedJobCache(scheduleId, { store, progress: payload.progress }, { online: true });
+    return { ok: true, submission: payload.submission, progress: payload.progress };
+  } catch (error) {
+    console.warn("Shared report submission unavailable", error);
+    markSharedJobUnavailable(scheduleId, error);
+    return { ok: false, offline: true, error };
+  }
+}
+
+async function submitReportReviewAction(schedule, status, reviewNote = "") {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId) return { ok: false, localOnly: true };
+  const latest = await requestSharedJobState(schedule, { migrate: false });
+  if (!latest?.online) return { ok: false, offline: true };
+  const expectedRevision = Number(latest.store?.reportSubmission?.revision || 0);
+  try {
+    const response = await fetch(`/api/jobs/${encodeURIComponent(scheduleId)}/report-submission`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expectedRevision,
+        schedule: getScheduleSnapshotForSharedApi(schedule),
+        submission: {
+          ...(latest.store?.reportSubmission || {}),
+          status,
+          reviewedById: getCurrentUserId(),
+          reviewedBy: getCurrentUserName(),
+          reviewedAt: new Date().toISOString(),
+          reviewNote,
+          reviewHistory: [
+            ...(latest.store?.reportSubmission?.reviewHistory || []),
+            { status, by: getCurrentUserName(), at: new Date().toISOString(), note: reviewNote }
+          ]
+        }
+      })
+    });
+    const payload = await response.json();
+    if (response.status === 409) {
+      return { ok: false, conflict: Boolean(payload.conflict), blocked: Boolean(payload.blocked), payload };
+    }
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to update report review");
+    const cache = ensureSharedCacheForSchedule(schedule);
+    setSharedJobCache(scheduleId, {
+      store: {
+        ...cache.store,
+        reportSubmission: payload.submission,
+        status: payload.submission?.status || status
+      },
+      progress: payload.progress
+    }, { online: true });
+    return { ok: true, submission: payload.submission, progress: payload.progress };
+  } catch (error) {
+    console.warn("Shared report review unavailable", error);
     markSharedJobUnavailable(scheduleId, error);
     return { ok: false, offline: true, error };
   }
@@ -10393,6 +12975,12 @@ function renderCriticalSop() {
         <span><strong>Location</strong>${escapeHtml(displayDeviceLocation(activeDevice.location || ""))}</span>
       </div>
     ` : ""}
+    ${getCurrentUserRole() === "Technician" && activeSchedule && state.activeTechSystemKey ? `
+      <div class="tech-critical-actions">
+        <button type="button" class="secondary" data-tech-critical-view-mimic>View Mimic</button>
+        <span>Open the current system mimic for location reference. Locked pins still require this System Check.</span>
+      </div>
+    ` : ""}
     <div class="critical-warning danger">
       <strong>${escapeHtml(activeTemplate.title)}</strong>
       <span>${escapeHtml(activeTemplate.danger)}</span>
@@ -10517,6 +13105,9 @@ function renderCriticalSop() {
 
   document.querySelector("#saveCriticalSopBottomBtn")?.addEventListener("click", () => saveCriticalSop(true));
   document.querySelector("#saveCriticalSopNextBtn")?.addEventListener("click", saveCriticalSopAndOpenNext);
+  form.querySelectorAll("[data-tech-critical-view-mimic]").forEach((button) => {
+    bindReliableTap(button, () => openCurrentTechnicianMimic({ scroll: true }));
+  });
 
   form.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
     checkbox.addEventListener("change", async () => {
@@ -10586,6 +13177,12 @@ async function saveCriticalSop(showMessage = true) {
   const previous = state.criticalSops[storageKey] || state.criticalSops[template.id] || {};
   const evidence = getCriticalSopEvidenceDomState(previous);
   const activeSchedule = getActiveTechnicianMaintenanceSchedule();
+  if (isTechnicianReportReadOnly(activeSchedule)) {
+    if (showMessage) {
+      document.querySelector("#syncState").textContent = "This report is awaiting Admin Review. Admin must return it before technician edits are allowed.";
+    }
+    return { ok: false, readOnly: true };
+  }
   const workflowRun = state.activeCriticalDevice ? getCriticalWorkflowRunForParentDevice(state.activeCriticalDevice, activeSchedule) : null;
   const now = new Date().toISOString();
   const steps = {};
@@ -10717,6 +13314,14 @@ async function saveCriticalSopAndOpenNext() {
     return;
   }
   if (getCurrentUserRole() === "Technician") {
+    if (activeSchedule && state.activeTechSystemKey) {
+      const route = getTechnicianSystemStageRoute(activeSchedule, state.activeTechSystemKey);
+      if (route?.stage === "field-devices") {
+        await routeTechnicianSystemStage(activeSchedule, state.activeTechSystemKey, { scroll: true });
+        document.querySelector("#syncState").textContent = `${template.title} saved. Continue with field devices on the mimic.`;
+        return;
+      }
+    }
     await openNextAssignedItemAfter(currentDeviceTag);
   }
 }
@@ -10781,7 +13386,8 @@ function selectCycleAwareRotatingDevices(deviceList, targetCount, historyKey, ba
 
   const cycle = getScopeCycleRecord(historyKey, validDevices);
   const coveredSet = new Set(cycle.coveredIds);
-  const unvisitedDevices = validDevices.filter((device) => !coveredSet.has(device.id));
+  const reservedSet = new Set(cycle.reservedIds || []);
+  const unvisitedDevices = validDevices.filter((device) => !coveredSet.has(device.id) && !reservedSet.has(device.id));
   const selected = [];
 
   if (unvisitedDevices.length) {
@@ -10813,19 +13419,44 @@ function selectCycleAwareRotatingDevices(deviceList, targetCount, historyKey, ba
 
   const finalSelected = selected.slice(0, safeTarget);
   if (commitHistory) {
-    commitScopeCycleSelection(historyKey, validDevices, cycle, finalSelected);
+    reserveScopeCycleSelection(historyKey, validDevices, cycle, finalSelected, {});
   }
   return finalSelected;
 }
 
-function getScopeCycleRecord(historyKey, deviceList) {
+function getScopeCycleRecord(historyKey, deviceList, options = {}) {
   const validIds = new Set(deviceList.map((device) => device.id));
   const stored = state.scopeCycle[historyKey] || {};
-  const legacyHistory = Array.isArray(state.scopeHistory[historyKey]) ? state.scopeHistory[historyKey] : [];
+  const legacyKey = getLegacyKeyFromCycleHistoryKey(historyKey);
+  const legacyHistory = Array.isArray(state.scopeHistory[historyKey])
+    ? state.scopeHistory[historyKey]
+    : Array.isArray(state.scopeHistory[legacyKey])
+      ? state.scopeHistory[legacyKey]
+      : [];
   const coveredIds = uniqueValues([...(stored.coveredIds || []), ...legacyHistory]).filter((id) => validIds.has(id));
   const lastSelectedIds = uniqueValues(stored.lastSelectedIds || []).filter((id) => validIds.has(id));
+  const reservations = sanitizeScopeReservations(stored.reservations || {}, validIds, options.excludeScheduleId);
+  addExistingScheduleReservations(historyKey, reservations, validIds, options.excludeScheduleId);
+  const reservedIds = uniqueValues(Object.values(reservations).flatMap((reservation) => reservation.deviceIds || [])).filter((id) => validIds.has(id));
+  const completionRecords = sanitizeScopeCompletionRecords(stored.completionRecords || {}, validIds);
+  const completedInspectionCount = Object.values(completionRecords).reduce((sum, record) => sum + (record.deviceIds || []).length, 0)
+    || Number(stored.completedInspectionCount || coveredIds.length || 0);
+  const repeatInspectionCount = Object.values(completionRecords).reduce((sum, record) => sum + (record.repeatIds || []).length, 0)
+    || Number(stored.repeatInspectionCount || Math.max(0, completedInspectionCount - coveredIds.length) || 0);
+  const faultRecheckRepeatCount = Object.values(completionRecords).reduce((sum, record) => sum + (record.recheckIds || []).length, 0)
+    || Number(stored.faultRecheckRepeatCount || 0);
   return {
+    schemaVersion: stored.schemaVersion || "scope-cycle-v2",
+    annualCycleId: stored.annualCycleId || options.annualCycleId || historyKey.match(/::(annual-\d{4})$/)?.[1] || getContractCycleIdForDate(),
+    contractCycleId: stored.contractCycleId || stored.annualCycleId || options.annualCycleId || historyKey.match(/::(annual-\d{4})$/)?.[1] || getContractCycleIdForDate(),
+    eligibleIds: [...validIds],
     coveredIds,
+    reservations,
+    reservedIds,
+    completionRecords,
+    completedInspectionCount,
+    repeatInspectionCount,
+    faultRecheckRepeatCount,
     lastSelectedIds,
     cycleStartedAt: stored.cycleStartedAt || "",
     completedAt: coveredIds.length >= validIds.size ? stored.completedAt || new Date().toISOString() : stored.completedAt || "",
@@ -10833,17 +13464,95 @@ function getScopeCycleRecord(historyKey, deviceList) {
   };
 }
 
+function getLegacyKeyFromCycleHistoryKey(historyKey = "") {
+  return String(historyKey || "").replace(/::annual-\d{4}$/, "");
+}
+
+function sanitizeScopeReservations(reservations = {}, validIds = new Set(), excludeScheduleId = "") {
+  return Object.fromEntries(Object.entries(reservations || {})
+    .filter(([scheduleId]) => scheduleId !== excludeScheduleId)
+    .map(([scheduleId, reservation]) => {
+      const deviceIds = uniqueValues(reservation?.deviceIds || []).filter((id) => validIds.has(id));
+      return [scheduleId, { ...reservation, scheduleId, deviceIds }];
+    })
+    .filter(([, reservation]) => reservation.deviceIds.length));
+}
+
+function sanitizeScopeCompletionRecords(records = {}, validIds = new Set()) {
+  return Object.fromEntries(Object.entries(records || {}).map(([scheduleId, record]) => [
+    scheduleId,
+    {
+      ...record,
+      scheduleId,
+      deviceIds: uniqueValues(record?.deviceIds || []).filter((id) => validIds.has(id)),
+      newCoveredIds: uniqueValues(record?.newCoveredIds || []).filter((id) => validIds.has(id)),
+      repeatIds: uniqueValues(record?.repeatIds || []).filter((id) => validIds.has(id)),
+      recheckIds: uniqueValues(record?.recheckIds || []).filter((id) => validIds.has(id))
+    }
+  ]).filter(([, record]) => record.deviceIds.length));
+}
+
+function addExistingScheduleReservations(historyKey, reservations, validIds, excludeScheduleId = "") {
+  state.schedules
+    .filter((schedule) => schedule.rotationHistoryKey === historyKey)
+    .filter((schedule) => schedule.scheduleId !== excludeScheduleId)
+    .filter((schedule) => schedule.status !== "Completed" && schedule.status !== "Cancelled")
+    .forEach((schedule) => {
+      if (reservations[schedule.scheduleId]) return;
+      const reservationIds = Array.isArray(schedule.plannedDeviceIds) && schedule.plannedDeviceIds.length
+        ? schedule.plannedDeviceIds
+        : (schedule.sampledDeviceIds || []);
+      const deviceIds = uniqueValues(reservationIds).filter((id) => validIds.has(id));
+      if (!deviceIds.length) return;
+      reservations[schedule.scheduleId] = {
+        scheduleId: schedule.scheduleId,
+        deviceIds,
+        mandatoryRecheckIds: uniqueValues(schedule.mandatoryRecheckDeviceIds || []).filter((id) => validIds.has(id)),
+        date: schedule.date || "",
+        status: "reserved-from-schedule",
+        createdAt: schedule.createdAt || schedule.updatedAt || new Date().toISOString()
+      };
+    });
+}
+
 function commitScopeCycleSelection(historyKey, deviceList, cycle, selectedDevices) {
+  reserveScopeCycleSelection(historyKey, deviceList, cycle, selectedDevices, {});
+}
+
+function reserveScopeCycleSelection(historyKey, deviceList, cycle, selectedDevices, options = {}) {
   const validIds = new Set(deviceList.map((device) => device.id));
-  const coveredSet = new Set(cycle.coveredIds.filter((id) => validIds.has(id)));
   const selectedIds = selectedDevices.map((device) => device.id).filter((id) => validIds.has(id));
-  selectedIds.forEach((id) => coveredSet.add(id));
-  const coveredIds = [...coveredSet];
+  const mandatoryIds = new Set((options.mandatoryRecheckDevices || []).map((device) => device.id).filter((id) => validIds.has(id)));
+  const rotationSelectedIds = selectedIds.filter((id) => !mandatoryIds.has(id));
   const now = new Date().toISOString();
+  const scheduleId = options.scheduleId || `scope-preview-${now}`;
+  const reservations = sanitizeScopeReservations(cycle.reservations || {}, validIds);
+  if (selectedIds.length) {
+    reservations[scheduleId] = {
+      scheduleId,
+      deviceIds: selectedIds,
+      mandatoryRecheckIds: [...mandatoryIds],
+      date: options.date || "",
+      status: "reserved",
+      createdAt: now
+    };
+  }
+  const reservedIds = uniqueValues(Object.values(reservations).flatMap((reservation) => reservation.deviceIds || [])).filter((id) => validIds.has(id));
+  const coveredIds = uniqueValues(cycle.coveredIds || []).filter((id) => validIds.has(id));
   const completedAt = coveredIds.length >= validIds.size ? cycle.completedAt || now : "";
   state.scopeCycle[historyKey] = {
+    schemaVersion: "scope-cycle-v2",
+    annualCycleId: options.annualCycleId || cycle.annualCycleId || historyKey.match(/::(annual-\d{4})$/)?.[1] || getContractCycleIdForDate(),
+    contractCycleId: options.annualCycleId || cycle.contractCycleId || cycle.annualCycleId || historyKey.match(/::(annual-\d{4})$/)?.[1] || getContractCycleIdForDate(),
+    eligibleIds: [...validIds],
     coveredIds,
-    lastSelectedIds: selectedIds,
+    reservations,
+    reservedIds,
+    completionRecords: cycle.completionRecords || {},
+    completedInspectionCount: cycle.completedInspectionCount || coveredIds.length,
+    repeatInspectionCount: cycle.repeatInspectionCount || 0,
+    faultRecheckRepeatCount: cycle.faultRecheckRepeatCount || 0,
+    lastSelectedIds: rotationSelectedIds.length ? rotationSelectedIds : selectedIds,
     cycleStartedAt: cycle.cycleStartedAt || now,
     completedAt,
     updatedAt: now
@@ -10875,22 +13584,7 @@ function pickPriorityRecheckDevices(deviceList, targetCount, alreadySelected = [
 }
 
 function getRecheckPriorityScore(device) {
-  const current = state.inspections[device.id] || {};
-  const latestHistory = Array.isArray(state.history[device.id]) ? state.history[device.id][0] || {} : {};
-  const text = [
-    current.status,
-    current.notes,
-    current.action,
-    current.actionTaken,
-    latestHistory.status,
-    latestHistory.notes,
-    latestHistory.action,
-    latestHistory.actionTaken
-  ].join(" ").toLowerCase();
-  if (text.includes("fail") || text.includes("fault") || text.includes("malfunction")) return 30;
-  if (text.includes("unable") || text.includes("no access") || text.includes("cannot access") || text.includes("blocked")) return 20;
-  if (text.includes("n/a") || text.includes("na")) return 10;
-  return 0;
+  return getScopeRecheckPriority(device).score;
 }
 
 function renderReportPhotos(inspection) {

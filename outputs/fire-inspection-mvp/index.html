@@ -77,6 +77,139 @@
           </div>
         </section>
 
+        <section class="admin-control-desk admin-only" id="frontDeskPanel">
+          <header class="admin-desk-header">
+            <div>
+              <p class="eyebrow">Admin Control Desk</p>
+              <h2 id="adminDeskTitle">Operations Home</h2>
+              <p id="adminDeskSubtitle">Daily service position and items needing attention.</p>
+            </div>
+            <button id="adminNavToggle" type="button" class="secondary admin-nav-toggle" aria-expanded="false">Menu</button>
+          </header>
+
+          <div class="admin-desk-layout">
+            <nav class="admin-main-nav" id="adminMainNav" aria-label="Admin main navigation">
+              <button type="button" data-admin-module="home" class="active">Home</button>
+              <button type="button" data-admin-module="clients">Clients</button>
+              <button type="button" data-admin-module="schedule">Schedule</button>
+              <button type="button" data-admin-module="reports">Reports</button>
+              <button type="button" data-admin-module="defects">Defects</button>
+              <button type="button" data-admin-module="mimics">Mimics</button>
+              <button type="button" data-admin-module="staff">Staff</button>
+              <button type="button" data-admin-module="settings">Settings</button>
+            </nav>
+
+            <main class="admin-workspace-host" id="adminWorkspaceHost">
+              <section class="admin-module-workspace" data-admin-workspace="home" id="adminFrontDeskHome">
+                <div class="front-desk-actions admin-quick-actions" aria-label="Admin quick actions">
+                  <button type="button" data-admin-action="schedule">Schedule Job</button>
+                  <button type="button" class="secondary" data-admin-action="reports">Review Reports</button>
+                  <button type="button" class="secondary" data-admin-action="requests">Review Suggested Pins</button>
+                  <button type="button" class="secondary" data-admin-action="clients">Open Client</button>
+                  <button type="button" class="secondary" data-admin-action="mimics">Open Mimics</button>
+                </div>
+                <div class="front-desk-metrics" id="adminDeskMetrics"></div>
+                <div class="front-desk-layout">
+                  <article class="front-desk-card">
+                    <div class="section-header compact">
+                      <div>
+                        <p class="eyebrow">Today & Upcoming</p>
+                        <h3>Service Jobs</h3>
+                      </div>
+                      <button type="button" class="secondary" data-admin-action="schedule">Open Schedule</button>
+                    </div>
+                    <div id="adminDeskTodayList" class="front-desk-list"></div>
+                  </article>
+                  <article class="front-desk-card">
+                    <div class="section-header compact">
+                      <div>
+                        <p class="eyebrow">Attention</p>
+                        <h3>Reports & Suggested Pins</h3>
+                      </div>
+                      <button type="button" class="secondary" data-admin-action="reports">Open Review</button>
+                    </div>
+                    <div id="adminDeskReviewList" class="front-desk-list"></div>
+                  </article>
+                </div>
+              </section>
+
+              <section class="admin-module-workspace hidden" data-admin-workspace="clients" id="adminClientDesk">
+                <aside class="admin-client-list-panel">
+                  <label>
+                    Search clients / sites
+                    <input id="adminClientSearch" type="search" placeholder="Search client or site">
+                  </label>
+                  <div id="adminClientList" class="admin-client-list"></div>
+                </aside>
+                <article class="admin-client-detail">
+                  <div class="client-desk-head">
+                    <div>
+                      <strong id="adminDeskClientTitle">Select a client</strong>
+                      <span id="adminDeskClientMeta">Overview, schedule, systems, mimic, reports, defects and history.</span>
+                    </div>
+                    <label class="admin-client-select-fallback">
+                      Client / Site
+                      <select id="adminDeskClientSelect"></select>
+                    </label>
+                  </div>
+                  <div class="client-tab-row">
+                    <button type="button" data-client-module="overview" class="active">Overview</button>
+                    <button type="button" data-client-module="schedule">Schedule</button>
+                    <button type="button" data-client-module="systems">Systems</button>
+                    <button type="button" data-client-module="mimic">Mimic</button>
+                    <button type="button" data-client-module="reports">Reports</button>
+                    <button type="button" data-client-module="defects">Defects</button>
+                    <button type="button" data-client-module="history">History</button>
+                  </div>
+                  <div id="adminClientOverview" class="admin-client-tab-content"></div>
+                </article>
+              </section>
+
+              <section class="admin-module-workspace hidden" data-admin-workspace="schedule">
+                <div class="admin-workspace-heading"><div><p class="eyebrow">Planning</p><h3>Schedule & Assignments</h3></div><span>Calendar, job list and technician assignment</span></div>
+                <div id="adminScheduleMount" class="admin-module-mount"></div>
+              </section>
+
+              <section class="admin-module-workspace hidden" data-admin-workspace="reports">
+                <div class="admin-workspace-heading"><div><p class="eyebrow">Review Desk</p><h3>Reports</h3></div><span>Awaiting review, returned, approved and sent</span></div>
+                <div class="admin-status-tabs" id="adminReportStatusTabs">
+                  <button type="button" class="active" data-report-filter="awaiting">Awaiting Admin Review</button>
+                  <button type="button" data-report-filter="returned">Returned for Correction</button>
+                  <button type="button" data-report-filter="approved">Approved</button>
+                  <button type="button" data-report-filter="sent">Sent to Client</button>
+                  <button type="button" data-report-filter="suggestions">Suggested Pins</button>
+                </div>
+                <div id="adminReportsActions" class="admin-workspace-actions"></div>
+                <div id="adminReportsMount" class="admin-module-mount"></div>
+              </section>
+
+              <section class="admin-module-workspace hidden" data-admin-workspace="defects">
+                <div class="admin-workspace-heading"><div><p class="eyebrow">Follow-up</p><h3>Defects</h3></div><span>Open one item without losing the current filters</span></div>
+                <div class="admin-filter-bar">
+                  <input id="adminDefectSearch" type="search" placeholder="Search client, site, system or device">
+                  <select id="adminDefectStatus"><option value="open">Open</option><option value="all">All statuses</option><option value="closed">Closed</option></select>
+                </div>
+                <div id="adminDefectList" class="admin-record-list"></div>
+              </section>
+
+              <section class="admin-module-workspace hidden" data-admin-workspace="mimics">
+                <div class="admin-workspace-heading"><div><p class="eyebrow">Site Maps</p><h3>Mimic Management</h3></div><span>Client, floor, background and existing pin tools</span></div>
+                <div id="adminMimicsMount" class="admin-module-mount"></div>
+              </section>
+
+              <section class="admin-module-workspace hidden" data-admin-workspace="staff">
+                <div class="admin-workspace-heading"><div><p class="eyebrow">People</p><h3>Staff</h3></div><span>Technicians, activity and assignments</span></div>
+                <div id="adminStaffMount" class="admin-module-mount"></div>
+              </section>
+
+              <section class="admin-module-workspace hidden" data-admin-workspace="settings">
+                <div class="admin-workspace-heading"><div><p class="eyebrow">Configuration</p><h3>Settings</h3></div><span>Application diagnostics and system setup</span></div>
+                <div id="adminSettingsMount" class="admin-module-mount"></div>
+              </section>
+            </main>
+          </div>
+        </section>
+
         <nav class="tech-workflow-nav technician-only" id="techWorkflowNav" aria-label="Technician workflow">
           <button type="button" data-tech-screen="jobs" class="active">
             <strong>Jobs</strong>
@@ -99,6 +232,8 @@
             <span>Sign off</span>
           </button>
         </nav>
+
+        <div id="technicianSharedWorkspaceMount" class="technician-shared-workspace"></div>
 
         <section class="selector-row">
           <label class="client-selector-label">
@@ -327,6 +462,10 @@
             <article class="schedule-preview-card admin-only">
               <h3>Job Preview</h3>
               <div id="scheduleChecklistPreview" class="checklist-preview"></div>
+            </article>
+            <article class="schedule-preview-card admin-only">
+              <h3>Annual Coverage</h3>
+              <div id="annualCoverageSummary" class="annual-coverage-summary"></div>
             </article>
             <article class="schedule-preview-card">
               <h3>Saved Jobs</h3>
@@ -660,6 +799,7 @@
             </div>
             <span id="techContractBadge" class="job-status-badge">No contract loaded</span>
           </div>
+          <div id="techFrontDeskStats" class="tech-frontdesk-stats"></div>
           <div id="techActiveJobSummary" class="tech-active-job"></div>
           <div class="job-actions tech-unlock-actions">
             <button id="clearActiveJobBtn" type="button" class="secondary danger hidden">Unlock Start / Reset Active Job</button>
@@ -687,13 +827,16 @@
                 <button id="originalMimicBtn" type="button" class="secondary active">Original</button>
                 <button id="cleanMimicBtn" type="button" class="secondary">Clean</button>
               </div>
+              <button id="techSuggestMissingBtn" type="button" class="secondary technician-only">+ Missing Device / Suggest Pin</button>
               <button id="techBackToInspectionBtn" type="button" class="secondary technician-only">Back to Inspection</button>
               <div class="legend">
                 <span><i class="dot pending"></i> Pending</span>
                 <span><i class="dot pass"></i> Pass</span>
                 <span><i class="dot fail"></i> Fail</span>
+                <span><i class="dot locked"></i> Locked</span>
               </div>
             </div>
+            <div id="techSystemStagePanel" class="tech-system-stage-panel technician-only hidden"></div>
             <div class="page-tabs hidden" id="libraryPageTabs"></div>
             <div class="tag-palette admin-only" id="tagPalette">
               <div>
@@ -786,15 +929,25 @@
 
               <div class="question-list" id="questionList"></div>
 
-              <div class="photo-row fault-evidence-row">
+              <div class="photo-row fault-evidence-row inspection-photo-row">
+                <div class="photo-evidence-header">
+                  <div>
+                    <strong>Photo Evidence</strong>
+                    <span>Optional for PASS, required for FAULT.</span>
+                  </div>
+                  <button id="viewInspectionPhotoBtn" type="button" class="secondary">View Photo</button>
+                </div>
                 <label>
-                  Before Photo
+                  Take / Add Before Photo
                   <input id="beforePhoto" type="file" accept="image/*">
+                  <span id="beforePhotoSavedName" class="photo-evidence-name">No saved before photo</span>
                 </label>
                 <label>
-                  After Photo
+                  Take / Add After Photo
                   <input id="afterPhoto" type="file" accept="image/*">
+                  <span id="afterPhotoSavedName" class="photo-evidence-name">No saved after photo</span>
                 </label>
+                <p id="photoEvidenceStatus" class="photo-evidence-status">No photo evidence yet.</p>
               </div>
 
               <label class="inspection-notes-field">
@@ -1048,10 +1201,11 @@
           <div class="section-header">
             <div>
               <p class="eyebrow">Admin Review</p>
-              <h2>Missing Device Requests</h2>
+              <h2>Requests & Report Review</h2>
             </div>
             <button id="clearRequestsBtn" type="button" class="secondary">Clear Demo Requests</button>
           </div>
+          <div id="reportReviewList" class="request-list report-review-list"></div>
           <div id="requestList" class="request-list"></div>
         </section>
       </section>

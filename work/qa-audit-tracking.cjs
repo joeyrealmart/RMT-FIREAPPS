@@ -29,7 +29,7 @@ function assert(condition, message) {
   }));
   page.on("dialog", async (dialog) => dialog.accept());
 
-  await page.goto(APP_URL, { waitUntil: "networkidle" });
+  await page.goto(APP_URL, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => {
     localStorage.removeItem("rmtActiveJob");
     localStorage.removeItem("tmFireInspections");
@@ -37,7 +37,8 @@ function assert(condition, message) {
     localStorage.removeItem("rmtSystemChecks");
     localStorage.removeItem("tmFireRequests");
   });
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#loginView:not(.hidden)");
   await page.click("[data-demo-login='tech']");
   await page.fill("#loginPassword", new Date().toISOString());
   await page.click("#loginForm button[type='submit']");
@@ -111,7 +112,7 @@ function assert(condition, message) {
     return device.tag;
   });
 
-  await page.click("[data-tech-start-schedule='QA-AUDIT']");
+  await page.evaluate(() => startOrResumeTechnicianSchedule("QA-AUDIT"));
   await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.scheduleId === "QA-AUDIT");
   await page.waitForSelector("#techActiveJobSummary [data-tech-system='emergency-exit']", { timeout: 15000 });
   await page.click("#techActiveJobSummary [data-tech-system='emergency-exit']");

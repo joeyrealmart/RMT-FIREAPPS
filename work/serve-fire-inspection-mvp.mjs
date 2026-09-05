@@ -34,6 +34,8 @@ mkdirSync(join(dataRoot, "device-master"), { recursive: true });
 mkdirSync(join(dataRoot, "inspection-runs"), { recursive: true });
 mkdirSync(join(dataRoot, "schedules"), { recursive: true });
 mkdirSync(join(dataRoot, "schedules", "photo-proof"), { recursive: true });
+mkdirSync(join(dataRoot, "requests"), { recursive: true });
+mkdirSync(join(dataRoot, "requests", "photo-proof"), { recursive: true });
 mkdirSync(join(dataRoot, "shared-records", "jobs"), { recursive: true });
 mkdirSync(reportRoot, { recursive: true });
 
@@ -150,7 +152,8 @@ function createEmptySharedJobStore(scheduleId) {
     criticalSopRecords: {},
     systemCheckRecords: {},
     itemClaims: {},
-    signOff: null
+    signOff: null,
+    reportSubmission: null
   };
 }
 
@@ -172,8 +175,103 @@ function readSharedJobStore(scheduleId) {
   store.criticalSopRecords = store.criticalSopRecords || {};
   store.systemCheckRecords = store.systemCheckRecords || {};
   store.itemClaims = store.itemClaims || {};
+  store.reportSubmission = store.reportSubmission || null;
   store.migration = store.migration || { migratedFromJobProgress: false, migratedAt: "" };
   return store;
+}
+
+function getMissingRequestStorePath() {
+  return join(dataRoot, "requests", "missing-device-requests.json");
+}
+
+function readMissingDeviceRequests() {
+  const payload = readJsonFile(getMissingRequestStorePath(), { requests: [] });
+  return Array.isArray(payload.requests) ? payload.requests : [];
+}
+
+function writeMissingDeviceRequests(requests = []) {
+  atomicWriteJson(getMissingRequestStorePath(), {
+    schemaVersion: "missing-device-requests-v1",
+    savedAt: new Date().toISOString(),
+    requests
+  });
+}
+
+function writeMissingRequestPhoto(requestId, photo = {}, index = 0) {
+  const image = dataUrlToFile(photo?.dataUrl, "jpg");
+  const clean = { ...(photo || {}) };
+  delete clean.dataUrl;
+  if (!image) return clean;
+  const safeRequest = slugify(requestId || "missing-request");
+  const photoDir = join(dataRoot, "requests", "photo-proof", safeRequest);
+  mkdirSync(photoDir, { recursive: true });
+  const photoName = `${String(index + 1).padStart(2, "0")}-${slugify(photo.name || "missing-device-proof")}.${image.ext}`;
+  const photoPath = join(photoDir, photoName);
+  writeFileSync(photoPath, image.bytes);
+  return {
+    ...clean,
+    photoPath,
+    photoUrl: `/local-data/requests/photo-proof/${safeRequest}/${photoName}`,
+    savedToPc: true
+  };
+}
+
+function saveMissingDeviceRequestRecord(incoming = {}, expectedRevision = null) {
+  const now = new Date().toISOString();
+  const requests = readMissingDeviceRequests();
+  const id = incoming.id || incoming.requestId || `REQ-${Date.now()}`;
+  const index = requests.findIndex((request) => request.id === id);
+  const current = index >= 0 ? requests[index] : null;
+  const currentRevision = Number(current?.revision || 0);
+  const requestedRevision = Number(expectedRevision ?? incoming.expectedRevision ?? currentRevision);
+  if (current && requestedRevision !== currentRevision) {
+    return {
+      ok: false,
+      conflict: true,
+      expectedRevision: requestedRevision,
+      currentRevision,
+      current
+    };
+  }
+
+  const rawPhotoEvidence = Array.isArray(incoming.photoEvidence) ? incoming.photoEvidence : [];
+  const savedPhotoEvidence = rawPhotoEvidence
+    .map((photo, photoIndex) => writeMissingRequestPhoto(id, photo, photoIndex))
+    .filter(Boolean);
+  const retainedPhotoEvidence = savedPhotoEvidence.length
+    ? savedPhotoEvidence
+    : Array.isArray(current?.photoEvidence)
+      ? current.photoEvidence
+      : [];
+  const saved = {
+    ...(current || {}),
+    ...incoming,
+    id,
+    requestId: id,
+    schemaVersion: "missing-device-request-v1",
+    status: incoming.status || current?.status || "PENDING_ADMIN_REVIEW",
+    photo: incoming.photo || savedPhotoEvidence[0]?.name || current?.photo || "",
+    photoEvidence: retainedPhotoEvidence,
+    revision: currentRevision + 1,
+    createdAt: current?.createdAt || incoming.createdAt || incoming.requestedAt || now,
+    updatedAt: now,
+    serverReceivedAt: now
+  };
+  delete saved.expectedRevision;
+  if (saved.photoEvidence) {
+    saved.photoEvidence = saved.photoEvidence.map((photo) => {
+      const clean = { ...photo };
+      delete clean.dataUrl;
+      return clean;
+    });
+  }
+  if (index >= 0) {
+    requests[index] = saved;
+  } else {
+    requests.unshift(saved);
+  }
+  writeMissingDeviceRequests(requests);
+  return { ok: true, request: saved, count: requests.length };
 }
 
 function writeSharedJobStore(store) {
@@ -830,10 +928,110 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, 200, { ok: true, scheduleId, signOff: store.signOff, progress });
         return;
       }
+
+      if (req.method === "POST" && action === "report-submission") {
+        const payload = await readRequestJson(req);
+        const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
+        const progress = calculateSharedProgress(store, payload.schedule || null);
+        const incoming = payload.submission || payload;
+        const requestedStatus = incoming.status || "AWAITING_ADMIN_REVIEW";
+        const reviewStatuses = new Set(["RETURNED_FOR_CORRECTION", "APPROVED_BY_ADMIN"]);
+        const isReviewAction = reviewStatuses.has(requestedStatus);
+        if (!isReviewAction && !progress.ready) {
+          sendJson(res, 409, {
+            ok: false,
+            blocked: true,
+            reason: "Shared job progress is incomplete. Report submission rejected by server.",
+            progress
+          });
+          return;
+        }
+        if (!isReviewAction && !store.signOff?.signatureData && !store.signOff?.supervisorSignatureData) {
+          sendJson(res, 409, {
+            ok: false,
+            blocked: true,
+            reason: "Client/supervisor acknowledgement is missing. Report submission rejected by server.",
+            progress
+          });
+          return;
+        }
+        if (requestedStatus === "APPROVED_BY_ADMIN" && !store.reportSubmission) {
+          sendJson(res, 409, {
+            ok: false,
+            blocked: true,
+            reason: "No technician submission is available for admin approval.",
+            progress
+          });
+          return;
+        }
+        const currentRevision = Number(store.reportSubmission?.revision || 0);
+        const expectedRevision = Number(payload.expectedRevision ?? incoming.expectedRevision ?? currentRevision);
+        if (expectedRevision !== currentRevision) {
+          sendJson(res, 409, {
+            ok: false,
+            conflict: true,
+            type: "report-submission",
+            expectedRevision,
+            currentRevision,
+            current: store.reportSubmission
+          });
+          return;
+        }
+        const now = new Date().toISOString();
+        store.reportSubmission = {
+          ...(store.reportSubmission || {}),
+          ...incoming,
+          recordId: `report-submission::${scheduleId}`,
+          scheduleId,
+          status: requestedStatus,
+          revision: currentRevision + 1,
+          progress,
+          signOffRevision: Number(store.signOff?.revision || 0),
+          submittedAt: incoming.submittedAt || store.reportSubmission?.submittedAt || now,
+          updatedAt: now,
+          serverReceivedAt: now
+        };
+        store.status = requestedStatus;
+        if (requestedStatus === "RETURNED_FOR_CORRECTION") {
+          store.returnedForCorrectionAt = now;
+          store.returnedForCorrectionBy = incoming.reviewedBy || incoming.adminName || "";
+        }
+        if (requestedStatus === "APPROVED_BY_ADMIN") {
+          store.approvedAt = now;
+          store.approvedBy = incoming.reviewedBy || incoming.adminName || "";
+        }
+        writeSharedJobStore(store);
+        sendJson(res, 200, { ok: true, scheduleId, submission: store.reportSubmission, progress });
+        return;
+      }
     } catch (error) {
       sendJson(res, 500, { ok: false, error: error.message });
       return;
     }
+  }
+
+  if (req.method === "GET" && urlPath === "/api/missing-device-requests") {
+    try {
+      sendJson(res, 200, { ok: true, requests: readMissingDeviceRequests() });
+    } catch (error) {
+      sendJson(res, 500, { ok: false, error: error.message, requests: [] });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && urlPath === "/api/missing-device-requests") {
+    try {
+      const payload = await readRequestJson(req);
+      const result = saveMissingDeviceRequestRecord(payload.request || payload, payload.expectedRevision);
+      if (!result.ok && result.conflict) {
+        sendJson(res, 409, result);
+        return;
+      }
+      sendJson(res, 200, result);
+    } catch (error) {
+      sendJson(res, 500, { ok: false, error: error.message });
+    }
+    return;
   }
 
   if (req.method === "POST" && urlPath === "/api/save-mimic-floor") {

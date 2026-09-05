@@ -1,6 +1,6 @@
 # RMT FIREAPPS - Bug Tracker
 
-Last updated: 2026-08-30
+Last updated: 2026-09-05
 
 Priority order: data loss/crashes -> broken workflow -> incorrect data -> usability -> cosmetic.
 
@@ -34,3 +34,4 @@ Priority order: data loss/crashes -> broken workflow -> incorrect data -> usabil
 | BUG-026 | Medium | Shared-record data safety | Save one device/checklist while another phone has a stale copy of the same job. | One device save must not replace the complete job state or corrupt JSON if interrupted. | Server now writes per-job shared-record JSON atomically and rejects stale per-record revisions. `schedule.jobProgress` remains legacy read-only fallback. | Guarded | `work/qa-shared-records.cjs`, `work/qa-audit-tracking.cjs` passed 2026-08-30 |
 | BUG-027 | Medium | Android layout width | Open technician view on Pixel-size viewport. | No horizontal scrolling on phone. | Mobile topbar actions and technician nav stay inside the phone viewport; diagnostics and assigned pin flow still pass. | Fixed / physical phone retest | `work/qa-android-mobile-web.cjs` passed 2026-08-30 with 393px scrollWidth on 393px viewport |
 | BUG-028 | Medium | Manual two-phone validation | Run local server and connect two Android phones on same Wi-Fi. | User can see server connection, LAN URL, active job ID, current technician, shared revision/sync state, and unsynced draft count without exposing secrets. | Diagnostics panel and `/api/diagnostics` endpoint added for local prototype testing. Needs physical two-phone validation. | Guarded / manual retest | `/api/diagnostics`; `work/qa-android-mobile-web.cjs` passed 2026-08-30 |
+| BUG-029 | High | Customer report / suggested pins | Generate a report while shared missing-device requests from other jobs/sites are loaded. | Report includes only suggestions belonging to the active schedule/site. | `showReport()` currently appends all loaded `state.requests`, so unrelated suggestions may appear in the wrong customer report. Device-scope rows remain correctly limited to the active frozen schedule. | Open | Fix during report generator/Admin review module; add cross-client isolation QA |

@@ -31,7 +31,7 @@ function assert(condition, message) {
     await dialog.accept();
   });
 
-  await page.goto(APP_URL, { waitUntil: "networkidle" });
+  await page.goto(APP_URL, { waitUntil: "domcontentloaded" });
   await page.evaluate(() => {
     localStorage.removeItem("rmtActiveJob");
     localStorage.removeItem("tmFireInspections");
@@ -39,7 +39,8 @@ function assert(condition, message) {
     localStorage.removeItem("rmtSystemChecks");
     localStorage.removeItem("tmFireRequests");
   });
-  await page.reload({ waitUntil: "networkidle" });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForSelector("#loginView:not(.hidden)");
   await page.click("[data-demo-login='tech']");
   await page.fill("#loginPassword", new Date().toISOString());
   await page.click("#loginForm button[type='submit']");

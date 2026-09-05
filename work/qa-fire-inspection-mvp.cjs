@@ -2,6 +2,7 @@ const { existsSync } = require("node:fs");
 const { chromium } = require("C:/Users/Joey/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright");
 
 const APP_URL = "http://127.0.0.1:8026/";
+const QA_RUN_ID = Date.now();
 const EDGE_PATHS = [
   "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
   "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
@@ -175,6 +176,10 @@ async function login(page, role = "admin") {
   await page.fill("#loginPassword", new Date().toISOString());
   await page.click("#loginForm button[type=\"submit\"]");
   await page.waitForSelector("#workspace:not(.hidden)");
+  if (role === "admin") {
+    await page.click("#adminMainNav [data-admin-module='schedule']");
+    await page.waitForSelector("#schedulePanel", { state: "visible" });
+  }
 }
 
 async function startTechSchedule(page, scheduleId = "") {
@@ -226,7 +231,7 @@ async function saveScheduleWithScope(page, scope, floorId = "") {
 
 function makeLegacyOneFloorSchedule() {
   return {
-    scheduleId: "OLD-FLOOR-ONLY",
+    scheduleId: `OLD-FLOOR-ONLY-${QA_RUN_ID}`,
     status: "Scheduled",
     companyName: "WETEX",
     siteName: "WETEX",
@@ -256,7 +261,7 @@ function makeLegacyOneFloorSchedule() {
 function makeGeneralMaintenanceSchedule() {
   const now = new Date().toISOString();
   return {
-    scheduleId: "GENERAL-MAINT-QA",
+    scheduleId: `GENERAL-MAINT-QA-${QA_RUN_ID}`,
     status: "Scheduled",
     companyName: "WETEX",
     siteName: "WETEX",
@@ -290,7 +295,7 @@ function makeGeneralMaintenanceSchedule() {
 function makeStaleWetexSchedule() {
   const now = new Date().toISOString();
   return {
-    scheduleId: "STALE-WETEX-QA",
+    scheduleId: `STALE-WETEX-QA-${QA_RUN_ID}`,
     status: "Scheduled",
     companyName: "WETEX",
     siteName: "WETEX",
@@ -325,7 +330,7 @@ function makeStaleWetexSchedule() {
 function makeAssignedExtinguisherSchedule() {
   const now = new Date().toISOString();
   return {
-    scheduleId: "EXT-ASSIGNED-QA",
+    scheduleId: `EXT-ASSIGNED-QA-${QA_RUN_ID}`,
     status: "Scheduled",
     companyName: "On Call QA Customer",
     siteName: "Guard House",
@@ -411,35 +416,103 @@ async function runTest(name, callback) {
       const profile = { companyName: "WETEX", siteName: "WETEX" };
       const scopeInfo = getScheduleScopeInfo("full-maintenance");
       const pool = getDevicesForScheduleSite(profile);
-      const monthPicks = [];
-      for (let month = 0; month < 10; month += 1) {
-        const selected = getScheduleDevicesForScope(pool, scopeInfo, {
+      const dates = Array.from({ length: 12 }, (_, index) => `2026-${String(index + 1).padStart(2, "0")}-11`);
+      const createCycleSchedule = (visit, date) => {
+        const scheduleId = `QA-MONTHLY-${visit}`;
+        const annualCycleId = getContractCycleIdForDate(date);
+        const rotationHistoryKey = getScopeHistoryKey(10, profile, "site-wide", annualCycleId);
+        const selection = getMaintenanceScopeSelection(pool, {
           profile,
           floorId: "site-wide",
           frequencyPercent: 10,
-          commitHistory: true
-        }).filter((device) => isPassiveScopeDevice(device));
-        monthPicks.push(selected.map((device) => device.id));
+          annualCycleId,
+          rotationHistoryKey,
+          date,
+          scheduleId,
+          commitHistory: false
+        });
+        const schedule = {
+          scheduleId,
+          status: "Scheduled",
+          companyName: profile.companyName,
+          siteName: profile.siteName,
+          floorId: "wetex-floor-01",
+          startFloorId: "wetex-floor-01",
+          date,
+          scope: "full-maintenance",
+          scopeSelectionMode: "site-wide",
+          contractFrequencyPercent: 10,
+          annualCycleId,
+          contractCycleId: annualCycleId,
+          rotationHistoryKey,
+          scopeFrozen: true,
+          plannedDeviceIds: selection.devices.map((device) => device.id),
+          sampledDeviceIds: selection.sampledPassiveDevices.map((device) => device.id),
+          mandatoryRecheckDeviceIds: selection.mandatoryRecheckDevices.map((device) => device.id),
+          criticalDeviceIds: selection.criticalDevices.map((device) => device.id),
+          passiveTargetCount: selection.passiveTarget,
+          createdAt: `${date}T09:00:00.000Z`,
+          updatedAt: `${date}T09:00:00.000Z`
+        };
+        state.schedules = [schedule, ...state.schedules.filter((item) => item.scheduleId !== scheduleId)];
+        reserveScheduleScope(schedule);
+        state.activeJob = {
+          jobId: `JOB-${scheduleId}`,
+          scheduleId,
+          schedule,
+          status: "Completed",
+          checkedOutAt: `${date}T12:00:00.000Z`
+        };
+        schedule.sampledDeviceIds.forEach((deviceId, index) => {
+          state.inspections[deviceId] = {
+            status: "pass",
+            answers: ["Pass"],
+            notes: `QA completed ${deviceId}`,
+            inspectedAt: `${date}T10:${String(index).padStart(2, "0")}:00.000Z`,
+            inspectedBy: "QA Technician",
+            inspectedRole: "Technician"
+          };
+        });
+        schedule.mandatoryRecheckDeviceIds.forEach((deviceId, index) => {
+          state.inspections[deviceId] = {
+            status: "fail",
+            answers: ["Fail"],
+            notes: `QA unresolved recheck ${deviceId}`,
+            action: "Quotation required",
+            inspectedAt: `${date}T11:${String(index).padStart(2, "0")}:00.000Z`,
+            inspectedBy: "QA Technician",
+            inspectedRole: "Technician"
+          };
+        });
+        schedule.status = "Completed";
+        completeScopeCycleSchedule(schedule);
+        state.activeJob = null;
+        return schedule;
+      };
+      const monthPicks = [];
+      for (let month = 0; month < 10; month += 1) {
+        const schedule = createCycleSchedule(month + 1, dates[month]);
+        monthPicks.push(schedule.sampledDeviceIds);
       }
       const flat = monthPicks.flat();
       const flagged = monthPicks[0][0];
       window.eval(`state.inspections[${JSON.stringify(flagged)}] = { status: "Fail", notes: "Faulty during earlier visit" };`);
-      const overrun = getScheduleDevicesForScope(pool, scopeInfo, {
-        profile,
-        floorId: "site-wide",
-        frequencyPercent: 10,
-        commitHistory: true
-      }).filter((device) => isPassiveScopeDevice(device)).map((device) => device.id);
+      const recheck = createCycleSchedule(11, dates[10]);
+      const overrun = recheck.plannedDeviceIds.filter((id) => !recheck.criticalDeviceIds.includes(id));
       return {
         totalPicked: flat.length,
         uniquePicked: new Set(flat).size,
         flagged,
-        overrun
+        overrun,
+        recheckSampledCount: recheck.sampledDeviceIds.length,
+        recheckMandatoryCount: recheck.mandatoryRecheckDeviceIds.length
       };
     });
     assert(result.totalPicked === 100, `Expected 100 passive picks over 10 monthly visits, got ${result.totalPicked}.`);
     assert(result.uniquePicked === 100, `Expected no repeated passive devices before full cycle, got ${result.uniquePicked} unique.`);
     assert(result.overrun.includes(result.flagged), "Post-cycle 20% overlap did not prioritize earlier faulty item.");
+    assert(result.recheckSampledCount === 10, "Mandatory recheck reduced the normal 10% sampled allocation.");
+    assert(result.recheckMandatoryCount === 1, `Expected one mandatory unresolved-fault recheck, got ${result.recheckMandatoryCount}.`);
     assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);
     await context.close();
   });
@@ -468,14 +541,15 @@ async function runTest(name, callback) {
     await context.close();
   });
 
-  await runTest("Selected-floor fire alarm scope stays on chosen floor", async () => {
+  await runTest("Maintenance fire alarm scope rotates across the configured site", async () => {
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10 });
     await login(page, "admin");
     const schedule = await saveScheduleWithScope(page, "fire-alarm", "wetex-floor-05");
-    assert(schedule.scopeSelectionMode === "selected-floor", "Fire alarm floor scope should not become site-wide.");
-    assert(schedule.floorId === "wetex-floor-05", "Fire alarm schedule did not keep selected floor.");
-    assert(schedule.deviceCount === 10, `Expected 10 fire alarm devices on Floor 05, got ${schedule.deviceCount}.`);
-    assert(schedule.plannedDeviceIds.every((id) => id.startsWith("W5.")), "Fire alarm selected-floor scope included devices from other floors.");
+    assert(schedule.scopeSelectionMode === "site-wide", "Maintenance Fire Alarm scope should use the site-wide annual rotation.");
+    assert(schedule.startFloorId === "wetex-floor-05", "Fire alarm schedule did not keep the selected starting floor.");
+    assert(schedule.passiveCount === 10, `Expected 10 sampled fire alarm field devices, got ${schedule.passiveCount}.`);
+    assert(schedule.criticalDeviceIds.includes("W1.MFAP.1"), "Fire alarm scope did not include the critical MFAP prerequisite.");
+    assert(schedule.plannedDeviceIds.length === 11, `Expected 10 sampled devices plus MFAP, got ${schedule.plannedDeviceIds.length}.`);
     assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);
     await context.close();
   });
@@ -488,25 +562,30 @@ async function runTest(name, callback) {
     await page.locator(".calendar-chip-delete").first().click();
     await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtSchedules") || "[]").length === 0);
     assert(await page.locator(".calendar-schedule-chip[data-schedule-drag-id]").count() === 0, "Calendar chip still visible after delete.");
-    const reservedCount = await page.evaluate(() => {
+    const cycleCounts = await page.evaluate(() => {
       const cycles = JSON.parse(localStorage.getItem("rmtScopeCycle") || "{}");
-      return Object.values(cycles).reduce((sum, cycle) => sum + (cycle.coveredIds?.length || 0), 0);
+      return Object.values(cycles).reduce((counts, cycle) => {
+        counts.reserved += cycle.reservedIds?.length || 0;
+        counts.covered += cycle.coveredIds?.length || 0;
+        return counts;
+      }, { reserved: 0, covered: 0 });
     });
-    assert(reservedCount === 0, `Deleted schedule still reserved ${reservedCount} cycle devices.`);
+    assert(cycleCounts.reserved === 0, `Deleted schedule still reserved ${cycleCounts.reserved} cycle devices.`);
+    assert(cycleCounts.covered === 0, `Deleted future schedule should not create historical coverage, got ${cycleCounts.covered}.`);
     assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);
     await context.close();
   });
 
-  await runTest("Legacy one-floor maintenance schedule upgrades to site-wide when started", async () => {
+  await runTest("Legacy valid planned scope is frozen when started", async () => {
     const legacySchedule = makeLegacyOneFloorSchedule();
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10, schedules: [legacySchedule] });
     await login(page, "tech");
     await page.click("[data-tech-start-schedule]");
     await page.waitForFunction(() => JSON.parse(localStorage.getItem("rmtActiveJob") || "{}").schedule?.scopeSelectionMode === "site-wide");
     const activeJob = await page.evaluate(() => JSON.parse(localStorage.getItem("rmtActiveJob")));
-    assert(activeJob.schedule.plannedDeviceIds.length === 12, `Legacy schedule should upgrade to 12 site-wide points, got ${activeJob.schedule.plannedDeviceIds.length}.`);
-    assert(activeJob.schedule.activeCount === 2, "Legacy schedule upgrade did not include active systems.");
-    assert(activeJob.schedule.plannedFloorCounts.length === 10, "Legacy schedule upgrade did not spread across floors.");
+    assert(activeJob.schedule.plannedDeviceIds.length === 1, `Legacy valid planned scope should remain frozen, got ${activeJob.schedule.plannedDeviceIds.length} points.`);
+    assert(activeJob.schedule.plannedDeviceIds[0] === "W1.SD.1", "Legacy planned device ID changed during metadata migration.");
+    assert(activeJob.schedule.scopeFrozen === true, "Legacy valid planned scope was not marked frozen.");
     assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);
     await context.close();
   });
@@ -515,7 +594,7 @@ async function runTest(name, callback) {
     const generalMaintenance = makeGeneralMaintenanceSchedule();
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10, schedules: [generalMaintenance] });
     await login(page, "tech");
-    await showTechMimicFloor(page, "wetex-floor-05", "GENERAL-MAINT-QA");
+    await showTechMimicFloor(page, "wetex-floor-05", generalMaintenance.scheduleId);
     const activeSchedule = await page.evaluate(() => state.schedules[0]);
     const allMarkers = await page.locator(".marker.setup-marker").count();
     const assignedMarkers = await page.locator(".marker.setup-marker.assigned-scope").count();
@@ -526,18 +605,18 @@ async function runTest(name, callback) {
     await context.close();
   });
 
-  await runTest("Stale WETEX planned IDs rebuild and show assigned mimic pins", async () => {
+  await runTest("Frozen unmatched planned IDs are not silently regenerated", async () => {
     const staleSchedule = makeStaleWetexSchedule();
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10, schedules: [staleSchedule] });
     await login(page, "tech");
-    await showTechMimicFloor(page, "wetex-floor-05", "STALE-WETEX-QA");
+    await showTechMimicFloor(page, "wetex-floor-05", staleSchedule.scheduleId);
     const activeSchedule = await page.evaluate(() => state.schedules[0]);
     const allMarkers = await page.locator(".marker.setup-marker").count();
     const assignedMarkers = await page.locator(".marker.setup-marker.assigned-scope").count();
-    assert(activeSchedule.scopeSelectionMode === "site-wide", "Stale schedule did not stay site-wide after rebuild.");
-    assert(activeSchedule.plannedDeviceIds.length === 12, `Expected stale WETEX schedule to rebuild to 12 planned devices, got ${activeSchedule.plannedDeviceIds.length}.`);
-    assert(!activeSchedule.plannedDeviceIds.includes("LV1-HR-1"), "Stale legacy demo ID was kept in WETEX planned devices.");
-    assert(allMarkers === 1 && assignedMarkers === 1, `Expected rebuilt assigned WETEX pin on Floor 05, got ${assignedMarkers}/${allMarkers}.`);
+    assert(activeSchedule.scopeSelectionMode === "site-wide", "Schedule metadata did not retain site-wide scope.");
+    assert(activeSchedule.plannedDeviceIds.length === 1, `Frozen planned scope was silently regenerated to ${activeSchedule.plannedDeviceIds.length} devices.`);
+    assert(activeSchedule.plannedDeviceIds.includes("LV1-HR-1"), "Frozen planned device ID changed during resume.");
+    assert(allMarkers === 0 && assignedMarkers === 0, `Unmatched frozen ID should not render an unrelated Floor 05 pin, got ${assignedMarkers}/${allMarkers}.`);
     assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);
     await context.close();
   });
@@ -724,13 +803,31 @@ async function runTest(name, callback) {
   await runTest("Customer report uses full active schedule scope", async () => {
     const { context, page, browserErrors } = await createPage(browser, { frequency: 10 });
     await login(page, "admin");
-    await saveMaintenanceSchedule(page);
-    await page.click(".start-schedule-btn");
+    const schedule = await saveMaintenanceSchedule(page);
+    await page.evaluate((scheduleId) => {
+      const activeSchedule = state.schedules.find((item) => item.scheduleId === scheduleId);
+      state.activeJob = {
+        jobId: `QA-REPORT-${scheduleId}`,
+        scheduleId,
+        status: "In Progress",
+        companyName: activeSchedule.companyName,
+        siteName: activeSchedule.siteName,
+        schedule: activeSchedule
+      };
+      invalidateRuntimeCaches();
+    }, schedule.scheduleId);
+    await page.click("#adminMainNav [data-admin-module='reports']");
+    await page.waitForSelector("#showReportBtn", { state: "visible" });
     await page.click("#showReportBtn");
     await page.waitForSelector("#reportView:not(.hidden)");
-    const reportRows = await page.locator("#reportRows tr").count();
+    const reportData = await page.evaluate(() => ({
+      plannedIds: state.activeJob?.schedule?.plannedDeviceIds || [],
+      reportIds: [...document.querySelectorAll("#reportRows tr")]
+        .filter((row) => row.children[3]?.textContent.trim() !== "REQUEST")
+        .map((row) => row.children[0]?.textContent.trim() || "")
+    }));
     const reportStatus = await page.locator("#reportStatus").innerText();
-    assert(reportRows === 12, `Report should show 12 scheduled devices, got ${reportRows}.`);
+    assert(reportData.reportIds.length === reportData.plannedIds.length, `Report scope mismatch. Planned ${JSON.stringify(reportData.plannedIds)}, rendered ${JSON.stringify(reportData.reportIds)}.`);
     assert(reportStatus === "In Progress", `Expected in-progress report before checks, got ${reportStatus}.`);
     assert(!browserErrors.length, `Browser errors: ${browserErrors.join(" | ")}`);
     await context.close();
