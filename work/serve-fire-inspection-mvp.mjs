@@ -37,6 +37,7 @@ mkdirSync(join(dataRoot, "schedules", "photo-proof"), { recursive: true });
 mkdirSync(join(dataRoot, "requests"), { recursive: true });
 mkdirSync(join(dataRoot, "requests", "photo-proof"), { recursive: true });
 mkdirSync(join(dataRoot, "shared-records", "jobs"), { recursive: true });
+mkdirSync(join(dataRoot, "shared-records", "linked-verification-evidence"), { recursive: true });
 mkdirSync(reportRoot, { recursive: true });
 
 function sendJson(res, status, payload) {
@@ -152,6 +153,10 @@ function createEmptySharedJobStore(scheduleId) {
     criticalSopRecords: {},
     systemCheckRecords: {},
     itemClaims: {},
+    linkedVerificationDefinitions: {},
+    linkedVerificationSideRecords: {},
+    linkedVerificationConflicts: {},
+    linkedVerificationAudit: [],
     signOff: null,
     reportSubmission: null
   };
@@ -175,6 +180,10 @@ function readSharedJobStore(scheduleId) {
   store.criticalSopRecords = store.criticalSopRecords || {};
   store.systemCheckRecords = store.systemCheckRecords || {};
   store.itemClaims = store.itemClaims || {};
+  store.linkedVerificationDefinitions = store.linkedVerificationDefinitions || {};
+  store.linkedVerificationSideRecords = store.linkedVerificationSideRecords || {};
+  store.linkedVerificationConflicts = store.linkedVerificationConflicts || {};
+  store.linkedVerificationAudit = Array.isArray(store.linkedVerificationAudit) ? store.linkedVerificationAudit : [];
   store.reportSubmission = store.reportSubmission || null;
   store.migration = store.migration || { migratedFromJobProgress: false, migratedAt: "" };
   return store;
@@ -279,6 +288,240 @@ function writeSharedJobStore(store) {
   atomicWriteJson(getSharedJobPath(store.scheduleId), store);
 }
 
+function getLinkedVerificationSideRecordId(scheduleId, linkedVerificationId, sideId) {
+  return `linked-side::${scheduleId}::${linkedVerificationId}::${sideId}`;
+}
+
+function normalizeLinkedVerificationSide(side = {}) {
+  const sideId = String(side.sideId || side.id || "").trim();
+  return {
+    ...side,
+    sideId,
+    sideName: String(side.sideName || side.name || sideId).trim(),
+    location: String(side.location || side.sideName || side.name || sideId).trim(),
+    assignedTechnicianId: String(side.assignedTechnicianId || side.technicianId || "").trim(),
+    assignedTechnicianName: String(side.assignedTechnicianName || side.technicianName || "").trim(),
+    evidenceRequired: Boolean(side.evidenceRequired)
+  };
+}
+
+function normalizeLinkedVerificationDefinition(scheduleId, definition = {}, schedule = null) {
+  const linkedVerificationId = String(definition.linkedVerificationId || definition.id || "").trim();
+  const requiredSides = (Array.isArray(definition.requiredSides) ? definition.requiredSides : [])
+    .map(normalizeLinkedVerificationSide)
+    .filter((side) => side.sideId);
+  return {
+    ...definition,
+    linkedVerificationId,
+    scheduleId,
+    jobId: definition.jobId || schedule?.jobId || `JOB-${scheduleId}`,
+    clientId: definition.clientId || schedule?.clientId || schedule?.companyName || "",
+    siteId: definition.siteId || schedule?.siteId || schedule?.siteName || "",
+    companyName: definition.companyName || schedule?.companyName || "",
+    siteName: definition.siteName || schedule?.siteName || "",
+    systemId: String(definition.systemId || definition.system || "").trim(),
+    verificationType: String(definition.verificationType || "GENERIC_LINKED_VERIFICATION").trim(),
+    title: String(definition.title || "Linked Verification").trim(),
+    requiredSides,
+    requiredSideIds: requiredSides.map((side) => side.sideId),
+    definitionVersion: String(definition.definitionVersion || definition.version || "1"),
+    reconciliationMode: definition.reconciliationMode === "ADMIN_REVIEW" ? "ADMIN_REVIEW" : "MATCHING_RESULTS",
+    evidenceRequired: Boolean(definition.evidenceRequired)
+  };
+}
+
+function ensureLinkedVerificationDefinitions(store, schedule = null) {
+  const configured = Array.isArray(schedule?.linkedVerifications)
+    ? schedule.linkedVerifications
+    : Array.isArray(store.scheduleSnapshot?.linkedVerifications)
+      ? store.scheduleSnapshot.linkedVerifications
+      : [];
+  configured.forEach((item) => {
+    const definition = normalizeLinkedVerificationDefinition(store.scheduleId, item, schedule || store.scheduleSnapshot);
+    if (!definition.linkedVerificationId || definition.requiredSides.length < 2) return;
+    const current = store.linkedVerificationDefinitions[definition.linkedVerificationId];
+    if (current) return;
+    store.linkedVerificationDefinitions[definition.linkedVerificationId] = {
+      ...definition,
+      createdAt: definition.createdAt || new Date().toISOString(),
+      updatedAt: definition.updatedAt || new Date().toISOString()
+    };
+  });
+  return store;
+}
+
+function getLinkedVerificationSideRecords(store, linkedVerificationId) {
+  return Object.values(store.linkedVerificationSideRecords || {})
+    .filter((record) => record.linkedVerificationId === linkedVerificationId);
+}
+
+function isLinkedVerificationSideComplete(record) {
+  return Boolean(record && String(record.status || "").toUpperCase() === "COMPLETE" && record.result);
+}
+
+function calculateLinkedVerificationStatus(store, linkedVerificationId) {
+  const definition = store.linkedVerificationDefinitions?.[linkedVerificationId];
+  if (!definition) return { status: "NOT_STARTED", definition: null, sides: [] };
+  const records = getLinkedVerificationSideRecords(store, linkedVerificationId);
+  const sideById = new Map(records.map((record) => [record.sideId, record]));
+  const sides = definition.requiredSides.map((side) => ({ ...side, record: sideById.get(side.sideId) || null }));
+  const completed = sides.filter((side) => isLinkedVerificationSideComplete(side.record));
+  const hasConflict = Boolean(store.linkedVerificationConflicts?.[linkedVerificationId]?.unresolved);
+  let status = "NOT_STARTED";
+  if (hasConflict) {
+    status = "MISMATCH_REVIEW_REQUIRED";
+  } else if (!completed.length && records.length) {
+    status = "IN_PROGRESS";
+  } else if (completed.length < sides.length) {
+    status = completed.length ? "AWAITING_COUNTERPART" : "NOT_STARTED";
+  } else {
+    const results = new Set(completed.map((side) => String(side.record.result || "").trim().toUpperCase()));
+    status = results.size > 1
+      ? "MISMATCH_REVIEW_REQUIRED"
+      : definition.reconciliationMode === "ADMIN_REVIEW"
+        ? "READY_FOR_RECONCILIATION"
+        : "VERIFIED";
+  }
+  return {
+    linkedVerificationId,
+    status,
+    definition,
+    sides,
+    completedSideCount: completed.length,
+    requiredSideCount: sides.length,
+    updatedAt: records.map((record) => record.updatedAt || "").sort().at(-1) || definition.updatedAt || ""
+  };
+}
+
+function listLinkedVerificationStates(store) {
+  return Object.keys(store.linkedVerificationDefinitions || {})
+    .map((linkedVerificationId) => calculateLinkedVerificationStatus(store, linkedVerificationId));
+}
+
+function writeLinkedVerificationEvidence(scheduleId, linkedVerificationId, sideId, evidence = [], currentEvidence = []) {
+  const incoming = Array.isArray(evidence) ? evidence : [];
+  if (!incoming.length) return Array.isArray(currentEvidence) ? currentEvidence : [];
+  const folderName = slugify(`${scheduleId}-${linkedVerificationId}-${sideId}`);
+  const evidenceDir = join(dataRoot, "shared-records", "linked-verification-evidence", folderName);
+  mkdirSync(evidenceDir, { recursive: true });
+  return incoming.map((item, index) => {
+    if (!item?.dataUrl) return item;
+    const image = dataUrlToFile(item.dataUrl, "jpg");
+    if (!image) return null;
+    const photoName = `${String(index + 1).padStart(2, "0")}-${slugify(item.name || "linked-verification")}.${image.ext}`;
+    const photoPath = join(evidenceDir, photoName);
+    writeFileSync(photoPath, image.bytes);
+    const clean = { ...item };
+    delete clean.dataUrl;
+    return {
+      ...clean,
+      photoPath,
+      photoUrl: `/local-data/shared-records/linked-verification-evidence/${folderName}/${photoName}`,
+      savedToPc: true
+    };
+  }).filter(Boolean);
+}
+
+function technicianMatchesLinkedSide(side, technicianId, technicianName) {
+  const assignedId = String(side?.assignedTechnicianId || "").trim().toLowerCase();
+  const assignedName = String(side?.assignedTechnicianName || "").trim().toLowerCase();
+  const actualId = String(technicianId || "").trim().toLowerCase();
+  const actualName = String(technicianName || "").trim().toLowerCase();
+  return Boolean((assignedId && assignedId === actualId) || (assignedName && assignedName === actualName));
+}
+
+function saveLinkedVerificationSide(store, incoming = {}, expectedRevision = 0) {
+  const linkedVerificationId = String(incoming.linkedVerificationId || "").trim();
+  const sideId = String(incoming.sideId || "").trim();
+  const definition = store.linkedVerificationDefinitions?.[linkedVerificationId];
+  const side = definition?.requiredSides?.find((item) => item.sideId === sideId);
+  if (!definition || !side) {
+    return { ok: false, invalid: true, reason: "Unknown linked verification or side." };
+  }
+  if (!technicianMatchesLinkedSide(side, incoming.technicianId, incoming.technicianName)) {
+    return { ok: false, forbidden: true, reason: "This linked-verification side is assigned to another technician." };
+  }
+  const recordId = getLinkedVerificationSideRecordId(store.scheduleId, linkedVerificationId, sideId);
+  const current = store.linkedVerificationSideRecords?.[recordId] || null;
+  const currentRevision = Number(current?.revision || 0);
+  const expected = Number(expectedRevision ?? incoming.expectedRevision ?? 0);
+  if (current && incoming.submissionId && incoming.submissionId === current.submissionId) {
+    return { ok: true, idempotent: true, record: current };
+  }
+  if (expected !== currentRevision) {
+    const now = new Date().toISOString();
+    store.linkedVerificationConflicts[linkedVerificationId] = {
+      linkedVerificationId,
+      unresolved: true,
+      status: "MISMATCH_REVIEW_REQUIRED",
+      attemptedSideId: sideId,
+      attemptedBy: incoming.technicianId || incoming.technicianName || "",
+      expectedRevision: expected,
+      currentRevision,
+      detectedAt: now
+    };
+    store.linkedVerificationAudit.push({
+      event: "SIDE_SAVE_CONFLICT",
+      linkedVerificationId,
+      sideId,
+      technicianId: incoming.technicianId || "",
+      technicianName: incoming.technicianName || "",
+      timestamp: now,
+      expectedRevision: expected,
+      currentRevision
+    });
+    return { ok: false, conflict: true, current, expectedRevision: expected, currentRevision };
+  }
+  const evidenceRefs = writeLinkedVerificationEvidence(
+    store.scheduleId,
+    linkedVerificationId,
+    sideId,
+    incoming.evidenceRefs,
+    current?.evidenceRefs
+  );
+  if ((definition.evidenceRequired || side.evidenceRequired) && !evidenceRefs.length) {
+    return { ok: false, invalid: true, reason: "Photo evidence is required for this linked-verification side." };
+  }
+  if (!incoming.result) {
+    return { ok: false, invalid: true, reason: "A result is required for this linked-verification side." };
+  }
+  const now = new Date().toISOString();
+  const record = {
+    ...(current || {}),
+    ...incoming,
+    recordId,
+    scheduleId: store.scheduleId,
+    linkedVerificationId,
+    sideId,
+    sideName: side.sideName,
+    sideLocation: side.location,
+    assignedTechnicianId: side.assignedTechnicianId,
+    assignedTechnicianName: side.assignedTechnicianName,
+    status: "COMPLETE",
+    syncStatus: "SYNCED",
+    evidenceRefs,
+    revision: currentRevision + 1,
+    createdAt: current?.createdAt || incoming.createdAt || now,
+    localCompletedAt: incoming.localCompletedAt || incoming.timestamp || now,
+    timestamp: incoming.timestamp || incoming.localCompletedAt || now,
+    updatedAt: now,
+    serverReceivedAt: now
+  };
+  delete record.expectedRevision;
+  store.linkedVerificationSideRecords[recordId] = record;
+  store.linkedVerificationAudit.push({
+    event: "SIDE_SYNCED",
+    linkedVerificationId,
+    sideId,
+    technicianId: record.technicianId || "",
+    technicianName: record.technicianName || "",
+    result: record.result,
+    timestamp: now,
+    revision: record.revision
+  });
+  return { ok: true, record };
+}
+
 function normalizeScheduleSnapshot(schedule = null) {
   if (!schedule || typeof schedule !== "object") return null;
   const { jobProgress, photoProof, ...snapshot } = schedule;
@@ -379,6 +622,7 @@ function getOrCreateSharedJobStore(scheduleId, schedule = null) {
     };
   }
   migrateLegacyProgressToSharedStore(store, schedule || findSavedSchedule(scheduleId));
+  ensureLinkedVerificationDefinitions(store, schedule || scheduleSnapshot || findSavedSchedule(scheduleId));
   return store;
 }
 
@@ -726,7 +970,8 @@ function inspectionRunToCsv(run = {}) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const urlPath = decodeURIComponent(new URL(req.url || "/", `http://127.0.0.1:${port}`).pathname);
+  const requestUrl = new URL(req.url || "/", `http://127.0.0.1:${port}`);
+  const urlPath = decodeURIComponent(requestUrl.pathname);
   const jobRoute = urlPath.match(/^\/api\/jobs\/([^/]+)\/([^/]+)$/);
 
   if (req.method === "GET" && urlPath === "/api/diagnostics") {
@@ -759,7 +1004,7 @@ const server = http.createServer(async (req, res) => {
         const store = getOrCreateSharedJobStore(scheduleId);
         writeSharedJobStore(store);
         const progress = calculateSharedProgress(store);
-        sendJson(res, 200, { ok: true, scheduleId, store, progress });
+        sendJson(res, 200, { ok: true, scheduleId, store, progress, linkedVerifications: listLinkedVerificationStates(store) });
         return;
       }
 
@@ -776,7 +1021,41 @@ const server = http.createServer(async (req, res) => {
           scheduleId,
           migrated: Boolean(store.migration?.migratedFromJobProgress),
           store,
-          progress: calculateSharedProgress(store, schedule)
+          progress: calculateSharedProgress(store, schedule),
+          linkedVerifications: listLinkedVerificationStates(store)
+        });
+        return;
+      }
+
+      if (req.method === "POST" && action === "linked-verification-sides") {
+        const payload = await readRequestJson(req);
+        const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
+        const result = saveLinkedVerificationSide(store, payload.record || payload, payload.expectedRevision);
+        if (!result.ok) {
+          if (result.conflict) {
+            writeSharedJobStore(store);
+            sendJson(res, 409, {
+              ok: false,
+              conflict: true,
+              type: "linked-verification-side",
+              scheduleId,
+              current: result.current,
+              expectedRevision: result.expectedRevision,
+              currentRevision: result.currentRevision,
+              linkedVerification: calculateLinkedVerificationStatus(store, payload.record?.linkedVerificationId || payload.linkedVerificationId)
+            });
+            return;
+          }
+          sendJson(res, result.forbidden ? 403 : 400, result);
+          return;
+        }
+        writeSharedJobStore(store);
+        sendJson(res, 200, {
+          ok: true,
+          scheduleId,
+          record: result.record,
+          idempotent: Boolean(result.idempotent),
+          linkedVerification: calculateLinkedVerificationStatus(store, result.record.linkedVerificationId)
         });
         return;
       }
@@ -1008,6 +1287,30 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 500, { ok: false, error: error.message });
       return;
     }
+  }
+
+  if (req.method === "GET" && urlPath === "/api/linked-verifications") {
+    try {
+      const jobDir = join(dataRoot, "shared-records", "jobs");
+      const requestedScheduleIds = String(requestUrl.searchParams.get("scheduleIds") || "")
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      const files = requestedScheduleIds.length
+        ? requestedScheduleIds.map((scheduleId) => getSharedJobPath(scheduleId)).filter(existsSync)
+        : readdirSync(jobDir).filter((name) => name.toLowerCase().endsWith(".json")).map((name) => join(jobDir, name));
+      const linkedVerifications = files.flatMap((filePath) => {
+          const store = readJsonFile(filePath, null);
+          if (!store?.scheduleId) return [];
+          const hydrated = readSharedJobStore(store.scheduleId);
+          ensureLinkedVerificationDefinitions(hydrated, hydrated.scheduleSnapshot || findSavedSchedule(hydrated.scheduleId));
+          return listLinkedVerificationStates(hydrated);
+        });
+      sendJson(res, 200, { ok: true, linkedVerifications });
+    } catch (error) {
+      sendJson(res, 500, { ok: false, error: error.message, linkedVerifications: [] });
+    }
+    return;
   }
 
   if (req.method === "GET" && urlPath === "/api/missing-device-requests") {

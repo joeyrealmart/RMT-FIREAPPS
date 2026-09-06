@@ -199,6 +199,13 @@
 
               <section class="admin-module-workspace hidden" data-admin-workspace="staff">
                 <div class="admin-workspace-heading"><div><p class="eyebrow">People</p><h3>Staff</h3></div><span>Technicians, activity and assignments</span></div>
+                <section class="linked-verification-admin" id="adminLinkedVerificationPanel">
+                  <div class="section-header compact">
+                    <div><p class="eyebrow">Two-Technician Work</p><h3>Linked Verification</h3></div>
+                    <button id="refreshLinkedVerificationBtn" type="button" class="secondary">Refresh</button>
+                  </div>
+                  <div id="adminLinkedVerificationList" class="linked-verification-admin-list"></div>
+                </section>
                 <div id="adminStaffMount" class="admin-module-mount"></div>
               </section>
 
@@ -801,6 +808,13 @@
           </div>
           <div id="techFrontDeskStats" class="tech-frontdesk-stats"></div>
           <div id="techActiveJobSummary" class="tech-active-job"></div>
+          <section id="techLinkedVerificationDesk" class="tech-linked-verification-desk hidden">
+            <div class="section-header compact">
+              <div><p class="eyebrow">Assigned Collaboration</p><h3>Linked Verification</h3></div>
+              <span id="techLinkedVerificationBadge" class="job-status-badge">0 pending</span>
+            </div>
+            <div id="techLinkedVerificationList" class="tech-linked-verification-list"></div>
+          </section>
           <div class="job-actions tech-unlock-actions">
             <button id="clearActiveJobBtn" type="button" class="secondary danger hidden">Unlock Start / Reset Active Job</button>
           </div>

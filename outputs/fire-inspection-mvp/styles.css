@@ -4732,6 +4732,157 @@ button.admin-record-row.active {
   display: none;
 }
 
+.tech-linked-verification-desk,
+.linked-verification-admin,
+.linked-verification-system-section {
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.tech-linked-verification-desk,
+.linked-verification-admin {
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.tech-linked-verification-list,
+.linked-verification-admin-list,
+.linked-verification-system-section {
+  display: grid;
+  gap: 10px;
+}
+
+.linked-verification-desk-row,
+.admin-linked-verification-card,
+.linked-verification-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.linked-verification-desk-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px;
+}
+
+.linked-verification-desk-row > div,
+.linked-verification-card header > div,
+.admin-linked-verification-card header > div,
+.linked-verification-section-head > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.linked-verification-desk-row span,
+.linked-verification-desk-row small,
+.linked-verification-card header span,
+.admin-linked-verification-card header span,
+.linked-verification-section-head span,
+.linked-side-summary span,
+.linked-side-summary em,
+.admin-linked-sides span,
+.admin-linked-sides small,
+.linked-side-actions span {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.linked-verification-system-section {
+  padding: 10px;
+}
+
+.linked-verification-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.linked-verification-card,
+.admin-linked-verification-card {
+  padding: 12px;
+}
+
+.linked-verification-card header,
+.admin-linked-verification-card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.linked-status {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #92400e;
+  background: #fef3c7;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.linked-status.verified {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.linked-status.mismatch_review_required {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.linked-side-summary,
+.admin-linked-sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.linked-side-summary > div,
+.admin-linked-sides > div {
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.linked-side-entry {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.linked-side-entry label {
+  margin: 0;
+}
+
+.linked-side-entry .linked-notes,
+.linked-side-actions {
+  grid-column: 1 / -1;
+}
+
+.linked-side-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-linked-verification-card + .admin-linked-verification-card {
+  margin-top: 0;
+}
+
 @media (max-width: 1100px) {
   .admin-desk-layout {
     grid-template-columns: 150px minmax(0, 1fr);
@@ -4817,6 +4968,25 @@ button.admin-record-row.active {
 
   .admin-record-detail dl {
     grid-template-columns: 1fr;
+  }
+
+  .linked-side-summary,
+  .admin-linked-sides,
+  .linked-side-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .linked-verification-card header,
+  .admin-linked-verification-card header,
+  .linked-side-actions,
+  .linked-verification-desk-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .linked-side-actions button,
+  .linked-verification-desk-row button {
+    width: 100%;
   }
 }
 

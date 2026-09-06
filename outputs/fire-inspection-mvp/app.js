@@ -760,6 +760,17 @@ const demoAccounts = [
   }
 ];
 
+const LINKED_VERIFICATION_TYPES = {
+  FIRE_PUMP_INDICATION: {
+    label: "Fire Pump Indication",
+    defaultSideIds: ["PUMP_ROOM", "MFAP"]
+  },
+  CO2_GAS_RELEASE_INDICATION: {
+    label: "CO2 / Gas Release Indication",
+    defaultSideIds: ["SUPPRESSION_SYSTEM_LOCATION", "REMOTE_PANEL_OR_MFAP"]
+  }
+};
+
 const savedAdminUiState = readStoredJson("rmtAdminUiState", {}) || {};
 
 const state = {
@@ -792,6 +803,9 @@ const state = {
   sharedJobRecords: {},
   sharedSaveQueues: {},
   sharedSyncUnavailable: false,
+  linkedVerificationIndex: [],
+  linkedVerificationDrafts: {},
+  linkedVerificationIndexOnline: false,
   serverDiagnostics: null,
   scheduleStartInProgressId: null,
   contractRules: {},
@@ -891,7 +905,8 @@ function getSharedRecordVersionKey(scheduleOrId = null) {
   const progress = getSharedProgress(scheduleId) || {};
   const inspectionRecords = Object.values(store?.inspectionRecords || {});
   const criticalRecords = Object.values(store?.criticalSopRecords || {});
-  const revisionTotal = [...inspectionRecords, ...criticalRecords]
+  const linkedSideRecords = Object.values(store?.linkedVerificationSideRecords || {});
+  const revisionTotal = [...inspectionRecords, ...criticalRecords, ...linkedSideRecords]
     .reduce((total, record) => total + Number(record?.revision || 0), 0)
     + Number(store?.signOff?.revision || 0)
     + Number(store?.reportSubmission?.revision || 0);
@@ -904,6 +919,7 @@ function getSharedRecordVersionKey(scheduleOrId = null) {
     progress.blocked || "",
     inspectionRecords.length,
     criticalRecords.length,
+    linkedSideRecords.length,
     revisionTotal
   ].join(":");
   cache.sharedRecordVersions.set(scheduleId, version);
@@ -959,6 +975,7 @@ function loadStoredPlanningState() {
   state.schedules = readStoredJson("rmtSchedules", []);
   state.contractRules = readStoredJson("rmtContractRules", {});
   state.criticalDependencyConfig = readStoredJson("rmtCriticalDependencyConfig", {});
+  state.linkedVerificationDrafts = readStoredJson("rmtLinkedVerificationDrafts", {});
   state.calendarMonth = readStoredJson("rmtCalendarMonth", null) || state.calendarMonth;
   browserDataState.planningLoaded = true;
 }
@@ -1034,8 +1051,14 @@ const adminReportsMount = document.querySelector("#adminReportsMount");
 const adminMimicsMount = document.querySelector("#adminMimicsMount");
 const adminStaffMount = document.querySelector("#adminStaffMount");
 const adminSettingsMount = document.querySelector("#adminSettingsMount");
+const adminLinkedVerificationPanel = document.querySelector("#adminLinkedVerificationPanel");
+const adminLinkedVerificationList = document.querySelector("#adminLinkedVerificationList");
+const refreshLinkedVerificationBtn = document.querySelector("#refreshLinkedVerificationBtn");
 const technicianSharedWorkspaceMount = document.querySelector("#technicianSharedWorkspaceMount");
 const techFrontDeskStats = document.querySelector("#techFrontDeskStats");
+const techLinkedVerificationDesk = document.querySelector("#techLinkedVerificationDesk");
+const techLinkedVerificationBadge = document.querySelector("#techLinkedVerificationBadge");
+const techLinkedVerificationList = document.querySelector("#techLinkedVerificationList");
 const markersLayer = document.querySelector("#markersLayer");
 const checklistForm = document.querySelector("#checklistForm");
 const checklistOriginalParent = checklistForm?.parentElement || null;
@@ -1243,6 +1266,8 @@ async function startTechnicianSession(options = {}) {
   loadStoredPlanningState();
   await loadSavedSchedules({ render: false, refreshTech: false });
   await loadSavedRequests({ render: false });
+  await loadLinkedVerificationIndex();
+  await syncLinkedVerificationDrafts();
   const activeSchedule = getActiveTechnicianMaintenanceSchedule();
   if (activeSchedule) {
     loadStoredRunState();
@@ -1267,6 +1292,7 @@ async function startAdminSession() {
   loadStoredFieldState();
   loadStoredAdminHistoryState();
   await loadSavedRequests({ render: false });
+  await loadLinkedVerificationIndex();
   renderFloorOptions();
   syncScheduleClientMode();
   renderSchedulePanel();
@@ -1283,6 +1309,7 @@ async function startAdminSession() {
   renderSystemChecklist();
   renderCriticalSop();
   renderStaffTracking();
+  renderAdminLinkedVerificationPanel();
   renderFrontDeskPanel();
   setAdminModule(getCurrentAdminModule());
   startDiagnosticsHeartbeat();
@@ -1610,6 +1637,7 @@ function applyAdminModuleVisibility() {
     updateAdminReportWorkspaceFilter();
   }
   if (module === "defects") renderAdminDefectsWorkspace();
+  if (module === "staff") renderAdminLinkedVerificationPanel();
 }
 
 function setAdminModule(module, options = {}) {
@@ -1638,6 +1666,10 @@ function bindFrontDeskControls() {
     const expanded = !frontDeskPanel?.classList.contains("nav-open");
     frontDeskPanel?.classList.toggle("nav-open", expanded);
     adminNavToggle.setAttribute("aria-expanded", String(expanded));
+  });
+  refreshLinkedVerificationBtn?.addEventListener("click", async () => {
+    await loadLinkedVerificationIndex();
+    renderAdminLinkedVerificationPanel();
   });
   frontDeskPanel?.addEventListener("click", (event) => {
     const actionButton = event.target.closest("[data-admin-action]");
@@ -2001,6 +2033,203 @@ function renderAdminClientDesk() {
   }
 }
 
+function getLinkedVerificationStatusLabel(status) {
+  const labels = {
+    NOT_STARTED: "Not Started",
+    IN_PROGRESS: "In Progress",
+    LOCAL_COMPLETE_AWAITING_SYNC: "Completed - Pending Sync",
+    AWAITING_COUNTERPART: "Awaiting Counterpart",
+    READY_FOR_RECONCILIATION: "Ready for Reconciliation",
+    VERIFIED: "Verified",
+    MISMATCH_REVIEW_REQUIRED: "Mismatch Review Required"
+  };
+  return labels[status] || String(status || "Not Started").replaceAll("_", " ");
+}
+
+function getLinkedVerificationStatesForSchedules(schedules = state.schedules) {
+  const states = [];
+  schedules.forEach((schedule) => {
+    getScheduleLinkedVerificationDefinitions(schedule).forEach((definition) => {
+      states.push({
+        ...calculateClientLinkedVerificationState(schedule, definition),
+        schedule,
+        definition
+      });
+    });
+  });
+  return states;
+}
+
+function getTechnicianAssignedLinkedStates(schedules = state.schedules) {
+  return getLinkedVerificationStatesForSchedules(schedules).filter((linkedState) => {
+    return linkedState.definition.requiredSides.some((side) => linkedVerificationTechnicianMatches(side));
+  });
+}
+
+function linkedVerificationMatchesSystem(definition, systemKey) {
+  if (!definition || !systemKey) return false;
+  const configuredSystems = [definition.systemId, ...(Array.isArray(definition.systemIds) ? definition.systemIds : [])]
+    .map(normalizeScopeText)
+    .filter(Boolean);
+  return configuredSystems.includes(normalizeScopeText(systemKey));
+}
+
+function getLinkedVerificationDisplaySide(linkedState, side) {
+  const synced = linkedState.sides?.find((item) => item.sideId === side.sideId)?.record
+    || getLinkedVerificationSideRecord(linkedState.schedule, linkedState.linkedVerificationId, side.sideId);
+  const draft = getLinkedVerificationDraft(getScheduleKey(linkedState.schedule), linkedState.linkedVerificationId, side.sideId);
+  return {
+    ...side,
+    record: synced || null,
+    draft: draft || null,
+    displayStatus: draft?.syncStatus || (synced ? "SYNCED" : "NOT_STARTED"),
+    result: draft?.result || synced?.result || "",
+    notes: draft?.notes || synced?.notes || "",
+    evidenceRefs: draft?.evidenceRefs || synced?.evidenceRefs || []
+  };
+}
+
+function renderTechnicianLinkedVerificationDesk(jobs, activeSchedule) {
+  if (!techLinkedVerificationDesk || !techLinkedVerificationList || getCurrentUserRole() !== "Technician") return;
+  const linkedStates = getTechnicianAssignedLinkedStates(jobs);
+  const pendingStates = linkedStates.filter((item) => item.status !== "VERIFIED");
+  techLinkedVerificationDesk.classList.toggle("hidden", !linkedStates.length);
+  if (techLinkedVerificationBadge) {
+    const localDraftCount = linkedStates.filter((item) => item.status === "LOCAL_COMPLETE_AWAITING_SYNC").length;
+    techLinkedVerificationBadge.textContent = localDraftCount
+      ? `${localDraftCount} pending sync`
+      : `${pendingStates.length} pending`;
+  }
+  techLinkedVerificationList.innerHTML = linkedStates.length ? linkedStates.slice(0, 6).map((linkedState) => {
+    const assignedSide = linkedState.definition.requiredSides.find((side) => linkedVerificationTechnicianMatches(side));
+    const side = getLinkedVerificationDisplaySide(linkedState, assignedSide);
+    return `
+      <article class="linked-verification-desk-row ${escapeHtml(String(linkedState.status || "").toLowerCase())}">
+        <div>
+          <strong>${escapeHtml(linkedState.definition.title)}</strong>
+          <span>${escapeHtml(linkedState.schedule.companyName)} / ${escapeHtml(linkedState.schedule.siteName)} | ${escapeHtml(side.sideName)}</span>
+          <small>${escapeHtml(getLinkedVerificationStatusLabel(linkedState.status))}${side.displayStatus === "LOCAL_COMPLETE_AWAITING_SYNC" ? " | Pending sync" : ""}</small>
+        </div>
+        <button type="button" class="secondary" data-linked-open-job="${escapeHtml(linkedState.schedule.scheduleId)}" data-linked-open-event="${escapeHtml(linkedState.linkedVerificationId)}">${activeSchedule?.scheduleId === linkedState.schedule.scheduleId ? "Open" : "Open Job"}</button>
+      </article>`;
+  }).join("") : `<p class="hint">No linked verification is assigned to this technician.</p>`;
+  techLinkedVerificationList.querySelectorAll("[data-linked-open-job]").forEach((button) => {
+    bindReliableTap(button, () => openTechnicianLinkedVerification(button.dataset.linkedOpenJob, button.dataset.linkedOpenEvent));
+  });
+}
+
+async function openTechnicianLinkedVerification(scheduleId, linkedVerificationId) {
+  const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
+  if (!schedule) return;
+  if (getActiveTechnicianMaintenanceSchedule()?.scheduleId !== scheduleId) {
+    await startOrResumeTechnicianSchedule(scheduleId);
+  }
+  await requestSharedJobState(schedule, { migrate: false, apply: true });
+  const definition = getScheduleLinkedVerificationDefinitions(schedule).find((item) => item.linkedVerificationId === linkedVerificationId);
+  if (definition?.systemId) {
+    await openTechnicianFireSystem(scheduleId, definition.systemId);
+  }
+  setTechScreen("mimic", { scroll: false });
+  renderTechSystemStagePanel(schedule);
+  const card = techSystemStagePanel?.querySelector(`[data-linked-card="${CSS.escape(linkedVerificationId)}"]`);
+  card?.scrollIntoView({ block: "center", behavior: "auto" });
+}
+
+function renderTechnicianLinkedVerificationCards(schedule, systemKey) {
+  const linkedStates = getTechnicianAssignedLinkedStates([schedule])
+    .filter((linkedState) => linkedVerificationMatchesSystem(linkedState.definition, systemKey));
+  if (!linkedStates.length) return "";
+  return `
+    <section class="linked-verification-system-section">
+      <div class="linked-verification-section-head">
+        <div><strong>Linked Verification</strong><span>Record only your assigned location. Both synced sides are required.</span></div>
+      </div>
+      ${linkedStates.map((linkedState) => {
+        const ownSide = linkedState.definition.requiredSides.find((side) => linkedVerificationTechnicianMatches(side));
+        const own = getLinkedVerificationDisplaySide(linkedState, ownSide);
+        const counterparts = linkedState.definition.requiredSides
+          .filter((side) => side.sideId !== own.sideId)
+          .map((side) => getLinkedVerificationDisplaySide(linkedState, side));
+        const readOnly = linkedState.status === "VERIFIED" || isTechnicianReportReadOnly(schedule);
+        const evidenceRequired = linkedState.definition.evidenceRequired || own.evidenceRequired;
+        return `
+          <article class="linked-verification-card" data-linked-card="${escapeHtml(linkedState.linkedVerificationId)}">
+            <header>
+              <div><strong>${escapeHtml(linkedState.definition.title)}</strong><span>${escapeHtml(linkedState.definition.verificationType)}</span></div>
+              <span class="linked-status ${escapeHtml(String(linkedState.status || "").toLowerCase())}">${escapeHtml(getLinkedVerificationStatusLabel(linkedState.status))}</span>
+            </header>
+            <div class="linked-side-summary">
+              <div><small>Your side</small><strong>${escapeHtml(own.sideName)}</strong><span>${escapeHtml(own.location)}</span><em>${escapeHtml(own.displayStatus === "SYNCED" ? `Synced${own.result ? ` - ${own.result}` : ""}` : getLinkedVerificationStatusLabel(own.displayStatus))}</em></div>
+              ${counterparts.map((side) => `<div><small>Counterpart</small><strong>${escapeHtml(side.sideName)}</strong><span>${escapeHtml(side.location)}</span><em>${escapeHtml(side.record ? `Synced - ${side.record.result}` : "Awaiting counterpart")}</em></div>`).join("")}
+            </div>
+            <div class="linked-side-entry">
+              <label>Result
+                <select data-linked-result ${readOnly ? "disabled" : ""}>
+                  <option value="">Select result</option>
+                  <option value="CONFIRMED" ${own.result === "CONFIRMED" ? "selected" : ""}>Confirmed</option>
+                  <option value="NOT_CONFIRMED" ${own.result === "NOT_CONFIRMED" ? "selected" : ""}>Not Confirmed</option>
+                </select>
+              </label>
+              <label>Photo Evidence ${evidenceRequired ? "(Required)" : "(Optional)"}
+                <input type="file" accept="image/*" capture="environment" data-linked-evidence ${readOnly ? "disabled" : ""}>
+              </label>
+              <label class="linked-notes">Short Note (Optional)
+                <textarea rows="2" data-linked-notes ${readOnly ? "disabled" : ""}>${escapeHtml(own.notes)}</textarea>
+              </label>
+              <div class="linked-side-actions">
+                <span>${own.evidenceRefs.length ? `${own.evidenceRefs.length} photo(s) attached` : "No photo attached"}</span>
+                <button type="button" data-linked-save-side="${escapeHtml(own.sideId)}" data-linked-event-id="${escapeHtml(linkedState.linkedVerificationId)}" ${readOnly ? "disabled" : ""}>Save My Side</button>
+              </div>
+            </div>
+          </article>`;
+      }).join("")}
+    </section>`;
+}
+
+async function handleLinkedVerificationSideSave(button, schedule) {
+  const linkedVerificationId = button.dataset.linkedEventId;
+  const sideId = button.dataset.linkedSaveSide;
+  const definition = getScheduleLinkedVerificationDefinitions(schedule).find((item) => item.linkedVerificationId === linkedVerificationId);
+  const side = definition?.requiredSides.find((item) => item.sideId === sideId);
+  const card = button.closest("[data-linked-card]");
+  if (!definition || !side || !card) return;
+  const evidenceInput = card.querySelector("[data-linked-evidence]");
+  const evidenceRefs = (await readPhotoAttachmentFiles(evidenceInput, "linked-verification")).slice(0, 1);
+  const result = await saveLinkedVerificationSide(schedule, definition, side, {
+    result: card.querySelector("[data-linked-result]")?.value || "",
+    notes: card.querySelector("[data-linked-notes]")?.value.trim() || "",
+    evidenceRefs
+  });
+  if (!result.ok) {
+    document.querySelector("#syncState").textContent = result.conflict
+      ? "Linked verification conflict detected. The server record was preserved and Admin review is required."
+      : result.reason || "Unable to save linked verification.";
+  } else {
+    document.querySelector("#syncState").textContent = result.offline
+      ? "Your side is saved on this phone and is awaiting sync. The linked event is not yet verified."
+      : result.linkedVerification?.status === "VERIFIED"
+        ? "Both linked-verification sides are synced and verified."
+        : "Your side is synced. Awaiting counterpart or reconciliation.";
+  }
+  renderTechWorkPanel();
+  renderTechSystemStagePanel(schedule);
+}
+
+function renderAdminLinkedVerificationPanel() {
+  if (!adminLinkedVerificationList || getCurrentUserRole() === "Technician") return;
+  const linkedStates = getLinkedVerificationStatesForSchedules(state.schedules);
+  adminLinkedVerificationList.innerHTML = linkedStates.length ? linkedStates.map((linkedState) => {
+    const definition = linkedState.definition || {};
+    return `
+      <article class="admin-linked-verification-card">
+        <header><div><strong>${escapeHtml(definition.title || "Linked Verification")}</strong><span>${escapeHtml(definition.companyName || definition.clientId || "-")} / ${escapeHtml(definition.siteName || definition.siteId || "-")} | ${escapeHtml(definition.systemId || "-")}</span></div><span class="linked-status ${escapeHtml(String(linkedState.status || "").toLowerCase())}">${escapeHtml(getLinkedVerificationStatusLabel(linkedState.status))}</span></header>
+        <div class="admin-linked-sides">
+          ${(linkedState.sides || []).map((side) => `<div><strong>${escapeHtml(side.sideName)}</strong><span>${escapeHtml(side.location)}</span><small>${escapeHtml(side.record?.technicianName || side.assignedTechnicianName || side.assignedTechnicianId || "Unassigned")} | ${escapeHtml(side.record?.result || "Not recorded")} | ${escapeHtml(side.record?.timestamp ? formatShortDateTime(side.record.timestamp) : "No time")} | ${escapeHtml(side.record?.syncStatus || "Not synced")}</small></div>`).join("")}
+        </div>
+      </article>`;
+  }).join("") : `<p class="hint">No linked-verification records are configured or synced yet.</p>`;
+}
+
 function renderTechnicianFrontDeskStats(jobs = getTechnicianMaintenanceSchedules(Infinity), activeSchedule = getActiveTechnicianMaintenanceSchedule()) {
   if (!techFrontDeskStats) return;
   if (getCurrentUserRole() !== "Technician") {
@@ -2012,7 +2241,7 @@ function renderTechnicianFrontDeskStats(jobs = getTechnicianMaintenanceSchedules
   const activeSummary = activeSchedule ? getLightTechnicianScheduleSummary(activeSchedule) : null;
   const correctionRequired = jobs.filter(isScheduleReturnedForCorrection).length;
   const submittedReports = jobs.filter((schedule) => isScheduleAwaitingAdminReview(schedule) || isScheduleAdminApproved(schedule)).length;
-  const linkedVerification = jobs.reduce((total, schedule) => total + Number(schedule.criticalDeviceIds?.length || 0), 0);
+  const linkedVerification = getTechnicianAssignedLinkedStates(jobs).filter((item) => item.status !== "VERIFIED").length;
   const progressLabel = activeSummary
     ? `${activeSummary.done}/${activeSummary.total}`
     : todayJobs.length
@@ -2026,9 +2255,19 @@ function renderTechnicianFrontDeskStats(jobs = getTechnicianMaintenanceSchedules
     ${renderFrontDeskMetric("Linked Verification", linkedVerification)}
     ${renderFrontDeskMetric("Submitted Reports", submittedReports)}
   `;
+  renderTechnicianLinkedVerificationDesk(jobs, activeSchedule);
 }
 
 initializeAppShell();
+
+window.addEventListener("online", async () => {
+  const result = await syncLinkedVerificationDrafts();
+  if (result.synced || result.conflicts) {
+    renderTechWorkPanel();
+    renderTechSystemStagePanel();
+    renderAdminLinkedVerificationPanel();
+  }
+});
 
 function shouldUpdateDiagnosticsForCurrentUser() {
   return getCurrentUserRole() !== "Technician" || workspace?.classList.contains("show-tech-diagnostics");
@@ -2077,7 +2316,8 @@ function countUnsyncedDrafts() {
   };
   const inspectionDrafts = Object.values(state.inspections || {}).filter(isDraft).length;
   const sopDrafts = Object.values(state.criticalSops || {}).filter(isDraft).length;
-  return inspectionDrafts + sopDrafts;
+  const linkedDrafts = Object.values(state.linkedVerificationDrafts || {}).length;
+  return inspectionDrafts + sopDrafts + linkedDrafts;
 }
 
 function getDiagnosticsRevisionSummary(schedule) {
@@ -2089,7 +2329,8 @@ function getDiagnosticsRevisionSummary(schedule) {
 
   const records = [
     ...Object.values(store.inspectionRecords || {}),
-    ...Object.values(store.criticalSopRecords || {})
+    ...Object.values(store.criticalSopRecords || {}),
+    ...Object.values(store.linkedVerificationSideRecords || {})
   ];
   const selectedDeviceId = state.selectedId || state.activeCriticalDevice?.tag || state.activeCriticalDevice?.id || "";
   const selectedRecord = selectedDeviceId
@@ -4060,6 +4301,7 @@ async function requestSharedJobState(schedule, { migrate = true, apply = true } 
     if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to load shared job records");
     const cache = setSharedJobCache(scheduleId, payload, { online: true });
     state.sharedSyncUnavailable = false;
+    replaceLinkedVerificationIndexForSchedule(scheduleId, payload.linkedVerifications || []);
     if (apply) applySharedRecordsToLocalState(cache.store, schedule);
     return cache;
   } catch (error) {
@@ -7637,7 +7879,15 @@ function renderTechSystemStagePanel(schedule = getTechMarkerScopeSchedule()) {
       deviceId: stage.deviceId || "",
       disabled: Boolean(stage.disabled),
       completion: Boolean(stage.completion)
-    }))
+    })),
+    linkedVerifications: getTechnicianAssignedLinkedStates([schedule])
+      .filter((linkedState) => linkedVerificationMatchesSystem(linkedState.definition, activeGroup.id))
+      .map((linkedState) => ({
+        id: linkedState.linkedVerificationId,
+        status: linkedState.status,
+        sideRevisions: (linkedState.sides || []).map((side) => Number(side.record?.revision || 0)),
+        localDraftStates: linkedState.definition.requiredSides.map((side) => getLinkedVerificationDraft(schedule.scheduleId, linkedState.linkedVerificationId, side.sideId)?.syncStatus || "")
+      }))
   });
   if (techSystemStagePanel.dataset.stageSignature === stageSignature) return;
   techSystemStagePanel.dataset.stageSignature = stageSignature;
@@ -7667,6 +7917,7 @@ function renderTechSystemStagePanel(schedule = getTechMarkerScopeSchedule()) {
     <div class="tech-system-stages">
       ${(activeGroup.stageModel?.stages || []).map((stage, index) => renderTechSystemStageCard(stage, index, schedule, activeGroup)).join("")}
     </div>
+    ${renderTechnicianLinkedVerificationCards(schedule, activeGroup.id)}
   `;
   techSystemStagePanel.querySelectorAll("[data-tech-stage-system]").forEach((button) => {
     bindReliableTap(button, () => openTechnicianFireSystem(button.dataset.techStageSchedule, button.dataset.techStageSystem));
@@ -7679,6 +7930,9 @@ function renderTechSystemStagePanel(schedule = getTechMarkerScopeSchedule()) {
   });
   techSystemStagePanel.querySelectorAll("[data-tech-stage-complete]").forEach((button) => {
     bindReliableTap(button, () => setTechScreen("complete", { scroll: true }));
+  });
+  techSystemStagePanel.querySelectorAll("[data-linked-save-side]").forEach((button) => {
+    bindReliableTap(button, () => handleLinkedVerificationSideSave(button, schedule));
   });
 }
 
@@ -9872,6 +10126,307 @@ async function saveMissingDeviceRequestRecord(request) {
   }
 }
 
+function getLinkedVerificationSideRecordId(scheduleId, linkedVerificationId, sideId) {
+  return `linked-side::${scheduleId}::${linkedVerificationId}::${sideId}`;
+}
+
+function normalizeLinkedVerificationClientSide(side = {}) {
+  const sideId = String(side.sideId || side.id || "").trim();
+  return {
+    ...side,
+    sideId,
+    sideName: String(side.sideName || side.name || sideId).trim(),
+    location: String(side.location || side.sideName || side.name || sideId).trim(),
+    assignedTechnicianId: String(side.assignedTechnicianId || side.technicianId || "").trim(),
+    assignedTechnicianName: String(side.assignedTechnicianName || side.technicianName || "").trim(),
+    evidenceRequired: Boolean(side.evidenceRequired)
+  };
+}
+
+function normalizeLinkedVerificationClientDefinition(schedule, definition = {}) {
+  const linkedVerificationId = String(definition.linkedVerificationId || definition.id || "").trim();
+  const requiredSides = (Array.isArray(definition.requiredSides) ? definition.requiredSides : [])
+    .map(normalizeLinkedVerificationClientSide)
+    .filter((side) => side.sideId);
+  return {
+    ...definition,
+    linkedVerificationId,
+    scheduleId: definition.scheduleId || getScheduleKey(schedule),
+    jobId: definition.jobId || schedule?.jobId || `JOB-${getScheduleKey(schedule)}`,
+    clientId: definition.clientId || schedule?.clientId || schedule?.companyName || "",
+    siteId: definition.siteId || schedule?.siteId || schedule?.siteName || "",
+    companyName: definition.companyName || schedule?.companyName || "",
+    siteName: definition.siteName || schedule?.siteName || "",
+    systemId: String(definition.systemId || definition.system || "").trim(),
+    verificationType: String(definition.verificationType || "GENERIC_LINKED_VERIFICATION").trim(),
+    title: String(definition.title || LINKED_VERIFICATION_TYPES[definition.verificationType]?.label || "Linked Verification").trim(),
+    requiredSides,
+    requiredSideIds: requiredSides.map((side) => side.sideId),
+    definitionVersion: String(definition.definitionVersion || definition.version || "1"),
+    reconciliationMode: definition.reconciliationMode === "ADMIN_REVIEW" ? "ADMIN_REVIEW" : "MATCHING_RESULTS",
+    evidenceRequired: Boolean(definition.evidenceRequired)
+  };
+}
+
+function getScheduleLinkedVerificationDefinitions(schedule) {
+  if (!schedule) return [];
+  const store = getSharedStore(schedule);
+  const sharedDefinitions = Object.values(store?.linkedVerificationDefinitions || {});
+  const configured = sharedDefinitions.length ? sharedDefinitions : (Array.isArray(schedule.linkedVerifications) ? schedule.linkedVerifications : []);
+  return configured
+    .map((definition) => normalizeLinkedVerificationClientDefinition(schedule, definition))
+    .filter((definition) => definition.linkedVerificationId && definition.requiredSides.length >= 2);
+}
+
+function linkedVerificationTechnicianMatches(side, userId = getCurrentUserId(), userName = getCurrentUserName()) {
+  const assignedId = String(side?.assignedTechnicianId || "").trim().toLowerCase();
+  const assignedName = String(side?.assignedTechnicianName || "").trim().toLowerCase();
+  const actualId = String(userId || "").trim().toLowerCase();
+  const actualName = String(userName || "").trim().toLowerCase();
+  return Boolean((assignedId && assignedId === actualId) || (assignedName && assignedName === actualName));
+}
+
+function getLinkedVerificationDraftKey(scheduleId, linkedVerificationId, sideId) {
+  return `${scheduleId}::${linkedVerificationId}::${sideId}`;
+}
+
+function persistLinkedVerificationDrafts() {
+  writeStoredJson("rmtLinkedVerificationDrafts", state.linkedVerificationDrafts || {});
+  renderDiagnosticsPanel();
+}
+
+function getLinkedVerificationDraft(scheduleId, linkedVerificationId, sideId) {
+  return state.linkedVerificationDrafts?.[getLinkedVerificationDraftKey(scheduleId, linkedVerificationId, sideId)] || null;
+}
+
+function getLinkedVerificationSideRecord(schedule, linkedVerificationId, sideId) {
+  const store = getSharedStore(schedule);
+  const recordId = getLinkedVerificationSideRecordId(getScheduleKey(schedule), linkedVerificationId, sideId);
+  return store?.linkedVerificationSideRecords?.[recordId]
+    || Object.values(store?.linkedVerificationSideRecords || {}).find((record) => record.linkedVerificationId === linkedVerificationId && record.sideId === sideId)
+    || null;
+}
+
+function calculateClientLinkedVerificationState(schedule, definition) {
+  const store = getSharedStore(schedule) || {};
+  const indexed = state.linkedVerificationIndex.find((item) => item.linkedVerificationId === definition.linkedVerificationId && item.definition?.scheduleId === getScheduleKey(schedule));
+  const sides = definition.requiredSides.map((side) => {
+    const indexedSide = indexed?.sides?.find((item) => item.sideId === side.sideId);
+    const record = getLinkedVerificationSideRecord(schedule, definition.linkedVerificationId, side.sideId) || indexedSide?.record || null;
+    const draft = getLinkedVerificationDraft(getScheduleKey(schedule), definition.linkedVerificationId, side.sideId);
+    return { ...side, record, draft };
+  });
+  const syncedComplete = sides.filter((side) => String(side.record?.status || "").toUpperCase() === "COMPLETE" && side.record?.result);
+  const anyLocal = sides.some((side) => side.draft);
+  const conflict = store.linkedVerificationConflicts?.[definition.linkedVerificationId];
+  let status = "NOT_STARTED";
+  if (conflict?.unresolved || indexed?.status === "MISMATCH_REVIEW_REQUIRED" || sides.some((side) => side.draft?.syncStatus === "CONFLICT")) {
+    status = "MISMATCH_REVIEW_REQUIRED";
+  } else if (syncedComplete.length === sides.length) {
+    const results = new Set(syncedComplete.map((side) => String(side.record.result).trim().toUpperCase()));
+    status = results.size > 1
+      ? "MISMATCH_REVIEW_REQUIRED"
+      : definition.reconciliationMode === "ADMIN_REVIEW" ? "READY_FOR_RECONCILIATION" : "VERIFIED";
+  } else if (anyLocal) {
+    status = "LOCAL_COMPLETE_AWAITING_SYNC";
+  } else if (syncedComplete.length) {
+    status = "AWAITING_COUNTERPART";
+  }
+  return {
+    linkedVerificationId: definition.linkedVerificationId,
+    status,
+    definition,
+    sides,
+    completedSideCount: syncedComplete.length,
+    requiredSideCount: sides.length
+  };
+}
+
+function replaceLinkedVerificationIndexForSchedule(scheduleId, entries = []) {
+  state.linkedVerificationIndex = [
+    ...state.linkedVerificationIndex.filter((item) => item.definition?.scheduleId !== scheduleId && item.scheduleId !== scheduleId),
+    ...entries
+  ];
+}
+
+async function loadLinkedVerificationIndex({ render = false } = {}) {
+  try {
+    const scheduleIds = state.schedules.map((schedule) => schedule.scheduleId).filter(Boolean);
+    const query = scheduleIds.length ? `?scheduleIds=${encodeURIComponent(scheduleIds.join(","))}` : "";
+    const response = await fetch(`/api/linked-verifications${query}`, { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to load linked verifications");
+    state.linkedVerificationIndex = Array.isArray(payload.linkedVerifications) ? payload.linkedVerifications : [];
+    state.linkedVerificationIndexOnline = true;
+  } catch (error) {
+    state.linkedVerificationIndexOnline = false;
+    console.warn("Linked verification index unavailable", error);
+  }
+  if (render) {
+    renderAdminLinkedVerificationPanel();
+    renderTechWorkPanel();
+  }
+  return state.linkedVerificationIndex;
+}
+
+function updateLinkedVerificationCache(schedule, payload) {
+  const linkedState = payload?.linkedVerification;
+  const record = payload?.record;
+  if (!schedule || !linkedState || !record) return;
+  const scheduleId = getScheduleKey(schedule);
+  const cache = ensureSharedCacheForSchedule(schedule);
+  const store = {
+    ...cache.store,
+    linkedVerificationDefinitions: {
+      ...(cache.store?.linkedVerificationDefinitions || {}),
+      [linkedState.definition.linkedVerificationId]: linkedState.definition
+    },
+    linkedVerificationSideRecords: {
+      ...(cache.store?.linkedVerificationSideRecords || {}),
+      [record.recordId]: record
+    }
+  };
+  setSharedJobCache(scheduleId, { store, progress: cache.progress }, { online: true });
+  replaceLinkedVerificationIndexForSchedule(scheduleId, [linkedState]);
+}
+
+function storeLinkedVerificationDraft(record) {
+  const key = getLinkedVerificationDraftKey(record.scheduleId, record.linkedVerificationId, record.sideId);
+  state.linkedVerificationDrafts = {
+    ...(state.linkedVerificationDrafts || {}),
+    [key]: {
+      ...record,
+      status: "COMPLETE",
+      syncStatus: "LOCAL_COMPLETE_AWAITING_SYNC",
+      savedLocallyAt: new Date().toISOString()
+    }
+  };
+  persistLinkedVerificationDrafts();
+  return state.linkedVerificationDrafts[key];
+}
+
+function removeLinkedVerificationDraft(record) {
+  const key = getLinkedVerificationDraftKey(record.scheduleId, record.linkedVerificationId, record.sideId);
+  if (!state.linkedVerificationDrafts?.[key]) return;
+  delete state.linkedVerificationDrafts[key];
+  persistLinkedVerificationDrafts();
+}
+
+async function postLinkedVerificationSide(schedule, record, expectedRevision) {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(getScheduleKey(schedule))}/linked-verification-sides`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      expectedRevision,
+      schedule: getScheduleSnapshotForSharedApi(schedule),
+      record
+    })
+  });
+  const payload = await response.json();
+  if (response.status === 409 && payload.conflict) return { ok: false, conflict: true, payload };
+  if (!response.ok || !payload.ok) {
+    return {
+      ok: false,
+      forbidden: response.status === 403,
+      invalid: response.status === 400,
+      reason: payload.reason || payload.error || "Unable to save linked verification",
+      payload
+    };
+  }
+  return payload;
+}
+
+async function saveLinkedVerificationSide(schedule, definition, side, values = {}) {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId || !definition || !side) return { ok: false, invalid: true };
+  if (!linkedVerificationTechnicianMatches(side)) {
+    return { ok: false, forbidden: true, reason: "This side is assigned to another technician." };
+  }
+  const current = getLinkedVerificationSideRecord(schedule, definition.linkedVerificationId, side.sideId);
+  const existingDraft = getLinkedVerificationDraft(scheduleId, definition.linkedVerificationId, side.sideId);
+  const localCompletedAt = values.localCompletedAt || existingDraft?.localCompletedAt || new Date().toISOString();
+  const record = {
+    recordId: getLinkedVerificationSideRecordId(scheduleId, definition.linkedVerificationId, side.sideId),
+    linkedVerificationId: definition.linkedVerificationId,
+    jobId: definition.jobId || state.activeJob?.jobId || `JOB-${scheduleId}`,
+    scheduleId,
+    clientId: definition.clientId || schedule.companyName || "",
+    siteId: definition.siteId || schedule.siteName || "",
+    systemId: definition.systemId || "",
+    verificationType: definition.verificationType,
+    definitionVersion: definition.definitionVersion || "1",
+    sideId: side.sideId,
+    sideName: side.sideName,
+    sideLocation: side.location,
+    assignedTechnicianId: side.assignedTechnicianId,
+    assignedTechnicianName: side.assignedTechnicianName,
+    technicianId: getCurrentUserId(),
+    technicianName: getCurrentUserName(),
+    technicianRole: getCurrentUserRole(),
+    result: values.result || existingDraft?.result || "",
+    notes: values.notes || existingDraft?.notes || "",
+    evidenceRefs: Array.isArray(values.evidenceRefs) && values.evidenceRefs.length ? values.evidenceRefs : (existingDraft?.evidenceRefs || current?.evidenceRefs || []),
+    localCompletedAt,
+    timestamp: localCompletedAt,
+    submissionId: values.submissionId || existingDraft?.submissionId || `LV-SIDE-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  };
+  if (!record.result) return { ok: false, invalid: true, reason: "Select a result before saving." };
+  if ((definition.evidenceRequired || side.evidenceRequired) && !record.evidenceRefs.length) {
+    return { ok: false, invalid: true, reason: "Photo evidence is required for this side." };
+  }
+  const expectedRevision = Number(existingDraft?.expectedRevision ?? current?.revision ?? 0);
+  try {
+    const payload = await postLinkedVerificationSide(schedule, record, expectedRevision);
+    if (!payload.ok && payload.conflict) {
+      const draft = storeLinkedVerificationDraft({ ...record, expectedRevision, syncStatus: "CONFLICT", conflict: payload.payload });
+      draft.syncStatus = "CONFLICT";
+      persistLinkedVerificationDrafts();
+      return { ok: false, conflict: true, draft, payload: payload.payload };
+    }
+    if (!payload.ok) return payload;
+    removeLinkedVerificationDraft(record);
+    updateLinkedVerificationCache(schedule, payload);
+    return { ok: true, record: payload.record, linkedVerification: payload.linkedVerification, idempotent: Boolean(payload.idempotent) };
+  } catch (error) {
+    const draft = storeLinkedVerificationDraft({ ...record, expectedRevision });
+    return { ok: true, offline: true, draft, error };
+  }
+}
+
+async function syncLinkedVerificationDrafts() {
+  const drafts = Object.values(state.linkedVerificationDrafts || {}).filter((draft) => draft.syncStatus !== "CONFLICT");
+  if (!drafts.length) return { synced: 0, conflicts: 0, remaining: 0 };
+  let synced = 0;
+  let conflicts = 0;
+  for (const draft of drafts) {
+    const schedule = state.schedules.find((item) => item.scheduleId === draft.scheduleId);
+    if (!schedule) continue;
+    try {
+      const payload = await postLinkedVerificationSide(schedule, draft, Number(draft.expectedRevision || 0));
+      if (!payload.ok && payload.conflict) {
+        draft.syncStatus = "CONFLICT";
+        draft.conflict = payload.payload;
+        conflicts += 1;
+        persistLinkedVerificationDrafts();
+        continue;
+      }
+      if (!payload.ok) {
+        draft.syncStatus = payload.forbidden ? "ASSIGNMENT_REVIEW_REQUIRED" : "INVALID";
+        draft.syncError = payload.reason || "Unable to sync linked verification draft.";
+        persistLinkedVerificationDrafts();
+        continue;
+      }
+      removeLinkedVerificationDraft(draft);
+      updateLinkedVerificationCache(schedule, payload);
+      synced += 1;
+    } catch (error) {
+      break;
+    }
+  }
+  if (synced) await loadLinkedVerificationIndex();
+  return { synced, conflicts, remaining: Object.keys(state.linkedVerificationDrafts || {}).length };
+}
+
 function resetRequestForm() {
   const form = document.querySelector("#requestForm");
   form?.reset();
@@ -11842,6 +12397,10 @@ function createClientSharedStore(schedule) {
     criticalSopRecords: {},
     systemCheckRecords: {},
     itemClaims: {},
+    linkedVerificationDefinitions: {},
+    linkedVerificationSideRecords: {},
+    linkedVerificationConflicts: {},
+    linkedVerificationAudit: [],
     signOff: null
   };
 }
