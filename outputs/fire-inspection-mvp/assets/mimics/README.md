@@ -31,6 +31,11 @@ Copy `manifest.example.json` into each approved floor folder as `manifest.json`
 and replace its placeholder values. The background filename may change only when
 the matching manifest is updated.
 
+Add each approved manifest's values to `index.json`. The app reads this small
+catalog instead of crawling runtime directories, then resolves the clean
+background from the matching client/site/floor folder. Keep the catalog empty
+until a background has been physically approved for use.
+
 Source PDFs, scans, working exports, and cleanup experiments do not belong in
 this runtime bundle. Store them under `work/mimic-sources/` or another controlled
 source archive instead.

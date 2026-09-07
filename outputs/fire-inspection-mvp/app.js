@@ -833,6 +833,7 @@ const state = {
   adminDefectSearch: savedAdminUiState.defectSearch || "",
   adminDefectStatus: savedAdminUiState.defectStatus || "open",
   adminSelectedDefectId: savedAdminUiState.defectId || "",
+  adminMimicSelection: savedAdminUiState.mimicSelection || {},
   adminModuleScroll: {},
   activeReportScheduleId: "",
   activeReportSnapshot: null,
@@ -840,6 +841,7 @@ const state = {
   mimicViewMode: localStorage.getItem("rmtMimicViewMode") === "original" ? "original" : "clean",
   libraryFloors: [],
   libraryCompanies: [],
+  runtimeMimicAssets: [],
   siteProfile: readStoredJson("rmtSiteProfile", null) || {
     companyName: "MTB Reality Sdn Bhd",
     siteName: "Bandar Hilir"
@@ -857,6 +859,7 @@ const browserDataState = {
   adminHistoryLoaded: false,
   savedSchedulesLoaded: false,
   mimicLibraryLoaded: false,
+  runtimeMimicAssetsLoaded: false,
   deviceMastersLoaded: false,
   staffTrackingLoaded: false,
   loadedDeviceMasterProfiles: new Set()
@@ -1055,6 +1058,11 @@ const adminScheduleMount = document.querySelector("#adminScheduleMount");
 const adminReportsActions = document.querySelector("#adminReportsActions");
 const adminReportsMount = document.querySelector("#adminReportsMount");
 const adminMimicsMount = document.querySelector("#adminMimicsMount");
+const adminMimicClientSelect = document.querySelector("#adminMimicClientSelect");
+const adminMimicSiteSelect = document.querySelector("#adminMimicSiteSelect");
+const adminMimicFloorSelect = document.querySelector("#adminMimicFloorSelect");
+const adminOpenMimicBtn = document.querySelector("#adminOpenMimicBtn");
+const adminMimicSelectionStatus = document.querySelector("#adminMimicSelectionStatus");
 const adminStaffMount = document.querySelector("#adminStaffMount");
 const adminSettingsMount = document.querySelector("#adminSettingsMount");
 const adminLinkedVerificationPanel = document.querySelector("#adminLinkedVerificationPanel");
@@ -1313,6 +1321,7 @@ async function startAdminSession() {
   await loadSavedRequests({ render: false });
   await loadLinkedVerificationIndex();
   await loadExtinguisherAssetProposals();
+  await loadRuntimeMimicAssets();
   renderFloorOptions();
   syncScheduleClientMode();
   await loadExtinguisherAssetMaster();
@@ -1398,7 +1407,8 @@ function persistAdminUiState() {
     reportFilter: state.adminReportFilter || "awaiting",
     defectSearch: state.adminDefectSearch || "",
     defectStatus: state.adminDefectStatus || "open",
-    defectId: state.adminSelectedDefectId || ""
+    defectId: state.adminSelectedDefectId || "",
+    mimicSelection: state.adminMimicSelection || {}
   });
 }
 
@@ -1658,6 +1668,7 @@ function applyAdminModuleVisibility() {
     updateAdminReportWorkspaceFilter();
   }
   if (module === "defects") renderAdminDefectsWorkspace();
+  if (module === "mimics") renderAdminMimicWorkspace();
   if (module === "staff") renderAdminLinkedVerificationPanel();
 }
 
@@ -1752,6 +1763,16 @@ function bindFrontDeskControls() {
     persistAdminUiState();
     renderAdminDefectsWorkspace();
   });
+  adminMimicClientSelect?.addEventListener("change", () => {
+    updateAdminMimicSelection({ companyName: adminMimicClientSelect.value, siteName: "", floorId: "" });
+  });
+  adminMimicSiteSelect?.addEventListener("change", () => {
+    updateAdminMimicSelection({ siteName: adminMimicSiteSelect.value, floorId: "" });
+  });
+  adminMimicFloorSelect?.addEventListener("change", () => {
+    updateAdminMimicSelection({ floorId: adminMimicFloorSelect.value });
+  });
+  adminOpenMimicBtn?.addEventListener("click", () => openAdminMimicSelection());
 }
 
 function handleFrontDeskAction(action) {
@@ -2034,9 +2055,145 @@ function collectAdminClientProfiles() {
   state.schedules.forEach(addProfile);
   state.setupDevices.forEach(addProfile);
   state.mimicFloors.forEach(addProfile);
+  state.runtimeMimicAssets.forEach(addProfile);
   state.libraryFloors.forEach(addProfile);
   state.requests.forEach(addProfile);
   return [...profiles.values()].sort((a, b) => `${a.companyName} ${a.siteName}`.localeCompare(`${b.companyName} ${b.siteName}`));
+}
+
+function getAdminMimicCatalog() {
+  const catalog = new Map();
+  const addFloor = (floor, source) => {
+    const floorId = String(floor?.id || floor?.floorId || "").trim();
+    const companyName = String(floor?.companyName || "").trim();
+    const siteName = String(floor?.siteName || "").trim();
+    if (!floorId || !companyName || !siteName) return;
+    const key = `${normalizeScopeText(companyName)}::${normalizeScopeText(siteName)}::${floorId}`;
+    if (catalog.has(key)) return;
+    catalog.set(key, {
+      floorId,
+      companyName,
+      siteName,
+      floorCode: String(floor.floorCode || "").trim(),
+      floorName: String(floor.floorName || floor.title || floorId).trim(),
+      title: String(floor.title || floor.floorName || floorId).trim(),
+      backgroundSrc: getMimicImageSrc(floor),
+      fileName: String(floor.fileName || "").trim(),
+      source
+    });
+  };
+
+  // Configured uploads take precedence over library records with the same floor key.
+  state.mimicFloors.forEach((floor) => addFloor(floor, "configured"));
+  state.runtimeMimicAssets.forEach((floor) => addFloor(floor, "runtime asset"));
+  state.libraryFloors.forEach((floor) => addFloor(floor, "library"));
+  return [...catalog.values()].sort((a, b) => {
+    return `${a.companyName} ${a.siteName} ${a.title}`.localeCompare(`${b.companyName} ${b.siteName} ${b.title}`);
+  });
+}
+
+function getAdminMimicSelection(catalog = getAdminMimicCatalog()) {
+  const saved = state.adminMimicSelection || {};
+  const exact = catalog.find((item) => item.floorId === saved.floorId
+    && normalizeScopeText(item.companyName) === normalizeScopeText(saved.companyName)
+    && normalizeScopeText(item.siteName) === normalizeScopeText(saved.siteName));
+  if (exact) return exact;
+
+  const activeFloor = getFloorAsset(floorSelect?.value);
+  const active = catalog.find((item) => item.floorId === floorSelect?.value
+    && normalizeScopeText(item.companyName) === normalizeScopeText(activeFloor?.companyName)
+    && normalizeScopeText(item.siteName) === normalizeScopeText(activeFloor?.siteName));
+  return active || catalog[0] || null;
+}
+
+function renderAdminMimicWorkspace() {
+  if (getCurrentUserRole() === "Technician") return;
+  const catalog = getAdminMimicCatalog();
+  const selected = getAdminMimicSelection(catalog);
+  state.adminMimicSelection = selected
+    ? { companyName: selected.companyName, siteName: selected.siteName, floorId: selected.floorId }
+    : {};
+
+  const clientNames = uniqueValues(catalog.map((item) => item.companyName));
+  const companyName = selected?.companyName || clientNames[0] || "";
+  const siteNames = uniqueValues(catalog
+    .filter((item) => normalizeScopeText(item.companyName) === normalizeScopeText(companyName))
+    .map((item) => item.siteName));
+  const siteName = selected?.siteName && siteNames.some((name) => normalizeScopeText(name) === normalizeScopeText(selected.siteName))
+    ? selected.siteName
+    : siteNames[0] || "";
+  const floors = catalog.filter((item) => normalizeScopeText(item.companyName) === normalizeScopeText(companyName)
+    && normalizeScopeText(item.siteName) === normalizeScopeText(siteName));
+  const floorId = floors.some((item) => item.floorId === selected?.floorId)
+    ? selected.floorId
+    : floors[0]?.floorId || "";
+  const active = floors.find((item) => item.floorId === floorId) || null;
+  state.adminMimicSelection = active
+    ? { companyName: active.companyName, siteName: active.siteName, floorId: active.floorId }
+    : { companyName, siteName, floorId: "" };
+
+  if (adminMimicClientSelect) {
+    adminMimicClientSelect.innerHTML = clientNames.length
+      ? clientNames.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("")
+      : `<option value="">No configured mimics</option>`;
+    adminMimicClientSelect.value = companyName;
+  }
+  if (adminMimicSiteSelect) {
+    adminMimicSiteSelect.innerHTML = siteNames.length
+      ? siteNames.map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("")
+      : `<option value="">No site available</option>`;
+    adminMimicSiteSelect.value = siteName;
+  }
+  if (adminMimicFloorSelect) {
+    adminMimicFloorSelect.innerHTML = floors.length
+      ? floors.map((item) => `<option value="${escapeHtml(item.floorId)}">${escapeHtml(item.title)}</option>`).join("")
+      : `<option value="">No mimic available for this floor</option>`;
+    adminMimicFloorSelect.value = floorId;
+  }
+  if (adminOpenMimicBtn) adminOpenMimicBtn.disabled = !active?.backgroundSrc;
+  if (adminMimicSelectionStatus) {
+    adminMimicSelectionStatus.textContent = active?.backgroundSrc
+      ? `${active.companyName} / ${active.siteName} / ${active.title} - ${active.source} background selected`
+      : "No mimic available for this floor";
+  }
+}
+
+function updateAdminMimicSelection(partial = {}) {
+  const catalog = getAdminMimicCatalog();
+  const previous = state.adminMimicSelection || {};
+  const next = { ...previous, ...partial };
+  const companyName = next.companyName || catalog[0]?.companyName || "";
+  const companyItems = catalog.filter((item) => normalizeScopeText(item.companyName) === normalizeScopeText(companyName));
+  const siteName = next.siteName && companyItems.some((item) => normalizeScopeText(item.siteName) === normalizeScopeText(next.siteName))
+    ? next.siteName
+    : companyItems[0]?.siteName || "";
+  const siteItems = companyItems.filter((item) => normalizeScopeText(item.siteName) === normalizeScopeText(siteName));
+  const floorId = next.floorId && siteItems.some((item) => item.floorId === next.floorId)
+    ? next.floorId
+    : siteItems[0]?.floorId || "";
+  state.adminMimicSelection = { companyName, siteName, floorId };
+  persistAdminUiState();
+  renderAdminMimicWorkspace();
+}
+
+function openAdminMimicSelection() {
+  const selected = getAdminMimicSelection();
+  if (!selected?.backgroundSrc) {
+    if (adminMimicSelectionStatus) adminMimicSelectionStatus.textContent = "No mimic available for this floor";
+    return false;
+  }
+  const profile = { companyName: selected.companyName, siteName: selected.siteName };
+  renderFloorOptions(selected.floorId, profile, { renderSchedule: false });
+  if (floorSelect.value !== selected.floorId) {
+    if (adminMimicSelectionStatus) adminMimicSelectionStatus.textContent = "No mimic available for this floor";
+    return false;
+  }
+  refreshSelectedFloorView();
+  persistAdminUiState();
+  if (adminMimicSelectionStatus) {
+    adminMimicSelectionStatus.textContent = `Showing ${selected.companyName} / ${selected.siteName} / ${selected.title}`;
+  }
+  return true;
 }
 
 function renderAdminClientTabContent(profile, data) {
@@ -12103,7 +12260,8 @@ function renderFloorOptions(selectedValue = floorSelect.value || "lv1", preferre
   const selectedFloorProfile = getFloorClientProfile(selectedFloor);
   renderClientSiteSelectors(preferredProfile || selectedFloorProfile || state.siteProfile);
   const activeProfile = getSelectedClientProfile();
-  const customFloors = state.mimicFloors.filter((floor) => profileMatchesClient(floor, activeProfile));
+  const customFloors = [...state.mimicFloors, ...state.runtimeMimicAssets]
+    .filter((floor) => profileMatchesClient(floor, activeProfile));
   const libraryCompanies = state.libraryCompanies.filter((company) => profileMatchesClient(company, activeProfile));
   const customOptions = customFloors.map((floor) => {
     return `<option value="${escapeHtml(floor.id)}">${escapeHtml(floor.title)}</option>`;
@@ -12211,6 +12369,7 @@ function collectClientSiteOptions(extraProfile = null) {
   if (extraProfile) add(extraProfile.companyName, extraProfile.siteName);
   add(state.siteProfile?.companyName, state.siteProfile?.siteName);
   state.mimicFloors.forEach((floor) => add(floor.companyName, floor.siteName));
+  state.runtimeMimicAssets.forEach((floor) => add(floor.companyName, floor.siteName));
   state.libraryCompanies.forEach((company) => add(company.companyName, company.siteName));
   state.setupDevices.forEach((device) => add(device.companyName, device.siteName));
   state.schedules.forEach((schedule) => add(schedule.companyName, schedule.siteName));
@@ -12271,6 +12430,8 @@ function getFirstFloorIdForProfile(profile) {
   const selected = normalizeClientProfile(profile);
   const customFloor = state.mimicFloors.find((floor) => profileMatchesClient(floor, selected));
   if (customFloor) return customFloor.id;
+  const runtimeAsset = state.runtimeMimicAssets.find((floor) => profileMatchesClient(floor, selected));
+  if (runtimeAsset) return runtimeAsset.id;
   const libraryCompany = state.libraryCompanies.find((company) => profileMatchesClient(company, selected));
   if (libraryCompany?.pages?.length) return libraryCompany.pages[0].floorId;
   return scheduleGeneralFloorAsset.id;
@@ -12280,12 +12441,13 @@ function getFloorAsset(floorId) {
   if (isGeneralScheduleFloorId(floorId)) return scheduleGeneralFloorAsset;
   return defaultFloorAssets[floorId]
     || state.mimicFloors.find((floor) => floor.id === floorId)
+    || state.runtimeMimicAssets.find((floor) => floor.id === floorId || floor.floorId === floorId)
     || state.libraryFloors.find((floor) => floor.id === floorId || floor.floorId === floorId)
     || defaultFloorAssets.lv1;
 }
 
 function floorExists(floorId) {
-  return Boolean(isGeneralScheduleFloorId(floorId) || defaultFloorAssets[floorId] || state.mimicFloors.some((floor) => floor.id === floorId) || state.libraryFloors.some((floor) => floor.id === floorId || floor.floorId === floorId));
+  return Boolean(isGeneralScheduleFloorId(floorId) || defaultFloorAssets[floorId] || state.mimicFloors.some((floor) => floor.id === floorId) || state.runtimeMimicAssets.some((floor) => floor.id === floorId || floor.floorId === floorId) || state.libraryFloors.some((floor) => floor.id === floorId || floor.floorId === floorId));
 }
 
 function getFloorCode(floorId) {
@@ -12351,6 +12513,36 @@ async function loadMimicLibrary(options = {}) {
     console.warn("Unable to load mimic library", error);
   }
   return state.libraryFloors;
+}
+
+async function loadRuntimeMimicAssets() {
+  if (browserDataState.runtimeMimicAssetsLoaded) return state.runtimeMimicAssets;
+  try {
+    const response = await fetch("assets/mimics/index.json", { cache: "no-store" });
+    if (!response.ok) return state.runtimeMimicAssets;
+    const index = await response.json();
+    const manifests = Array.isArray(index.manifests) ? index.manifests : [];
+    state.runtimeMimicAssets = manifests
+      .filter((manifest) => manifest && manifest.clientId && manifest.siteId && manifest.floorId && manifest.background)
+      .map((manifest) => ({
+        id: `asset-${manifest.clientId}-${manifest.siteId}-${manifest.floorId}`,
+        floorId: `asset-${manifest.clientId}-${manifest.siteId}-${manifest.floorId}`,
+        companyName: manifest.clientName || manifest.clientId,
+        siteName: manifest.siteName || manifest.siteId,
+        floorCode: manifest.floorCode || manifest.floorId,
+        floorName: manifest.displayName || manifest.floorId,
+        title: manifest.displayName || manifest.floorId,
+        src: `assets/mimics/${manifest.clientId}/${manifest.siteId}/${manifest.floorId}/${manifest.background}`,
+        cleanSrc: `assets/mimics/${manifest.clientId}/${manifest.siteId}/${manifest.floorId}/${manifest.background}`,
+        fileName: manifest.background,
+        backgroundVersion: manifest.backgroundVersion || "",
+        manifestSource: "runtime-asset"
+      }));
+    browserDataState.runtimeMimicAssetsLoaded = true;
+  } catch (error) {
+    console.warn("Unable to load runtime mimic asset index", error);
+  }
+  return state.runtimeMimicAssets;
 }
 
 async function loadSavedDeviceMasters(options = {}) {

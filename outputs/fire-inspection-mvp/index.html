@@ -224,6 +224,15 @@
 
               <section class="admin-module-workspace hidden" data-admin-workspace="mimics">
                 <div class="admin-workspace-heading"><div><p class="eyebrow">Site Maps</p><h3>Mimic Management</h3></div><span>Client, floor, background and existing pin tools</span></div>
+                <section class="admin-mimic-selector" aria-label="Mimic background selection">
+                  <label>Client<select id="adminMimicClientSelect"></select></label>
+                  <label>Site<select id="adminMimicSiteSelect"></select></label>
+                  <label>Floor<select id="adminMimicFloorSelect"></select></label>
+                  <div class="admin-mimic-selection-actions">
+                    <button id="adminOpenMimicBtn" type="button">Open Mimic</button>
+                    <span id="adminMimicSelectionStatus" class="hint">Loading configured mimics...</span>
+                  </div>
+                </section>
                 <div id="adminMimicsMount" class="admin-module-mount"></div>
               </section>
 
