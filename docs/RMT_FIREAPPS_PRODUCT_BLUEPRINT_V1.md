@@ -243,6 +243,96 @@ Internal audit report:
 - supervisor review notes;
 - enough detail to prove the work process.
 
+## Admin Control Desk
+
+The Admin experience is a control desk, not one long scrolling page. Only one
+workspace should be active at a time, with the current selection preserved when
+Admin moves between workspaces or refreshes the browser.
+
+Top-level Admin navigation:
+
+- Home
+- Clients
+- Schedule
+- Reports
+- Defects
+- Mimics
+- Staff
+- Settings
+
+Home is a compact operational dashboard showing today's jobs, work in progress,
+reports awaiting review, open defects, pending suggested pins, upcoming services,
+and clear quick actions.
+
+Each client/site workspace has its own tabs:
+
+```text
+Overview -> Schedule -> Systems -> Mimic -> Reports -> Defects -> History
+```
+
+Quotations will later be added as a client workspace when the quotation workflow
+is ready. Legacy forms may be reused internally, but they must appear inside their
+own workspace, drawer, or detail pane rather than as unrelated stacked panels.
+
+## Report Review Workflow
+
+The intended report workflow is:
+
+```text
+Technician completes inspection
+-> client acknowledgement/signature where required
+-> technician submits for review
+-> Admin receives the submitted report
+-> structured results are calculated from authoritative records
+-> AI/Codex may prepare a Page-1 management-summary draft
+-> Admin reviews and approves/returns it
+-> client receives the summary front page plus full report
+```
+
+AI/Codex assistance may prepare wording and a summary draft from approved
+structured results. It must not approve, send, or alter inspection evidence
+without Admin review. Customer reports remain separate from the internal audit
+report.
+
+## Defect-To-Quotation Workflow
+
+The future quotation flow begins only from approved report defects:
+
+```text
+Approved report defects
+-> quotation-required items identified
+-> Realmart rate library provides pricing
+-> AI/Codex prepares wording and a draft
+-> Admin reviews and approves
+-> quotation sent
+-> purchase order
+-> rectification
+-> recheck
+-> close
+```
+
+The rate library and final pricing are controlled by Realmart. AI/Codex may assist
+with a draft only; Admin must approve every quotation before it is issued.
+
+## Infrastructure Direction
+
+The intended deployment is staged and does not require a paid service for the
+prototype:
+
+- home is the initial primary server location;
+- the RMT application/database server should sit near the Synology;
+- Synology stores large files, evidence, and backups rather than browser
+  localStorage;
+- office users connect securely to the application server;
+- technicians will later sync remotely, with robust offline support added as a
+  separate phase;
+- a secondary off-site backup is a later resilience requirement.
+
+This direction keeps the existing online shared-record safety model while moving
+large files and backups to appropriate storage. Production authentication,
+database migration, remote access, and offline conflict sync require their own
+approved design and rollout stages.
+
 ## Data Integrity Direction
 
 The accepted Phase 1 shared-record model is:

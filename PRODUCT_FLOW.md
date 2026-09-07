@@ -181,7 +181,10 @@ Major current function groups in `outputs/fire-inspection-mvp/app.js`:
 - Device master import/export/save to PC.
 - Critical SOP templates and save logic.
 - Critical workflow dependency definitions, parent prerequisite gates, child-device locks, Flow Switch primary/secondary dependencies, and final restoration gates.
-- Customer report view and PC-folder inspection run save.
+- Customer report preview with a compact Page 1 management summary and Page 2+ details grouped by system/floor/device.
+- Report snapshots use authoritative shared inspection, critical SOP, linked-verification, extinguisher, sign-off, and schedule records. Admin approval freezes the snapshot inside the existing revision-protected report-submission record.
+- Suggested pins in customer reports are restricted to the exact schedule/client/site/floor context; unrelated requests remain available to Admin but cannot leak into another customer report.
+- Browser Print / Save as PDF provides the V1 A4 output; a dedicated server PDF renderer remains a later production option.
 - Staff tracking/audit event generation.
 
 ## Critical Dependency Model

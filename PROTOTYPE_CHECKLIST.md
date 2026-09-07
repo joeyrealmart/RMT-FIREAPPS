@@ -35,9 +35,9 @@ For every important change:
 | 13. Progress | Tech can see done/pending/fail/SOP-started/locked count. | Automated pass |
 | 14. Complete inspection | Final sign-off appears only after all assigned items/SOP are complete and server validates shared progress. | Automated pass / manual retest |
 | 15. Signature | Client/supervisor can sign on phone/tablet; signature is saved in job record. | Automated pass |
-| 16. Supervisor review | Admin/supervisor can review staff/time/fail/SOP red flags. | Partial |
-| 17. Customer report | Admin can generate client-friendly summary plus detailed critical data. | Automated pass / manual layout review |
-| 18. Backend report | Admin can view red flags, staff tracking, skipped SOP, duration, and evidence gaps. | Partial |
+| 16. Supervisor review | Admin can open an awaiting report, review its derived summary/details, return it, or approve a revision-protected snapshot. | Automated pass / manual wording review |
+| 17. Customer report | Admin can generate a client-facing Page 1 management summary plus detailed device, critical, extinguisher, linked-verification, evidence-reference, and acknowledgement sections. | Automated pass / manual A4 review |
+| 18. Backend report | Approved report content is frozen in the existing shared report-submission record; raw inspection records are not editable from the report screen. | Automated pass |
 | 19. Reload/resume | Browser reload fetches latest shared records and restores active job/progress correctly. | Automated pass |
 | 20. Multi-tech | Online Tech 1/2/3 can save different devices without replacing the whole job; same-item stale saves return conflict. | Automated pass / manual field retest |
 | 21. Manual diagnostics | App shows server connection, mode, technician, active job ID, shared revision/sync state, draft count, and LAN URL for two-phone validation. | Automated Android pass / manual field retest |
@@ -45,6 +45,8 @@ For every important change:
 ## Phase 1 Shared-Record Rules
 
 - Shared per-item inspection records and critical-SOP records are now authoritative for active job progress.
+- Report V1 builds lazily from authoritative shared records. Admin approval stores an evidence-reference-only `rmt-report-snapshot-v1`; later master-data edits do not silently rewrite an approved report.
+- Admin approval is blocked when the shared server is unavailable or locally detectable unsynced job records remain.
 - `schedule.jobProgress` is legacy fallback/migration only and should not be rewritten by normal item saves.
 - Online multi-tech saves are protected by revision checks.
 - Same-item stale saves return conflict instead of overwriting the newer record.

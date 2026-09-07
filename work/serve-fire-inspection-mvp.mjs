@@ -38,6 +38,8 @@ mkdirSync(join(dataRoot, "requests"), { recursive: true });
 mkdirSync(join(dataRoot, "requests", "photo-proof"), { recursive: true });
 mkdirSync(join(dataRoot, "shared-records", "jobs"), { recursive: true });
 mkdirSync(join(dataRoot, "shared-records", "linked-verification-evidence"), { recursive: true });
+mkdirSync(join(dataRoot, "extinguisher-assets"), { recursive: true });
+mkdirSync(join(dataRoot, "shared-records", "extinguisher-evidence"), { recursive: true });
 mkdirSync(reportRoot, { recursive: true });
 
 function sendJson(res, status, payload) {
@@ -157,6 +159,10 @@ function createEmptySharedJobStore(scheduleId) {
     linkedVerificationSideRecords: {},
     linkedVerificationConflicts: {},
     linkedVerificationAudit: [],
+    extinguisherAssetSnapshot: null,
+    extinguisherVerificationRecords: {},
+    extinguisherChangeProposals: {},
+    extinguisherAudit: [],
     signOff: null,
     reportSubmission: null
   };
@@ -184,6 +190,10 @@ function readSharedJobStore(scheduleId) {
   store.linkedVerificationSideRecords = store.linkedVerificationSideRecords || {};
   store.linkedVerificationConflicts = store.linkedVerificationConflicts || {};
   store.linkedVerificationAudit = Array.isArray(store.linkedVerificationAudit) ? store.linkedVerificationAudit : [];
+  store.extinguisherAssetSnapshot = store.extinguisherAssetSnapshot || null;
+  store.extinguisherVerificationRecords = store.extinguisherVerificationRecords || {};
+  store.extinguisherChangeProposals = store.extinguisherChangeProposals || {};
+  store.extinguisherAudit = Array.isArray(store.extinguisherAudit) ? store.extinguisherAudit : [];
   store.reportSubmission = store.reportSubmission || null;
   store.migration = store.migration || { migratedFromJobProgress: false, migratedAt: "" };
   return store;
@@ -286,6 +296,339 @@ function saveMissingDeviceRequestRecord(incoming = {}, expectedRevision = null) 
 function writeSharedJobStore(store) {
   store.updatedAt = new Date().toISOString();
   atomicWriteJson(getSharedJobPath(store.scheduleId), store);
+}
+
+function normalizeExtinguisherSerial(value) {
+  return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function getExtinguisherMasterPath(companyName, siteName) {
+  return join(dataRoot, "extinguisher-assets", `${slugify(`${companyName || "client"}-${siteName || "site"}`)}-master.json`);
+}
+
+function getExtinguisherMasterId(companyName, siteName) {
+  return `ext-master::${slugify(companyName)}::${slugify(siteName)}`;
+}
+
+function readExtinguisherMaster(companyName, siteName) {
+  const masterId = getExtinguisherMasterId(companyName, siteName);
+  const stored = readJsonFile(getExtinguisherMasterPath(companyName, siteName), null);
+  return stored || {
+    schemaVersion: "extinguisher-asset-master-v1",
+    masterId,
+    companyName: companyName || "",
+    siteName: siteName || "",
+    revision: 0,
+    assets: [],
+    sourceDocuments: [],
+    audit: [],
+    createdAt: "",
+    updatedAt: ""
+  };
+}
+
+function normalizeExtinguisherAsset(masterId, incoming = {}, index = 0) {
+  const serialNumber = normalizeExtinguisherSerial(incoming.serialNumber || incoming.serial || incoming.serial_no || incoming.serial_number);
+  if (!serialNumber) return null;
+  return {
+    assetId: incoming.assetId || `ext-asset::${masterId}::${slugify(serialNumber)}`,
+    serialNumber,
+    brand: String(incoming.brand || "").trim(),
+    agentType: String(incoming.agentType || incoming.agent || incoming.type || "").trim(),
+    sizeKg: String(incoming.sizeKg || incoming.size || incoming.capacity || "").trim(),
+    location: String(incoming.location || incoming.area || "").trim(),
+    floor: String(incoming.floor || incoming.floorArea || "").trim(),
+    manufactureMonthYear: String(incoming.manufactureMonthYear || incoming.manufacture_date || "").trim(),
+    expiryDate: String(incoming.expiryDate || incoming.expiry || "").trim(),
+    registeredAddress: String(incoming.registeredAddress || incoming.registered_address || "").trim(),
+    bombaQr: {
+      serialNumber: normalizeExtinguisherSerial(incoming.bombaQr?.serialNumber || serialNumber),
+      expiryDate: String(incoming.bombaQr?.expiryDate || incoming.expiryDate || incoming.expiry || "").trim(),
+      registeredAddress: String(incoming.bombaQr?.registeredAddress || incoming.registeredAddress || incoming.registered_address || "").trim(),
+      rawPayload: String(incoming.bombaQr?.rawPayload || incoming.rawQrPayload || incoming.raw_qr_payload || "")
+    },
+    status: incoming.status || "ACTIVE",
+    sourceRow: Number(incoming.sourceRow || index + 2)
+  };
+}
+
+function saveExtinguisherMasterImport(payload = {}) {
+  const companyName = String(payload.companyName || "").trim();
+  const siteName = String(payload.siteName || "").trim();
+  if (!companyName || !siteName) return { ok: false, error: "Company and site are required" };
+  const current = readExtinguisherMaster(companyName, siteName);
+  const expectedRevision = Number(payload.expectedRevision ?? current.revision ?? 0);
+  if (expectedRevision !== Number(current.revision || 0)) {
+    return { ok: false, conflict: true, expectedRevision, currentRevision: Number(current.revision || 0), current };
+  }
+  const masterId = current.masterId || getExtinguisherMasterId(companyName, siteName);
+  const imported = (Array.isArray(payload.assets) ? payload.assets : [])
+    .map((asset, index) => normalizeExtinguisherAsset(masterId, asset, index))
+    .filter(Boolean);
+  const seen = new Set();
+  const duplicateSerials = [];
+  imported.forEach((asset) => {
+    if (seen.has(asset.serialNumber)) duplicateSerials.push(asset.serialNumber);
+    seen.add(asset.serialNumber);
+  });
+  if (duplicateSerials.length) {
+    return { ok: false, error: `Duplicate serial number(s): ${[...new Set(duplicateSerials)].join(", ")}` };
+  }
+  const now = new Date().toISOString();
+  let sourceDocument = payload.sourceDocument ? {
+    sourceDocumentId: payload.sourceDocument.sourceDocumentId || `ext-source::${Date.now()}`,
+    name: String(payload.sourceDocument.name || "Source document"),
+    type: String(payload.sourceDocument.type || "reference"),
+    reference: String(payload.sourceDocument.reference || ""),
+    size: Number(payload.sourceDocument.size || 0),
+    importedAt: now,
+    importedBy: String(payload.importedBy || "Admin")
+  } : null;
+  if (sourceDocument && payload.sourceDocument?.dataUrl) {
+    const file = dataUrlToFile(payload.sourceDocument.dataUrl, sourceDocument.type === "PDF_REFERENCE" ? "pdf" : "bin");
+    if (file) {
+      const sourceDir = join(dataRoot, "extinguisher-assets", "sources", slugify(masterId));
+      mkdirSync(sourceDir, { recursive: true });
+      const sourceName = `${sourceDocument.sourceDocumentId.replace(/[^a-zA-Z0-9_-]/g, "-")}-${slugify(sourceDocument.name)}.${file.ext}`;
+      writeFileSync(join(sourceDir, sourceName), file.bytes);
+      sourceDocument = { ...sourceDocument, sourceUrl: `/local-data/extinguisher-assets/sources/${slugify(masterId)}/${sourceName}`, savedToPc: true };
+    }
+  }
+  const nextAssets = imported.length ? imported : current.assets;
+  const saved = {
+    ...current,
+    schemaVersion: "extinguisher-asset-master-v1",
+    masterId,
+    companyName,
+    siteName,
+    revision: Number(current.revision || 0) + 1,
+    assets: nextAssets,
+    sourceDocuments: sourceDocument ? [...(current.sourceDocuments || []), sourceDocument] : current.sourceDocuments || [],
+    audit: [...(current.audit || []), {
+      event: imported.length ? "MASTER_LIST_IMPORTED" : "SOURCE_REFERENCE_ATTACHED",
+      by: String(payload.importedBy || "Admin"),
+      at: now,
+      assetCount: nextAssets.length,
+      sourceDocumentId: sourceDocument?.sourceDocumentId || ""
+    }],
+    createdAt: current.createdAt || now,
+    updatedAt: now
+  };
+  atomicWriteJson(getExtinguisherMasterPath(companyName, siteName), saved);
+  return { ok: true, master: saved };
+}
+
+function getExtinguisherVerificationRecordId(scheduleId, assetId) {
+  return `ext-verification::${scheduleId}::${assetId}`;
+}
+
+function writeExtinguisherEvidence(scheduleId, recordId, evidence = [], currentEvidence = []) {
+  const incoming = Array.isArray(evidence) ? evidence : [];
+  if (!incoming.length) return Array.isArray(currentEvidence) ? currentEvidence : [];
+  const folderName = slugify(`${scheduleId}-${recordId}`);
+  const evidenceDir = join(dataRoot, "shared-records", "extinguisher-evidence", folderName);
+  mkdirSync(evidenceDir, { recursive: true });
+  return incoming.map((photo, index) => {
+    const image = dataUrlToFile(photo?.dataUrl, "jpg");
+    const clean = { ...(photo || {}) };
+    delete clean.dataUrl;
+    if (!image) return clean;
+    const name = `${String(index + 1).padStart(2, "0")}-${slugify(photo.name || "extinguisher-evidence")}.${image.ext}`;
+    writeFileSync(join(evidenceDir, name), image.bytes);
+    return { ...clean, photoUrl: `/local-data/shared-records/extinguisher-evidence/${folderName}/${name}`, savedToPc: true };
+  });
+}
+
+function freezeExtinguisherJob(store, schedule = {}, payload = {}) {
+  if (store.extinguisherAssetSnapshot) {
+    return { ok: true, idempotent: true, snapshot: store.extinguisherAssetSnapshot, reconciliation: calculateExtinguisherReconciliation(store) };
+  }
+  const companyName = schedule.companyName || store.scheduleSnapshot?.companyName || payload.companyName || "";
+  const siteName = schedule.siteName || store.scheduleSnapshot?.siteName || payload.siteName || "";
+  const master = readExtinguisherMaster(companyName, siteName);
+  const selectedIds = new Set(Array.isArray(payload.selectedAssetIds) ? payload.selectedAssetIds : []);
+  const assets = (master.assets || [])
+    .filter((asset) => asset.status !== "REMOVED")
+    .filter((asset) => !selectedIds.size || selectedIds.has(asset.assetId))
+    .map((asset) => JSON.parse(JSON.stringify(asset)));
+  const now = new Date().toISOString();
+  store.extinguisherAssetSnapshot = {
+    schemaVersion: "extinguisher-job-snapshot-v1",
+    snapshotId: `ext-snapshot::${store.scheduleId}`,
+    scheduleId: store.scheduleId,
+    masterId: master.masterId,
+    masterRevision: Number(master.revision || 0),
+    companyName,
+    siteName,
+    sourceDocumentRefs: (master.sourceDocuments || []).map((source) => ({ ...source })),
+    assetIds: assets.map((asset) => asset.assetId),
+    assets,
+    frozenAt: now,
+    frozenBy: String(payload.frozenBy || "Admin")
+  };
+  store.extinguisherAudit.push({ event: "JOB_ASSET_LIST_FROZEN", at: now, by: String(payload.frozenBy || "Admin"), assetCount: assets.length, masterRevision: master.revision || 0 });
+  return { ok: true, snapshot: store.extinguisherAssetSnapshot, reconciliation: calculateExtinguisherReconciliation(store) };
+}
+
+function calculateExtinguisherReconciliation(store) {
+  const expectedAssets = store.extinguisherAssetSnapshot?.assets || [];
+  const records = Object.values(store.extinguisherVerificationRecords || {});
+  const expectedIds = new Set(expectedAssets.map((asset) => asset.assetId));
+  const latestByAsset = new Map(records.map((record) => [record.assetId, record]));
+  const counts = { expected: expectedAssets.length, verified: 0, missing: 0, moved: 0, newUnitFound: 0, fault: 0, replaced: 0, pending: 0, pendingMasterChanges: 0 };
+  expectedAssets.forEach((asset) => {
+    const status = String(latestByAsset.get(asset.assetId)?.result || "").toUpperCase();
+    if (!status) counts.pending += 1;
+    else if (status === "VERIFIED") counts.verified += 1;
+    else if (status === "MISSING") counts.missing += 1;
+    else if (status === "MOVED") counts.moved += 1;
+    else if (status === "FAULT") counts.fault += 1;
+    else if (status === "REPLACED") counts.replaced += 1;
+  });
+  records.filter((record) => record.result === "NEW_UNIT_FOUND" && !expectedIds.has(record.assetId)).forEach(() => { counts.newUnitFound += 1; });
+  counts.pendingMasterChanges = Object.values(store.extinguisherChangeProposals || {}).filter((proposal) => proposal.status === "PENDING_ADMIN_REVIEW").length;
+  counts.completed = counts.expected - counts.pending;
+  counts.ready = counts.pending === 0;
+  return counts;
+}
+
+function createExtinguisherProposal(store, incoming = {}) {
+  const now = new Date().toISOString();
+  const proposalId = incoming.proposalId || `EXT-PROP-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  const current = store.extinguisherChangeProposals[proposalId];
+  if (current) return { ok: true, idempotent: true, proposal: current };
+  const proposal = {
+    proposalId,
+    scheduleId: store.scheduleId,
+    assetId: incoming.assetId || "",
+    serialNumber: normalizeExtinguisherSerial(incoming.serialNumber),
+    proposalType: incoming.proposalType || "ADD_NEW",
+    proposedChanges: incoming.proposedChanges || {},
+    reason: String(incoming.reason || ""),
+    technicianId: String(incoming.technicianId || ""),
+    technicianName: String(incoming.technicianName || ""),
+    evidenceRefs: Array.isArray(incoming.evidenceRefs) ? incoming.evidenceRefs : [],
+    status: "PENDING_ADMIN_REVIEW",
+    revision: 1,
+    auditHistory: [{ event: "PROPOSED", by: String(incoming.technicianName || incoming.technicianId || "Technician"), at: now }],
+    createdAt: now,
+    updatedAt: now
+  };
+  store.extinguisherChangeProposals[proposalId] = proposal;
+  store.extinguisherAudit.push({ event: "MASTER_CHANGE_PROPOSED", proposalId, proposalType: proposal.proposalType, technicianId: proposal.technicianId, at: now });
+  return { ok: true, proposal };
+}
+
+function saveExtinguisherVerification(store, incoming = {}, expectedRevision = 0) {
+  const resultName = String(incoming.result || "").toUpperCase();
+  if (!["VERIFIED", "MISSING", "MOVED", "FAULT", "REPLACED", "NEW_UNIT_FOUND"].includes(resultName)) return { ok: false, error: "Unsupported extinguisher verification result" };
+  const snapshotAssets = store.extinguisherAssetSnapshot?.assets || [];
+  const serialNumber = normalizeExtinguisherSerial(incoming.serialNumber);
+  const frozenAsset = snapshotAssets.find((asset) => asset.assetId === incoming.assetId || asset.serialNumber === serialNumber);
+  if (resultName !== "NEW_UNIT_FOUND" && !frozenAsset) return { ok: false, error: "Asset is not part of the frozen extinguisher job list" };
+  if (resultName === "NEW_UNIT_FOUND" && !serialNumber) return { ok: false, error: "Serial number is required for a new unit" };
+  if (resultName === "MOVED" && !String(incoming.currentLocation || "").trim()) return { ok: false, error: "Current location is required for a moved unit" };
+  if (resultName === "REPLACED" && !normalizeExtinguisherSerial(incoming.replacementSerial)) return { ok: false, error: "Replacement serial is required" };
+  const assetId = frozenAsset?.assetId || incoming.assetId || `ext-found::${slugify(serialNumber)}`;
+  const recordId = getExtinguisherVerificationRecordId(store.scheduleId, assetId);
+  const current = store.extinguisherVerificationRecords[recordId] || null;
+  const evidenceRefs = writeExtinguisherEvidence(store.scheduleId, recordId, incoming.evidenceRefs, current?.evidenceRefs);
+  const record = {
+    ...incoming,
+    recordId,
+    scheduleId: store.scheduleId,
+    assetId,
+    serialNumber: frozenAsset?.serialNumber || serialNumber,
+    result: resultName,
+    technicianId: String(incoming.technicianId || ""),
+    technicianName: String(incoming.technicianName || ""),
+    timestamp: incoming.timestamp || new Date().toISOString(),
+    notes: String(incoming.notes || ""),
+    currentLocation: String(incoming.currentLocation || ""),
+    replacementSerial: normalizeExtinguisherSerial(incoming.replacementSerial),
+    evidenceRefs,
+    syncState: "SYNCED"
+  };
+  const result = saveRevisionedRecord(store, "extinguisherVerificationRecords", record, expectedRevision);
+  if (!result.ok) return result;
+  if (!result.idempotent) store.extinguisherAudit.push({
+    event: "ASSET_VERIFICATION_SAVED",
+    recordId,
+    assetId,
+    serialNumber: record.serialNumber,
+    result: resultName,
+    technicianId: record.technicianId,
+    technicianName: record.technicianName,
+    notes: record.notes,
+    evidenceRefs: record.evidenceRefs,
+    currentLocation: record.currentLocation,
+    replacementSerial: record.replacementSerial,
+    at: result.record.updatedAt,
+    revision: result.record.revision
+  });
+  let proposal = null;
+  if (resultName === "NEW_UNIT_FOUND") proposal = createExtinguisherProposal(store, { ...record, proposalId: incoming.proposalId, proposalType: "ADD_NEW", proposedChanges: { serialNumber: record.serialNumber, location: record.currentLocation, agentType: incoming.agentType || "", sizeKg: incoming.sizeKg || "" }, evidenceRefs });
+  if (resultName === "MOVED") proposal = createExtinguisherProposal(store, { ...record, proposalId: incoming.proposalId, proposalType: "MOVE_LOCATION", proposedChanges: { location: record.currentLocation }, evidenceRefs });
+  if (resultName === "REPLACED") proposal = createExtinguisherProposal(store, { ...record, proposalId: incoming.proposalId, proposalType: "REPLACE_SERIAL", proposedChanges: { replacementSerial: record.replacementSerial, location: record.currentLocation || frozenAsset?.location || "", agentType: incoming.agentType || frozenAsset?.agentType || "", sizeKg: incoming.sizeKg || frozenAsset?.sizeKg || "" }, evidenceRefs });
+  if (resultName === "MISSING" && incoming.proposeRemoval) proposal = createExtinguisherProposal(store, { ...record, proposalId: incoming.proposalId, proposalType: "MARK_REMOVED", proposedChanges: {}, evidenceRefs });
+  return { ok: true, record: result.record, idempotent: Boolean(result.idempotent), proposal: proposal?.proposal || null, reconciliation: calculateExtinguisherReconciliation(store) };
+}
+
+function reviewExtinguisherProposal(store, proposalId, payload = {}) {
+  const proposal = store.extinguisherChangeProposals?.[proposalId];
+  if (!proposal) return { ok: false, error: "Proposal not found" };
+  const action = String(payload.action || "").toUpperCase();
+  const now = new Date().toISOString();
+  if (action === "ADJUST") {
+    proposal.proposedChanges = { ...(proposal.proposedChanges || {}), ...(payload.proposedChanges || {}) };
+    proposal.reason = String(payload.reason || proposal.reason || "");
+    proposal.revision = Number(proposal.revision || 0) + 1;
+    proposal.updatedAt = now;
+    proposal.auditHistory = [...(proposal.auditHistory || []), { event: "ADJUSTED", by: String(payload.reviewedBy || "Admin"), at: now }];
+    store.extinguisherAudit.push({ event: "MASTER_CHANGE_ADJUSTED", proposalId, by: String(payload.reviewedBy || "Admin"), at: now });
+    return { ok: true, proposal, masterChanged: false };
+  }
+  if (!["APPROVE", "REJECT"].includes(action)) return { ok: false, error: "Unsupported review action" };
+  if (proposal.status !== "PENDING_ADMIN_REVIEW") return { ok: false, error: "Proposal was already reviewed" };
+  proposal.status = action === "APPROVE" ? "APPROVED" : "REJECTED";
+  proposal.reviewedAt = now;
+  proposal.reviewedBy = String(payload.reviewedBy || "Admin");
+  proposal.revision = Number(proposal.revision || 0) + 1;
+  proposal.updatedAt = now;
+  proposal.auditHistory = [...(proposal.auditHistory || []), { event: proposal.status, by: proposal.reviewedBy, at: now }];
+  let master = null;
+  if (action === "APPROVE") {
+    const snapshot = store.extinguisherAssetSnapshot || {};
+    master = readExtinguisherMaster(snapshot.companyName, snapshot.siteName);
+    const assets = [...(master.assets || [])];
+    const index = assets.findIndex((asset) => asset.assetId === proposal.assetId || asset.serialNumber === proposal.serialNumber);
+    const changes = proposal.proposedChanges || {};
+    if (proposal.proposalType === "ADD_NEW") {
+      const added = normalizeExtinguisherAsset(master.masterId, changes, assets.length);
+      if (!added) return { ok: false, error: "Approved new unit is missing a serial number" };
+      if (!assets.some((asset) => asset.serialNumber === added.serialNumber)) assets.push(added);
+      proposal.approvedAssetId = added.assetId;
+    } else if (proposal.proposalType === "MOVE_LOCATION" && index >= 0) {
+      assets[index] = { ...assets[index], location: String(changes.location || assets[index].location || "") };
+    } else if (proposal.proposalType === "MARK_REMOVED" && index >= 0) {
+      assets[index] = { ...assets[index], status: "REMOVED" };
+    } else if (proposal.proposalType === "REPLACE_SERIAL" && index >= 0) {
+      assets[index] = { ...assets[index], status: "REPLACED", replacedBySerial: normalizeExtinguisherSerial(changes.replacementSerial) };
+      const replacement = normalizeExtinguisherAsset(master.masterId, { ...assets[index], ...changes, serialNumber: changes.replacementSerial, status: "ACTIVE" }, assets.length);
+      if (replacement && !assets.some((asset) => asset.serialNumber === replacement.serialNumber)) assets.push(replacement);
+      proposal.approvedAssetId = replacement?.assetId || "";
+    }
+    master = {
+      ...master,
+      assets,
+      revision: Number(master.revision || 0) + 1,
+      updatedAt: now,
+      audit: [...(master.audit || []), { event: "TECHNICIAN_PROPOSAL_APPROVED", proposalId, proposalType: proposal.proposalType, by: proposal.reviewedBy, at: now }]
+    };
+    atomicWriteJson(getExtinguisherMasterPath(master.companyName, master.siteName), master);
+  }
+  store.extinguisherAudit.push({ event: action === "APPROVE" ? "MASTER_CHANGE_APPROVED" : "MASTER_CHANGE_REJECTED", proposalId, by: proposal.reviewedBy, at: now });
+  return { ok: true, proposal, masterChanged: action === "APPROVE", master };
 }
 
 function getLinkedVerificationSideRecordId(scheduleId, linkedVerificationId, sideId) {
@@ -1027,6 +1370,59 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
+      if (req.method === "POST" && action === "extinguisher-freeze") {
+        const payload = await readRequestJson(req);
+        const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
+        const result = freezeExtinguisherJob(store, payload.schedule || store.scheduleSnapshot || {}, payload);
+        if (!result.ok) {
+          sendJson(res, 400, result);
+          return;
+        }
+        writeSharedJobStore(store);
+        sendJson(res, 200, { ...result, scheduleId, store });
+        return;
+      }
+
+      if (req.method === "POST" && action === "extinguisher-verifications") {
+        const payload = await readRequestJson(req);
+        const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
+        if (!store.extinguisherAssetSnapshot) freezeExtinguisherJob(store, payload.schedule || store.scheduleSnapshot || {}, payload);
+        const result = saveExtinguisherVerification(store, payload.record || payload, payload.expectedRevision);
+        if (!result.ok) {
+          sendJson(res, result.conflict ? 409 : 400, { ...result, scheduleId, type: "extinguisher-verification" });
+          return;
+        }
+        writeSharedJobStore(store);
+        sendJson(res, 200, { ...result, scheduleId });
+        return;
+      }
+
+      if (req.method === "POST" && action === "extinguisher-proposals") {
+        const payload = await readRequestJson(req);
+        const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
+        const result = createExtinguisherProposal(store, payload.proposal || payload);
+        if (!result.ok) {
+          sendJson(res, 400, result);
+          return;
+        }
+        writeSharedJobStore(store);
+        sendJson(res, 200, { ...result, scheduleId, reconciliation: calculateExtinguisherReconciliation(store) });
+        return;
+      }
+
+      if (req.method === "POST" && action === "extinguisher-proposal-review") {
+        const payload = await readRequestJson(req);
+        const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
+        const result = reviewExtinguisherProposal(store, payload.proposalId, payload);
+        if (!result.ok) {
+          sendJson(res, 400, result);
+          return;
+        }
+        writeSharedJobStore(store);
+        sendJson(res, 200, { ...result, scheduleId, reconciliation: calculateExtinguisherReconciliation(store) });
+        return;
+      }
+
       if (req.method === "POST" && action === "linked-verification-sides") {
         const payload = await readRequestJson(req);
         const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
@@ -1243,6 +1639,24 @@ const server = http.createServer(async (req, res) => {
           });
           return;
         }
+        if (requestedStatus === "APPROVED_BY_ADMIN" && !incoming.reportSnapshot) {
+          sendJson(res, 409, {
+            ok: false,
+            blocked: true,
+            reason: "An authoritative report snapshot is required before Admin approval.",
+            progress
+          });
+          return;
+        }
+        if (requestedStatus === "APPROVED_BY_ADMIN" && Number(incoming.reportSnapshot?.dataIntegrity?.unsyncedCount || 0) > 0) {
+          sendJson(res, 409, {
+            ok: false,
+            blocked: true,
+            reason: "Unsynced report records remain. Admin approval is blocked.",
+            progress
+          });
+          return;
+        }
         const currentRevision = Number(store.reportSubmission?.revision || 0);
         const expectedRevision = Number(payload.expectedRevision ?? incoming.expectedRevision ?? currentRevision);
         if (expectedRevision !== currentRevision) {
@@ -1309,6 +1723,49 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, { ok: true, linkedVerifications });
     } catch (error) {
       sendJson(res, 500, { ok: false, error: error.message, linkedVerifications: [] });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && urlPath === "/api/extinguisher-assets/master") {
+    try {
+      const companyName = requestUrl.searchParams.get("companyName") || "";
+      const siteName = requestUrl.searchParams.get("siteName") || "";
+      sendJson(res, 200, { ok: true, master: readExtinguisherMaster(companyName, siteName) });
+    } catch (error) {
+      sendJson(res, 500, { ok: false, error: error.message });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && urlPath === "/api/extinguisher-assets/master-import") {
+    try {
+      const payload = await readRequestJson(req);
+      const result = saveExtinguisherMasterImport(payload);
+      sendJson(res, result.ok ? 200 : result.conflict ? 409 : 400, result);
+    } catch (error) {
+      sendJson(res, 500, { ok: false, error: error.message });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && urlPath === "/api/extinguisher-assets/proposals") {
+    try {
+      const jobDir = join(dataRoot, "shared-records", "jobs");
+      const proposals = readdirSync(jobDir)
+        .filter((name) => name.toLowerCase().endsWith(".json"))
+        .flatMap((name) => {
+          const store = readJsonFile(join(jobDir, name), null);
+          if (!store?.scheduleId) return [];
+          return Object.values(store.extinguisherChangeProposals || {}).map((proposal) => ({
+            ...proposal,
+            companyName: store.extinguisherAssetSnapshot?.companyName || store.scheduleSnapshot?.companyName || "",
+            siteName: store.extinguisherAssetSnapshot?.siteName || store.scheduleSnapshot?.siteName || ""
+          }));
+        });
+      sendJson(res, 200, { ok: true, proposals });
+    } catch (error) {
+      sendJson(res, 500, { ok: false, error: error.message, proposals: [] });
     }
     return;
   }

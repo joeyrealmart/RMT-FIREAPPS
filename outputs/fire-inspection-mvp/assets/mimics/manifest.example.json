@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "clientId": "client-id",
+  "siteId": "site-id",
+  "floorId": "floor-id",
+  "displayName": "Client / Site - Floor",
+  "background": "background-clean.png",
+  "backgroundVersion": "v1",
+  "width": 0,
+  "height": 0,
+  "sourceReference": "work/mimic-sources/client-id/site-id/source-original.pdf",
+  "createdAt": "2026-09-07T00:00:00+08:00",
+  "updatedAt": "2026-09-07T00:00:00+08:00"
+}

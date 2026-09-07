@@ -4883,6 +4883,409 @@ button.admin-record-row.active {
   margin-top: 0;
 }
 
+/* Realmart Admin Control Desk visual polish. Keep these rules scoped so field work stays mobile-first. */
+.admin-control-desk {
+  --admin-red: #c9151c;
+  --admin-red-deep: #97131a;
+  --admin-ink: #1d2939;
+  --admin-muted: #667085;
+  --admin-surface: #ffffff;
+  --admin-canvas: #f5f6f8;
+  --admin-line: #e2e6ec;
+  margin: 16px 0 0;
+  border: 1px solid #d9dee6;
+  border-radius: 8px;
+  background: var(--admin-canvas);
+  box-shadow: 0 12px 32px rgba(21, 32, 51, 0.1);
+}
+
+.admin-control-desk .admin-desk-header {
+  min-height: 68px;
+  padding: 12px 20px;
+  border-bottom-color: var(--admin-line);
+  background: var(--admin-surface);
+}
+
+.admin-control-desk .admin-desk-header::before {
+  width: 4px;
+  height: 36px;
+  border-radius: 2px;
+  background: var(--admin-red);
+  content: "";
+}
+
+.admin-control-desk .admin-desk-header > div {
+  margin-right: auto;
+}
+
+.admin-control-desk .admin-desk-header .eyebrow,
+.admin-control-desk .admin-workspace-heading .eyebrow,
+.admin-control-desk .section-header .eyebrow {
+  color: var(--admin-red);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.admin-control-desk .admin-desk-header h2,
+.admin-control-desk .admin-workspace-heading h3,
+.admin-control-desk .admin-client-detail h3 {
+  color: var(--admin-ink);
+}
+
+.admin-control-desk .admin-desk-header p,
+.admin-control-desk .admin-workspace-heading p,
+.admin-control-desk .admin-workspace-heading > span {
+  color: var(--admin-muted);
+}
+
+.admin-control-desk .admin-desk-layout {
+  grid-template-columns: 192px minmax(0, 1fr);
+  min-height: min(760px, calc(100vh - 140px));
+}
+
+.admin-control-desk .admin-main-nav {
+  gap: 4px;
+  padding: 12px 10px;
+  border-right-color: rgba(255, 255, 255, 0.16);
+  background: #202733;
+}
+
+.admin-control-desk .admin-main-nav::before {
+  display: block;
+  padding: 4px 10px 10px;
+  color: #9ea8b7;
+  content: "WORKSPACES";
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.admin-control-desk .admin-main-nav button {
+  min-height: 40px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-left: 3px solid transparent;
+  border-radius: 6px;
+  color: #d7dee9;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-control-desk .admin-main-nav button:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.admin-control-desk .admin-main-nav button.active {
+  border-color: rgba(255, 255, 255, 0.08);
+  border-left-color: #f0444b;
+  color: #ffffff;
+  background: #343d4d;
+  box-shadow: none;
+}
+
+.admin-control-desk .admin-workspace-host {
+  height: min(760px, calc(100vh - 140px));
+  background: var(--admin-canvas);
+  scrollbar-color: #b9c1cc transparent;
+}
+
+.admin-control-desk .admin-module-workspace {
+  padding: 18px;
+}
+
+.admin-control-desk .admin-workspace-heading {
+  min-height: 48px;
+  margin-bottom: 14px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--admin-line);
+}
+
+.admin-control-desk .admin-workspace-heading h3 {
+  font-size: 21px;
+}
+
+.admin-control-desk .admin-workspace-heading > span {
+  max-width: 310px;
+  text-align: right;
+}
+
+.admin-control-desk .admin-quick-actions {
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.admin-control-desk button:not(.admin-main-nav button) {
+  border-radius: 6px;
+}
+
+.admin-control-desk .admin-quick-actions button:first-child,
+.admin-control-desk .admin-workspace-actions button:not(.secondary),
+.admin-control-desk #adminReportsActions > button {
+  border-color: var(--admin-red);
+  background: var(--admin-red);
+  box-shadow: 0 3px 8px rgba(201, 21, 28, 0.16);
+}
+
+.admin-control-desk .admin-quick-actions button:first-child:hover,
+.admin-control-desk .admin-workspace-actions button:not(.secondary):hover,
+.admin-control-desk #adminReportsActions > button:hover {
+  border-color: var(--admin-red-deep);
+  background: var(--admin-red-deep);
+}
+
+.admin-control-desk .front-desk-metrics {
+  grid-template-columns: repeat(6, minmax(116px, 1fr));
+  gap: 9px;
+}
+
+.admin-control-desk .front-desk-metric {
+  position: relative;
+  min-height: 94px;
+  padding: 13px;
+  border-color: var(--admin-line);
+  border-radius: 7px;
+  background: var(--admin-surface);
+  box-shadow: 0 2px 5px rgba(16, 24, 40, 0.03);
+}
+
+.admin-control-desk .front-desk-metric::before {
+  position: absolute;
+  top: 0;
+  left: 13px;
+  width: 26px;
+  height: 3px;
+  border-radius: 0 0 2px 2px;
+  background: #98a2b3;
+  content: "";
+}
+
+.admin-control-desk .front-desk-metric:nth-child(3)::before,
+.admin-control-desk .front-desk-metric:nth-child(4)::before,
+.admin-control-desk .front-desk-metric:nth-child(5)::before {
+  background: var(--admin-red);
+}
+
+.admin-control-desk .front-desk-metric strong {
+  margin-top: 6px;
+  color: var(--admin-ink);
+  font-size: 27px;
+}
+
+.admin-control-desk .front-desk-metric span {
+  color: #344054;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.admin-control-desk .front-desk-layout {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.admin-control-desk .front-desk-card,
+.admin-control-desk .admin-client-list-panel,
+.admin-control-desk .admin-client-detail,
+.admin-control-desk .admin-record-detail,
+.admin-control-desk .linked-verification-admin {
+  border-color: var(--admin-line);
+  border-radius: 7px;
+  background: var(--admin-surface);
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.035);
+}
+
+.admin-control-desk .front-desk-card {
+  gap: 10px;
+  padding: 14px;
+}
+
+.admin-control-desk #adminFrontDeskHome .front-desk-card:nth-child(1),
+.admin-control-desk #adminFrontDeskHome .front-desk-card:nth-child(2) {
+  grid-column: span 6;
+}
+
+.admin-control-desk #adminFrontDeskHome .front-desk-card:nth-child(3),
+.admin-control-desk #adminFrontDeskHome .front-desk-card:nth-child(4) {
+  grid-column: span 6;
+}
+
+.admin-control-desk #adminFrontDeskHome .admin-workload-card {
+  grid-column: span 12;
+}
+
+.admin-control-desk .front-desk-card .section-header {
+  padding-bottom: 10px;
+  border-bottom: 1px solid #edf0f3;
+}
+
+.admin-control-desk .front-desk-card h3 {
+  color: var(--admin-ink);
+  font-size: 16px;
+}
+
+.admin-control-desk .front-desk-list {
+  gap: 7px;
+}
+
+.admin-control-desk #adminFrontDeskHome .front-desk-list {
+  max-height: 156px;
+}
+
+.admin-control-desk #adminFrontDeskHome .admin-workload-card .front-desk-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-height: 112px;
+}
+
+.admin-control-desk .front-desk-row {
+  padding: 10px 11px;
+  border-color: #e8ebef;
+  border-radius: 6px;
+  background: #fafbfc;
+}
+
+.admin-control-desk .front-desk-row:hover,
+.admin-control-desk .admin-record-row:hover {
+  border-color: #d0d5dd;
+  background: #ffffff;
+}
+
+.admin-control-desk .front-desk-row strong,
+.admin-control-desk .admin-record-row strong {
+  color: var(--admin-ink);
+}
+
+.admin-control-desk .mini-button {
+  color: var(--admin-red-deep);
+  background: #fff5f5;
+}
+
+.admin-control-desk #adminClientDesk {
+  gap: 12px;
+}
+
+.admin-control-desk .admin-client-list-panel {
+  padding: 13px;
+}
+
+.admin-control-desk .admin-client-list-panel label {
+  color: #475467;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.admin-control-desk .admin-client-list-item {
+  padding: 10px;
+  border-radius: 6px;
+  color: #344054;
+  background: #f8fafc;
+}
+
+.admin-control-desk .admin-client-list-item:hover {
+  background: #f2f4f7;
+}
+
+.admin-control-desk .admin-client-list-item.active {
+  border-color: #f2b8bb;
+  color: var(--admin-red-deep);
+  background: #fff3f3;
+}
+
+.admin-control-desk .admin-client-detail {
+  padding: 16px;
+}
+
+.admin-control-desk .client-desk-head {
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--admin-line);
+}
+
+.admin-control-desk .client-desk-head strong {
+  color: var(--admin-ink);
+  font-size: 17px;
+}
+
+.admin-control-desk .admin-status-tabs,
+.admin-control-desk .client-tab-row {
+  gap: 5px;
+  padding: 5px;
+  border-color: #e4e7ec;
+  border-radius: 7px;
+  background: #f5f6f8;
+}
+
+.admin-control-desk .admin-status-tabs button,
+.admin-control-desk .client-tab-row button {
+  min-height: 36px;
+  padding: 7px 10px;
+  border-color: transparent;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+  background: transparent;
+}
+
+.admin-control-desk .admin-status-tabs button:hover,
+.admin-control-desk .client-tab-row button:hover {
+  color: var(--admin-red-deep);
+  background: #ffffff;
+}
+
+.admin-control-desk .admin-status-tabs button.active,
+.admin-control-desk .client-tab-row button.active {
+  color: #ffffff;
+  background: var(--admin-red);
+  box-shadow: 0 2px 5px rgba(201, 21, 28, 0.16);
+}
+
+.admin-control-desk .admin-client-summary-card {
+  border-color: var(--admin-line);
+  border-left: 3px solid var(--admin-red);
+  border-radius: 7px;
+  background: #fbfcfd;
+}
+
+.admin-control-desk .admin-record-list {
+  gap: 12px;
+}
+
+.admin-control-desk .admin-record-row {
+  padding: 11px;
+  border-color: var(--admin-line);
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.admin-control-desk button.admin-record-row.active {
+  border-color: #ef9b9f;
+  background: #fff4f4;
+  box-shadow: inset 3px 0 0 var(--admin-red);
+}
+
+.admin-control-desk .admin-record-detail {
+  padding: 16px;
+}
+
+.admin-control-desk .linked-verification-admin {
+  margin-top: 0;
+  padding: 14px;
+}
+
+.admin-control-desk .admin-linked-verification-card {
+  border-color: var(--admin-line);
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.admin-control-desk .admin-module-mount > section,
+.admin-control-desk .admin-module-mount > .content-grid,
+.admin-control-desk .admin-module-mount > .selector-row,
+.admin-control-desk .admin-module-mount > .summary-band {
+  border-color: var(--admin-line);
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.035);
+}
+
 @media (max-width: 1100px) {
   .admin-desk-layout {
     grid-template-columns: 150px minmax(0, 1fr);
@@ -4990,7 +5393,535 @@ button.admin-record-row.active {
   }
 }
 
+.ext-asset-admin-card,
+.ext-asset-tech-card {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ext-asset-import-row,
+.ext-asset-form-grid,
+.ext-asset-exception-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.ext-asset-import-row button {
+  align-self: end;
+}
+
+.ext-asset-admin-summary,
+.ext-asset-proposal-list {
+  margin-top: 12px;
+}
+
+.ext-asset-reconciliation {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(80px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.ext-asset-reconciliation div {
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.ext-asset-reconciliation strong,
+.ext-asset-reconciliation span {
+  display: block;
+}
+
+.ext-asset-reconciliation strong {
+  font-size: 1.15rem;
+}
+
+.ext-asset-reconciliation span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.ext-asset-search {
+  display: block;
+  margin: 10px 0;
+}
+
+.ext-asset-list,
+.ext-asset-proposal-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ext-asset-item,
+.ext-asset-proposal {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.ext-asset-item.has-result {
+  border-left: 4px solid #18864b;
+}
+
+.ext-asset-item.site-found {
+  border-left: 4px solid #d98b00;
+}
+
+.ext-frozen-serials {
+  display: grid;
+  gap: 4px;
+  max-height: 220px;
+  margin-top: 8px;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.ext-asset-item-head,
+.ext-asset-quick-actions,
+.ext-asset-proposal-adjust {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ext-asset-item-head div,
+.ext-asset-item-head strong,
+.ext-asset-item-head span {
+  min-width: 0;
+}
+
+.ext-asset-item-head strong,
+.ext-asset-item-head span {
+  display: block;
+}
+
+.ext-asset-item-head strong {
+  font-size: 1.08rem;
+}
+
+.ext-asset-item-head div > span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.ext-asset-quick-actions button {
+  flex: 1;
+  min-height: 44px;
+}
+
+.ext-asset-exception-form button {
+  align-self: end;
+}
+
+@media (max-width: 760px) {
+  .ext-asset-import-row,
+  .ext-asset-form-grid,
+  .ext-asset-exception-form {
+    grid-template-columns: 1fr;
+  }
+
+  .ext-asset-reconciliation {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ext-asset-item-head,
+  .ext-asset-proposal-adjust {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ext-asset-quick-actions {
+    position: sticky;
+    bottom: 8px;
+  }
+}
+
+/* The Admin desk keeps its compact desktop frame, then deliberately becomes a touch-first stack. */
+@media (max-width: 1100px) {
+  .admin-control-desk .admin-desk-layout {
+    grid-template-columns: 158px minmax(0, 1fr);
+  }
+
+  .admin-control-desk .front-desk-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-control-desk .admin-desk-header {
+    position: sticky;
+    top: 0;
+    min-height: 62px;
+    padding: 10px 12px;
+  }
+
+  .admin-control-desk .admin-desk-header::before {
+    width: 3px;
+    height: 30px;
+  }
+
+  .admin-control-desk .admin-desk-header h2 {
+    font-size: 19px;
+  }
+
+  .admin-control-desk .admin-desk-header #adminDeskSubtitle {
+    display: none;
+  }
+
+  .admin-control-desk .admin-desk-layout {
+    display: block;
+    min-height: 0;
+  }
+
+  .admin-control-desk .admin-main-nav {
+    display: none;
+    min-height: 0;
+    padding: 8px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  }
+
+  .admin-control-desk.nav-open .admin-main-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-control-desk .admin-main-nav::before {
+    display: none;
+  }
+
+  .admin-control-desk .admin-main-nav button {
+    min-height: 38px;
+    padding: 8px;
+  }
+
+  .admin-control-desk .admin-workspace-host {
+    height: auto;
+    min-height: 560px;
+    overflow: visible;
+  }
+
+  .admin-control-desk .admin-module-workspace {
+    padding: 12px;
+  }
+
+  .admin-control-desk .admin-workspace-heading {
+    align-items: flex-start;
+  }
+
+  .admin-control-desk .admin-workspace-heading > span {
+    max-width: none;
+    text-align: left;
+  }
+
+  .admin-control-desk .admin-quick-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-control-desk .admin-quick-actions button {
+    min-width: 0;
+  }
+
+  .admin-control-desk .front-desk-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-control-desk .front-desk-layout,
+  .admin-control-desk #adminClientDesk,
+  .admin-control-desk .admin-record-list,
+  .admin-control-desk .admin-client-tab-content .client-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-control-desk #adminFrontDeskHome .front-desk-card,
+  .admin-control-desk #adminFrontDeskHome .admin-workload-card {
+    grid-column: auto;
+  }
+
+  .admin-control-desk #adminFrontDeskHome .admin-workload-card .front-desk-list {
+    grid-template-columns: 1fr;
+    max-height: 156px;
+  }
+
+  .admin-control-desk .admin-client-list-panel,
+  .admin-control-desk .admin-client-detail {
+    min-height: 0;
+  }
+
+  .admin-control-desk .admin-client-list-panel {
+    max-height: 260px;
+  }
+}
+
+.report-document {
+  width: min(1120px, 100%);
+  margin: 18px auto 0;
+}
+
+.report-page {
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(25, 35, 55, 0.08);
+}
+
+.report-title-block,
+.report-page-heading,
+.report-linked-card > div:first-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.report-title-block,
+.report-page-heading {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 3px solid var(--red);
+}
+
+.report-title-block h1,
+.report-page-heading h2 {
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-size: 24px;
+}
+
+.report-overall-status,
+.report-result {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #8a4b00;
+  background: #fff3d8;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.report-overall-status {
+  max-width: 230px;
+  padding: 8px 12px;
+  text-align: center;
+}
+
+.report-result.pass,
+.report-overall-status[data-status="approved"],
+.report-overall-status[data-status="completed-awaiting-review"] {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.report-result.fault,
+.report-overall-status[data-status="defects-review-required"] {
+  color: #b42318;
+  background: #fff1f2;
+}
+
+.report-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.report-meta-grid span {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.report-meta-grid strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 13px;
+  text-transform: none;
+}
+
+.report-summary-section {
+  border-left: 4px solid var(--red);
+  background: #fff;
+}
+
+.report-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.report-summary-metrics > div {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.report-summary-metrics strong,
+.report-summary-metrics span {
+  display: block;
+}
+
+.report-summary-metrics strong {
+  color: var(--red);
+  font-size: 19px;
+}
+
+.report-summary-metrics span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.report-management-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.report-management-grid .report-section {
+  margin-bottom: 0;
+}
+
+.report-management-grid p {
+  margin: 5px 0;
+  font-size: 12px;
+}
+
+.report-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.report-table-wrap table {
+  min-width: 680px;
+}
+
+.report-device-table td,
+.report-device-table th,
+.report-system-summary-table td,
+.report-system-summary-table th {
+  padding: 8px;
+  vertical-align: top;
+  font-size: 11px;
+}
+
+.report-device-table td span,
+.report-table-wrap td span,
+.report-muted {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.report-fault-row {
+  background: #fff7f6;
+}
+
+.report-evidence-list {
+  margin: 4px 0;
+  padding-left: 16px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.report-evidence-list span {
+  word-break: break-all;
+}
+
+.report-linked-card {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.report-ack-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.report-ack-grid p {
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.report-ack-grid strong {
+  display: block;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .report-view {
+    padding: 10px;
+  }
+
+  .report-header,
+  .report-title-block,
+  .report-page-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .report-header > div:last-child {
+    flex-wrap: wrap;
+  }
+
+  .report-page {
+    padding: 12px;
+  }
+
+  .report-meta-grid,
+  .report-management-grid,
+  .report-grid,
+  .report-ack-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .report-summary-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-overall-status {
+    max-width: none;
+  }
+}
+
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
   body {
     background: #fff;
   }
@@ -5002,6 +5933,67 @@ button.admin-record-row.active {
 
   .report-view {
     padding: 0;
+  }
+
+  .report-header {
+    display: none;
+  }
+
+  .report-document {
+    width: auto;
+    margin: 0;
+  }
+
+  .report-page {
+    width: auto;
+    min-height: 277mm;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .report-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .report-section,
+  .critical-report-card,
+  .report-linked-card,
+  table,
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .report-table-wrap {
+    overflow: visible;
+  }
+
+  .report-table-wrap table {
+    min-width: 0;
+  }
+
+  .report-device-table td,
+  .report-device-table th,
+  .report-system-summary-table td,
+  .report-system-summary-table th {
+    padding: 5px;
+    font-size: 9px;
+  }
+
+  .report-summary-metrics strong {
+    font-size: 16px;
+  }
+
+  .report-summary-metrics span,
+  .report-management-grid p,
+  .report-section p {
+    font-size: 9px;
   }
 
   .critical-report-head {

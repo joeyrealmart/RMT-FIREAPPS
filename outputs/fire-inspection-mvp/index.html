@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Realmart Fire Inspection App</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23d40000'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-family='Arial,sans-serif' font-size='36' font-weight='700' fill='white'%3ER%3C/text%3E%3C/svg%3E">
-    <link rel="stylesheet" href="styles.css?v=20260830-manual-shared-test">
+    <link rel="stylesheet" href="styles.css?v=20260907-report-generator-v1">
   </head>
   <body>
     <main class="app-shell">
@@ -114,7 +114,7 @@
                     <div class="section-header compact">
                       <div>
                         <p class="eyebrow">Today & Upcoming</p>
-                        <h3>Service Jobs</h3>
+                        <h3>Upcoming Schedule</h3>
                       </div>
                       <button type="button" class="secondary" data-admin-action="schedule">Open Schedule</button>
                     </div>
@@ -123,12 +123,42 @@
                   <article class="front-desk-card">
                     <div class="section-header compact">
                       <div>
-                        <p class="eyebrow">Attention</p>
-                        <h3>Reports & Suggested Pins</h3>
+                        <p class="eyebrow">Technician Updates</p>
+                        <h3>Recent Activity</h3>
+                      </div>
+                      <button type="button" class="secondary" data-admin-action="staff">Open Staff</button>
+                    </div>
+                    <div id="adminDeskActivityList" class="front-desk-list"></div>
+                  </article>
+                  <article class="front-desk-card">
+                    <div class="section-header compact">
+                      <div>
+                        <p class="eyebrow">Review Queue</p>
+                        <h3>Reports Awaiting Review</h3>
                       </div>
                       <button type="button" class="secondary" data-admin-action="reports">Open Review</button>
                     </div>
-                    <div id="adminDeskReviewList" class="front-desk-list"></div>
+                    <div id="adminDeskReportList" class="front-desk-list"></div>
+                  </article>
+                  <article class="front-desk-card">
+                    <div class="section-header compact">
+                      <div>
+                        <p class="eyebrow">Site Updates</p>
+                        <h3>Pending Pin Suggestions</h3>
+                      </div>
+                      <button type="button" class="secondary" data-admin-action="requests">Review Pins</button>
+                    </div>
+                    <div id="adminDeskSuggestionList" class="front-desk-list"></div>
+                  </article>
+                  <article class="front-desk-card admin-workload-card">
+                    <div class="section-header compact">
+                      <div>
+                        <p class="eyebrow">Assigned Work</p>
+                        <h3>Technician Workload</h3>
+                      </div>
+                      <button type="button" class="secondary" data-admin-action="schedule">Manage Assignments</button>
+                    </div>
+                    <div id="adminDeskWorkloadList" class="front-desk-list"></div>
                   </article>
                 </div>
               </section>
@@ -283,6 +313,29 @@
             </select>
             <button id="saveContractRuleBtn" type="button" class="secondary">Save Contract Rule</button>
           </div>
+          <section class="ext-asset-admin-card admin-only" id="extAssetAdminPanel">
+            <div class="tracker-header">
+              <div>
+                <strong>Extinguisher Asset List</strong>
+                <span>Import the official serial-based list, then freeze it when an extinguisher job is scheduled.</span>
+              </div>
+              <span id="extAssetMasterStatus">No master list loaded</span>
+            </div>
+            <div class="ext-asset-import-row">
+              <label>
+                Excel / CSV / PDF source
+                <input id="extAssetImportFile" type="file" accept=".csv,.xlsx,.pdf,text/csv,application/pdf">
+              </label>
+              <label>
+                Source reference
+                <input id="extAssetSourceReference" placeholder="Filename, register number or document reference">
+              </label>
+              <button id="importExtAssetBtn" type="button" class="secondary">Import / Attach</button>
+            </div>
+            <p class="hint">CSV and Excel rows are structured imports. PDF is retained as an audit reference only and does not change asset records.</p>
+            <div id="extAssetAdminSummary" class="ext-asset-admin-summary"></div>
+            <div id="extAssetProposalList" class="ext-asset-proposal-list"></div>
+          </section>
           <div class="schedule-grid admin-only">
             <label>
               Client Type
@@ -490,6 +543,36 @@
             <button id="saveTechExtinguisherBtn" type="button">Save Extinguisher Record</button>
           </div>
           <p class="hint">This form opens only after admin assigns an extinguisher collection / return / loan unit job, or after admin approves a technician request.</p>
+          <section class="ext-asset-tech-card" id="techExtAssetWorkflow">
+            <div class="tracker-header">
+              <div>
+                <strong>Frozen Extinguisher Checklist</strong>
+                <span id="techExtAssetFreezeStatus">Load an assigned job to view its frozen asset list.</span>
+              </div>
+              <button id="showNewExtAssetBtn" type="button" class="secondary">+ New Unit Found</button>
+            </div>
+            <div id="techExtAssetReconciliation" class="ext-asset-reconciliation"></div>
+            <label class="ext-asset-search">
+              Search serial or location
+              <input id="techExtAssetSearch" type="search" placeholder="Serial number or location">
+            </label>
+            <div id="techExtAssetList" class="ext-asset-list"></div>
+            <form id="newExtAssetForm" class="ext-asset-exception-form hidden">
+              <h3>New Unit Found</h3>
+              <div class="ext-asset-form-grid">
+                <label>Serial Number<input id="newExtAssetSerial" required></label>
+                <label>Current Location<input id="newExtAssetLocation" required></label>
+                <label>Agent / Type<input id="newExtAssetType" placeholder="ABC / CO2"></label>
+                <label>Size<input id="newExtAssetSize" placeholder="9kg / 2kg"></label>
+                <label class="schedule-wide">Photo / Evidence<input id="newExtAssetPhoto" type="file" accept="image/*"></label>
+                <label class="schedule-wide">Note<textarea id="newExtAssetNote" rows="2"></textarea></label>
+              </div>
+              <div class="panel-actions">
+                <button type="submit">Save New Unit Finding</button>
+                <button id="cancelNewExtAssetBtn" type="button" class="secondary">Cancel</button>
+              </div>
+            </form>
+          </section>
           <div class="tech-ext-form">
             <label>
               Customer Type
@@ -1289,26 +1372,10 @@
       </section>
 
       <section class="report-view hidden" id="reportView">
-        <section class="report-letterhead" id="reportLetterhead">
-          <img id="reportLetterheadImage" class="report-letterhead-image" src="assets/realmart-letterhead-clean.png" alt="Realmart Sdn Bhd letterhead">
-          <div class="report-company-main report-company-text">
-            <img id="reportCompanyLogo" src="assets/realmart-logo.png" alt="Realmart Sdn Bhd logo">
-            <div>
-              <h2 id="reportCompanyName">Realmart Sdn Bhd</h2>
-              <p id="reportCompanySubtitle">Engineering & Maintenance Services</p>
-              <p id="reportCompanyReg">Registration No: 138295-P</p>
-            </div>
-          </div>
-          <div class="report-company-contact">
-            <p id="reportCompanyAddress"></p>
-            <p id="reportCompanyContact"></p>
-            <p id="reportCompanyLicenses"></p>
-          </div>
-        </section>
         <header class="report-header">
           <div>
-            <p class="eyebrow">Inspection Report</p>
-            <h1>MTB Reality Sdn Bhd - Maintenance Inspection</h1>
+            <p class="eyebrow">Admin Report Review</p>
+            <h1>Maintenance Inspection Report</h1>
           </div>
           <div>
             <button id="backToMapBtn" class="secondary">Back</button>
@@ -1317,50 +1384,114 @@
             <span id="reportSaveStatus" class="report-save-status">Not saved yet</span>
           </div>
         </header>
-        <div class="report-card">
-          <div class="report-meta">
-            <span>Date: <strong id="reportDate"></strong></span>
-            <span>Inspector: <strong id="reportInspectorName">Demo Inspector</strong></span>
-            <span>Status: <strong id="reportStatus"></strong></span>
-          </div>
-          <section class="report-section">
-            <h2>Summary</h2>
-            <p id="reportSummaryText"></p>
-          </section>
-          <section class="report-section report-critical-section" id="reportCriticalSection">
-            <h2>Critical System Detailed Test Records</h2>
-            <p class="report-section-intro">Detailed readings and safety confirmations are shown for pump, panel, gas discharge, CO2, FM200, wet chemical and other active systems.</p>
-            <div id="reportCriticalSystemDetails"></div>
-          </section>
-          <section class="report-section report-grid">
-            <div>
-              <h2>Defect / Quotation Follow-Up</h2>
-              <div id="reportDefectList"></div>
+        <div class="report-document" id="reportDocument">
+          <article class="report-page report-management-page" id="reportManagementPage">
+            <section class="report-letterhead" id="reportLetterhead">
+              <img id="reportLetterheadImage" class="report-letterhead-image" src="assets/realmart-letterhead-clean.png" alt="Realmart Sdn Bhd letterhead">
+              <div class="report-company-main report-company-text">
+                <img id="reportCompanyLogo" src="assets/realmart-logo.png" alt="Realmart Sdn Bhd logo">
+                <div>
+                  <h2 id="reportCompanyName">Realmart Sdn Bhd</h2>
+                  <p id="reportCompanySubtitle">Engineering & Maintenance Services</p>
+                  <p id="reportCompanyReg">Registration No: 138295-P</p>
+                </div>
+              </div>
+              <div class="report-company-contact">
+                <p id="reportCompanyAddress"></p>
+                <p id="reportCompanyContact"></p>
+                <p id="reportCompanyLicenses"></p>
+              </div>
+            </section>
+            <div class="report-title-block">
+              <div>
+                <p class="eyebrow">Maintenance Inspection Report</p>
+                <h1 id="reportDocumentTitle">Client / Site</h1>
+              </div>
+              <span class="report-overall-status" id="reportStatus">In Progress</span>
             </div>
-            <div>
-              <h2>First-Time Data Captured</h2>
-              <div id="reportSetupList"></div>
+            <div class="report-meta report-meta-grid">
+              <span>Service date<strong id="reportDate"></strong></span>
+              <span>Report reference<strong id="reportReference"></strong></span>
+              <span>Frequency<strong id="reportFrequency"></strong></span>
+              <span>Lead technician<strong id="reportInspectorName">-</strong></span>
             </div>
-          </section>
-          <table>
-            <thead>
-              <tr>
-                <th>Device</th>
-                <th>Type</th>
-                <th>Location</th>
-                <th>Status</th>
-                <th>Checked By</th>
-                <th>Notes</th>
-                <th>Action</th>
-                <th>Photos</th>
-              </tr>
-            </thead>
-            <tbody id="reportRows"></tbody>
-          </table>
-          <footer class="report-footer" id="reportFooter">This report is generated by Realmart Fire Inspection App.</footer>
+            <section class="report-section report-summary-section">
+              <h2>Management Summary</h2>
+              <p id="reportSummaryText"></p>
+              <div class="report-summary-metrics" id="reportSummaryMetrics"></div>
+            </section>
+            <section class="report-section">
+              <h2>System Results</h2>
+              <div class="report-table-wrap">
+                <table class="report-system-summary-table">
+                  <thead><tr><th>System</th><th>Planned</th><th>Completed</th><th>Pass</th><th>Fault</th><th>Completion</th></tr></thead>
+                  <tbody id="reportSystemSummaryRows"></tbody>
+                </table>
+              </div>
+            </section>
+            <div class="report-management-grid">
+              <section class="report-section">
+                <h2>Annual Coverage</h2>
+                <div id="reportCoverageSummary"></div>
+              </section>
+              <section class="report-section">
+                <h2>Critical Systems</h2>
+                <div id="reportCriticalSummary"></div>
+              </section>
+              <section class="report-section">
+                <h2>Key Findings</h2>
+                <div id="reportKeyFindings"></div>
+              </section>
+              <section class="report-section">
+                <h2>Recorded Recommendations</h2>
+                <div id="reportRecommendations"></div>
+              </section>
+            </div>
+            <footer class="report-footer">Page 1 management summary. Detailed recorded results follow.</footer>
+          </article>
+
+          <article class="report-page report-details-page" id="reportDetailsPage">
+            <div class="report-page-heading">
+              <div><p class="eyebrow">Detailed Inspection Records</p><h2 id="reportDetailTitle">Client / Site</h2></div>
+              <span id="reportDetailReference"></span>
+            </div>
+            <section class="report-section report-critical-section" id="reportCriticalSection">
+              <h2>Critical System Records</h2>
+              <p class="report-section-intro">Approved checklist results, readings, evidence references and restoration status are retained separately from normal devices.</p>
+              <div id="reportCriticalSystemDetails"></div>
+            </section>
+            <section class="report-section">
+              <h2>Field Device Results</h2>
+              <div class="report-table-wrap">
+                <table class="report-device-table">
+                  <thead>
+                    <tr><th>System / Floor</th><th>Device / Location</th><th>Result</th><th>Technician / Time</th><th>Evidence / Recorded Detail</th></tr>
+                  </thead>
+                  <tbody id="reportRows"></tbody>
+                </table>
+              </div>
+            </section>
+            <section class="report-section report-grid">
+              <div><h2>Defects / Corrective Records</h2><div id="reportDefectList"></div></div>
+              <div><h2>Suggested Pins</h2><div id="reportSetupList"></div></div>
+            </section>
+            <section class="report-section" id="reportExtinguisherSection">
+              <h2>Portable Extinguisher Reconciliation</h2>
+              <div id="reportExtinguisherDetails"></div>
+            </section>
+            <section class="report-section" id="reportLinkedVerificationSection">
+              <h2>Linked Verification</h2>
+              <div id="reportLinkedVerificationDetails"></div>
+            </section>
+            <section class="report-section">
+              <h2>Client Acknowledgement & Review</h2>
+              <div id="reportAcknowledgement"></div>
+            </section>
+            <footer class="report-footer" id="reportFooter">This report is generated from the authoritative RMT FIREAPPS job records.</footer>
+          </article>
         </div>
       </section>
     </main>
-    <script src="app.js?v=20260830-manual-shared-test"></script>
+    <script src="app.js?v=20260907-report-generator-v1"></script>
   </body>
 </html>

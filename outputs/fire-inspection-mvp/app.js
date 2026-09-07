@@ -806,6 +806,11 @@ const state = {
   linkedVerificationIndex: [],
   linkedVerificationDrafts: {},
   linkedVerificationIndexOnline: false,
+  extinguisherAssetMaster: null,
+  extinguisherAssetJobState: null,
+  extinguisherAssetProposals: [],
+  extinguisherAssetExpandedId: "",
+  extinguisherAssetDrafts: readStoredJson("rmtExtinguisherAssetDrafts", {}) || {},
   serverDiagnostics: null,
   scheduleStartInProgressId: null,
   contractRules: {},
@@ -829,6 +834,8 @@ const state = {
   adminDefectStatus: savedAdminUiState.defectStatus || "open",
   adminSelectedDefectId: savedAdminUiState.defectId || "",
   adminModuleScroll: {},
+  activeReportScheduleId: "",
+  activeReportSnapshot: null,
   staffRun: null,
   mimicViewMode: localStorage.getItem("rmtMimicViewMode") === "original" ? "original" : "clean",
   libraryFloors: [],
@@ -1033,7 +1040,6 @@ const adminDeskTitle = document.querySelector("#adminDeskTitle");
 const adminFrontDeskHome = document.querySelector("#adminFrontDeskHome");
 const adminDeskMetrics = document.querySelector("#adminDeskMetrics");
 const adminDeskTodayList = document.querySelector("#adminDeskTodayList");
-const adminDeskReviewList = document.querySelector("#adminDeskReviewList");
 const adminClientDesk = document.querySelector("#adminClientDesk");
 const adminDeskClientSelect = document.querySelector("#adminDeskClientSelect");
 const adminClientSearch = document.querySelector("#adminClientSearch");
@@ -1121,6 +1127,12 @@ const scheduleLoanReturnedUnits = document.querySelector("#scheduleLoanReturnedU
 const scheduleCashReceived = document.querySelector("#scheduleCashReceived");
 const scheduleReceiptRef = document.querySelector("#scheduleReceiptRef");
 const extinguisherTallyStatus = document.querySelector("#extinguisherTallyStatus");
+const extAssetImportFile = document.querySelector("#extAssetImportFile");
+const extAssetSourceReference = document.querySelector("#extAssetSourceReference");
+const importExtAssetBtn = document.querySelector("#importExtAssetBtn");
+const extAssetMasterStatus = document.querySelector("#extAssetMasterStatus");
+const extAssetAdminSummary = document.querySelector("#extAssetAdminSummary");
+const extAssetProposalList = document.querySelector("#extAssetProposalList");
 const showTechExtinguisherBtn = document.querySelector("#showTechExtinguisherBtn");
 const techExtinguisherPanel = document.querySelector("#techExtinguisherPanel");
 const techExtCustomerMode = document.querySelector("#techExtCustomerMode");
@@ -1163,6 +1175,13 @@ const techExtReturnPhotos = document.querySelector("#techExtReturnPhotos");
 const techExtLoanIssuePhotos = document.querySelector("#techExtLoanIssuePhotos");
 const techExtLoanReturnPhotos = document.querySelector("#techExtLoanReturnPhotos");
 const saveTechExtinguisherBtn = document.querySelector("#saveTechExtinguisherBtn");
+const techExtAssetFreezeStatus = document.querySelector("#techExtAssetFreezeStatus");
+const techExtAssetReconciliation = document.querySelector("#techExtAssetReconciliation");
+const techExtAssetSearch = document.querySelector("#techExtAssetSearch");
+const techExtAssetList = document.querySelector("#techExtAssetList");
+const showNewExtAssetBtn = document.querySelector("#showNewExtAssetBtn");
+const newExtAssetForm = document.querySelector("#newExtAssetForm");
+const cancelNewExtAssetBtn = document.querySelector("#cancelNewExtAssetBtn");
 const saveScheduleBtn = document.querySelector("#saveScheduleBtn");
 const saveSchedulesPcBtn = document.querySelector("#saveSchedulesPcBtn");
 const calendarPrevBtn = document.querySelector("#calendarPrevBtn");
@@ -1293,8 +1312,10 @@ async function startAdminSession() {
   loadStoredAdminHistoryState();
   await loadSavedRequests({ render: false });
   await loadLinkedVerificationIndex();
+  await loadExtinguisherAssetProposals();
   renderFloorOptions();
   syncScheduleClientMode();
+  await loadExtinguisherAssetMaster();
   renderSchedulePanel();
   renderJobPanel();
   await loadSavedSchedules({ render: true, refreshTech: false });
@@ -1743,7 +1764,8 @@ function handleFrontDeskAction(action) {
     clients: "clients",
     "open-client": "clients",
     mimics: "mimics",
-    defects: "defects"
+    defects: "defects",
+    staff: "staff"
   };
   setAdminModule(moduleMap[action] || "home", { resetPosition: true });
 }
@@ -1789,6 +1811,64 @@ function renderAdminDeskScheduleRow(schedule, actionLabel = "Open") {
       <button type="button" class="mini-button" data-admin-open-schedule="${escapeHtml(schedule.scheduleId || "")}">${escapeHtml(actionLabel)}</button>
     </article>
   `;
+}
+
+function renderAdminDeskActivityRow(activity) {
+  return `
+    <article class="front-desk-row">
+      <div>
+        <strong>${escapeHtml(activity.title || "Technician update")}</strong>
+        <span>${escapeHtml(activity.detail || "No detail recorded")}</span>
+        <small>${escapeHtml(activity.meta || "No timestamp")}</small>
+      </div>
+    </article>
+  `;
+}
+
+function getAdminDeskActivity() {
+  const inspectionUpdates = Object.values(state.inspections || {}).flatMap((inspection) => {
+    if (!inspection) return [];
+    const timestamp = inspection.updatedAt || inspection.inspectedAt || inspection.timestamp || "";
+    if (!timestamp) return [];
+    const result = String(inspection.status || inspection.result || "Updated").replaceAll("_", " ");
+    return [{
+      timestamp,
+      title: `${inspection.deviceId || inspection.tag || "Device"} - ${result}`,
+      detail: `${inspection.companyName || "Client"} / ${inspection.siteName || "Site"} | ${inspection.technicianName || inspection.inspectedBy || "Technician"}`,
+      meta: formatShortDateTime(timestamp)
+    }];
+  });
+  const submittedJobs = state.schedules.flatMap((schedule) => {
+    const timestamp = schedule.reportSubmittedAt || schedule.submittedAt || "";
+    if (!timestamp) return [];
+    return [{
+      timestamp,
+      title: "Report submitted for review",
+      detail: `${schedule.companyName || "Client"} / ${schedule.siteName || "Site"} | ${schedule.technician || "Technician"}`,
+      meta: formatShortDateTime(timestamp)
+    }];
+  });
+  return [...inspectionUpdates, ...submittedJobs]
+    .sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0))
+    .slice(0, 5);
+}
+
+function getAdminDeskTechnicianWorkload(schedules) {
+  const workload = new Map();
+  schedules
+    .filter((schedule) => schedule.status !== "Completed" && !isScheduleAdminApproved(schedule))
+    .forEach((schedule) => {
+      const technician = String(schedule.technician || "Unassigned").trim() || "Unassigned";
+      const summary = getLightTechnicianScheduleSummary(schedule);
+      const current = workload.get(technician) || { technician, jobs: 0, completed: 0, total: 0 };
+      current.jobs += 1;
+      current.completed += Number(summary.done || 0);
+      current.total += Number(summary.total || schedule.plannedDeviceIds?.length || 0);
+      workload.set(technician, current);
+    });
+  return [...workload.values()]
+    .sort((a, b) => b.jobs - a.jobs || a.technician.localeCompare(b.technician))
+    .slice(0, 6);
 }
 
 function updateAdminReportWorkspaceFilter() {
@@ -1890,9 +1970,8 @@ function renderFrontDeskPanel() {
       : `<p class="hint">No scheduled or in-progress job needs attention today.</p>`;
   }
 
-  if (adminDeskReviewList) {
-    const reportRows = awaitingReview.slice(0, 3).map((schedule) => renderAdminDeskScheduleRow(schedule, "Review"));
-    const requestRows = pendingPins.slice(0, 3).map((request) => `
+  const reportRows = awaitingReview.slice(0, 4).map((schedule) => renderAdminDeskScheduleRow(schedule, "Review"));
+  const requestRows = pendingPins.slice(0, 4).map((request) => `
       <article class="front-desk-row">
         <div>
           <strong>${escapeHtml(request.label || "Suggested pin")} - ${escapeHtml(request.type || "Device")}</strong>
@@ -1902,9 +1981,36 @@ function renderFrontDeskPanel() {
         <button type="button" class="mini-button" data-admin-action="requests">Review</button>
       </article>
     `);
-    adminDeskReviewList.innerHTML = reportRows.length || requestRows.length
-      ? [...reportRows, ...requestRows].join("")
-      : `<p class="hint">No submitted reports or suggested pins are waiting now.</p>`;
+  const activityRows = getAdminDeskActivity();
+  const workloadRows = getAdminDeskTechnicianWorkload(schedules);
+
+  const adminDeskReportList = document.querySelector("#adminDeskReportList");
+  if (adminDeskReportList) {
+    adminDeskReportList.innerHTML = reportRows.length
+      ? reportRows.join("")
+      : `<p class="hint">No report is awaiting Admin review.</p>`;
+  }
+  const adminDeskSuggestionList = document.querySelector("#adminDeskSuggestionList");
+  if (adminDeskSuggestionList) {
+    adminDeskSuggestionList.innerHTML = requestRows.length
+      ? requestRows.join("")
+      : `<p class="hint">No suggested pins are pending review.</p>`;
+  }
+  const adminDeskActivityList = document.querySelector("#adminDeskActivityList");
+  if (adminDeskActivityList) {
+    adminDeskActivityList.innerHTML = activityRows.length
+      ? activityRows.map(renderAdminDeskActivityRow).join("")
+      : `<p class="hint">No technician updates have been recorded yet.</p>`;
+  }
+  const adminDeskWorkloadList = document.querySelector("#adminDeskWorkloadList");
+  if (adminDeskWorkloadList) {
+    adminDeskWorkloadList.innerHTML = workloadRows.length
+      ? workloadRows.map((entry) => renderAdminDeskActivityRow({
+        title: entry.technician,
+        detail: `${entry.jobs} active job${entry.jobs === 1 ? "" : "s"} assigned`,
+        meta: entry.total ? `${entry.completed}/${entry.total} assigned items completed` : "No assigned device count"
+      })).join("")
+      : `<p class="hint">No active technician assignments are recorded.</p>`;
   }
 
 }
@@ -2262,6 +2368,7 @@ initializeAppShell();
 
 window.addEventListener("online", async () => {
   const result = await syncLinkedVerificationDrafts();
+  await syncExtinguisherAssetDrafts();
   if (result.synced || result.conflicts) {
     renderTechWorkPanel();
     renderTechSystemStagePanel();
@@ -4959,6 +5066,7 @@ function renderSchedulePanel() {
   renderScheduleCalendar();
   renderScheduleRows();
   renderTechExtinguisherPanel();
+  renderExtinguisherAssetAdminPanel();
 }
 
 function renderScheduleClientSiteOptions(preferredProfile = null) {
@@ -5612,7 +5720,7 @@ function requestExtinguisherAdminJob() {
   document.querySelector("#syncState").textContent = "Extinguisher job request sent to admin";
 }
 
-function loadTechExtinguisherSchedule(scheduleId) {
+async function loadTechExtinguisherSchedule(scheduleId) {
   const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
   if (!schedule) return;
   if (!isScheduleAssignedToCurrentTechnician(schedule)) {
@@ -5644,6 +5752,7 @@ function loadTechExtinguisherSchedule(scheduleId) {
   syncTechExtinguisherCustomerMode();
   renderTechExtinguisherPreview();
   renderTechExtinguisherPhotoPreview();
+  await loadExtinguisherAssetJobState(schedule);
   document.querySelector("#syncState").textContent = `${schedule.scheduleId} loaded to extinguisher form`;
   techExtinguisherPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -5654,7 +5763,9 @@ function buildTechExtinguisherPayload(photoProof = state.activeTechExtPhotoProof
   const scope = getTechExtinguisherScopeId();
   const scopeInfo = getScheduleScopeInfo(scope);
   const existingId = saveTechExtinguisherBtn?.dataset.scheduleId || "";
+  const existingSchedule = existingId ? state.schedules.find((item) => item.scheduleId === existingId) : null;
   return {
+    ...(existingSchedule || {}),
     scheduleId: existingId || `EXT-${formatRunStamp(now)}-${String(now.getMilliseconds()).padStart(3, "0")}`,
     status: "Technician Updated",
     companyName: profile.companyName,
@@ -5962,6 +6073,526 @@ function renderAnnualCoverageSummary() {
   `;
 }
 
+function normalizeExtinguisherSerial(value) {
+  return String(value || "").trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function normalizeExtinguisherAssetImportRow(row = {}, index = 0) {
+  const serialNumber = normalizeExtinguisherSerial(row.serial_number || row.serial_no || row.serial || row.extinguisher_serial_number || row.asset_serial);
+  if (!serialNumber) return null;
+  return {
+    serialNumber,
+    brand: row.brand || row.make || "",
+    agentType: row.agent_type || row.agent || row.extinguisher_type || row.type || "",
+    sizeKg: row.size_kg || row.size || row.capacity || "",
+    location: row.location || row.current_location || row.area || "",
+    floor: row.floor || row.floor_area || row.level || "",
+    manufactureMonthYear: row.manufacture_month_year || row.manufacture_date || row.mfg_date || "",
+    expiryDate: row.expiry_date || row.expiry || row.bomba_expiry || "",
+    registeredAddress: row.registered_address || row.address || "",
+    rawQrPayload: row.raw_qr_payload || row.qr_payload || "",
+    sourceRow: index + 2
+  };
+}
+
+async function unzipXlsxTextEntries(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let eocd = -1;
+  for (let offset = bytes.length - 22; offset >= Math.max(0, bytes.length - 65557); offset -= 1) {
+    if (view.getUint32(offset, true) === 0x06054b50) {
+      eocd = offset;
+      break;
+    }
+  }
+  if (eocd < 0) throw new Error("Invalid Excel workbook");
+  const entryCount = view.getUint16(eocd + 10, true);
+  let offset = view.getUint32(eocd + 16, true);
+  const decoder = new TextDecoder("utf-8");
+  const entries = {};
+  for (let index = 0; index < entryCount && offset + 46 <= bytes.length; index += 1) {
+    if (view.getUint32(offset, true) !== 0x02014b50) break;
+    const method = view.getUint16(offset + 10, true);
+    const compressedSize = view.getUint32(offset + 20, true);
+    const nameLength = view.getUint16(offset + 28, true);
+    const extraLength = view.getUint16(offset + 30, true);
+    const commentLength = view.getUint16(offset + 32, true);
+    const localOffset = view.getUint32(offset + 42, true);
+    const name = decoder.decode(bytes.slice(offset + 46, offset + 46 + nameLength));
+    if (name === "xl/sharedStrings.xml" || name === "xl/worksheets/sheet1.xml") {
+      const localNameLength = view.getUint16(localOffset + 26, true);
+      const localExtraLength = view.getUint16(localOffset + 28, true);
+      const start = localOffset + 30 + localNameLength + localExtraLength;
+      const compressed = bytes.slice(start, start + compressedSize);
+      let raw;
+      if (method === 0) raw = compressed;
+      else if (method === 8 && typeof DecompressionStream !== "undefined") {
+        const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+        raw = new Uint8Array(await new Response(stream).arrayBuffer());
+      } else {
+        throw new Error("This Excel compression is not supported by this browser. Save the file as CSV and retry.");
+      }
+      entries[name] = decoder.decode(raw);
+    }
+    offset += 46 + nameLength + extraLength + commentLength;
+  }
+  return entries;
+}
+
+function excelColumnIndex(reference = "A1") {
+  const letters = String(reference).match(/^[A-Z]+/i)?.[0]?.toUpperCase() || "A";
+  return [...letters].reduce((total, letter) => total * 26 + letter.charCodeAt(0) - 64, 0) - 1;
+}
+
+async function parseExtinguisherXlsx(file) {
+  const entries = await unzipXlsxTextEntries(file);
+  const parser = new DOMParser();
+  const sharedDoc = entries["xl/sharedStrings.xml"] ? parser.parseFromString(entries["xl/sharedStrings.xml"], "application/xml") : null;
+  const shared = sharedDoc ? [...sharedDoc.querySelectorAll("si")].map((item) => [...item.querySelectorAll("t")].map((node) => node.textContent || "").join("")) : [];
+  const sheetText = entries["xl/worksheets/sheet1.xml"];
+  if (!sheetText) throw new Error("Excel workbook has no first worksheet");
+  const sheet = parser.parseFromString(sheetText, "application/xml");
+  const rows = [...sheet.querySelectorAll("sheetData row")].map((row) => {
+    const values = [];
+    row.querySelectorAll("c").forEach((cell) => {
+      const index = excelColumnIndex(cell.getAttribute("r"));
+      const type = cell.getAttribute("t");
+      const raw = cell.querySelector("v")?.textContent || cell.querySelector("is t")?.textContent || "";
+      values[index] = type === "s" ? shared[Number(raw)] || "" : raw;
+    });
+    return values;
+  });
+  if (rows.length < 2) return [];
+  const headers = rows[0].map((header) => normalizeHeader(String(header || "")));
+  return rows.slice(1).map((values) => headers.reduce((row, header, index) => {
+    if (header) row[header] = String(values[index] ?? "").trim();
+    return row;
+  }, {}));
+}
+
+async function parseExtinguisherAssetFile(file) {
+  const extension = String(file?.name || "").split(".").pop().toLowerCase();
+  if (extension === "csv") return parseCsv(await file.text());
+  if (extension === "xlsx") return parseExtinguisherXlsx(file);
+  if (extension === "pdf") return [];
+  throw new Error("Use CSV, XLSX, or PDF reference files");
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("Unable to read source file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function loadExtinguisherAssetMaster(profile = getScheduleSiteIdentity()) {
+  if (!profile?.companyName || !profile?.siteName) return null;
+  try {
+    const query = new URLSearchParams({ companyName: profile.companyName, siteName: profile.siteName });
+    const response = await fetch(`/api/extinguisher-assets/master?${query}`);
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "Unable to load extinguisher master");
+    state.extinguisherAssetMaster = result.master;
+    renderExtinguisherAssetAdminPanel();
+    return result.master;
+  } catch (error) {
+    if (extAssetMasterStatus) extAssetMasterStatus.textContent = "Server unavailable";
+    return null;
+  }
+}
+
+async function importExtinguisherAssetSource() {
+  if (!canEditMasterData()) return;
+  const file = extAssetImportFile?.files?.[0];
+  if (!file) {
+    document.querySelector("#syncState").textContent = "Choose a CSV, XLSX, or PDF source first";
+    return;
+  }
+  const profile = getScheduleSiteIdentity();
+  try {
+    await loadExtinguisherAssetMaster(profile);
+    const rows = await parseExtinguisherAssetFile(file);
+    const assets = rows.map(normalizeExtinguisherAssetImportRow).filter(Boolean);
+    if (!assets.length && !file.name.toLowerCase().endsWith(".pdf")) throw new Error("No rows with a serial number were found");
+    const sourceDataUrl = await readFileAsDataUrl(file);
+    const response = await fetch("/api/extinguisher-assets/master-import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        companyName: profile.companyName,
+        siteName: profile.siteName,
+        expectedRevision: Number(state.extinguisherAssetMaster?.revision || 0),
+        assets,
+        importedBy: getCurrentUserName(),
+        sourceDocument: {
+          name: file.name,
+          type: file.name.toLowerCase().endsWith(".pdf") ? "PDF_REFERENCE" : file.name.toLowerCase().endsWith(".xlsx") ? "XLSX_IMPORT" : "CSV_IMPORT",
+          reference: extAssetSourceReference?.value.trim() || file.name,
+          size: file.size,
+          dataUrl: sourceDataUrl
+        }
+      })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "Import failed");
+    state.extinguisherAssetMaster = result.master;
+    if (extAssetImportFile) extAssetImportFile.value = "";
+    renderExtinguisherAssetAdminPanel();
+    document.querySelector("#syncState").textContent = file.name.toLowerCase().endsWith(".pdf")
+      ? "PDF source reference attached. Master assets unchanged."
+      : `${assets.length} extinguisher assets imported for ${profile.companyName} / ${profile.siteName}`;
+  } catch (error) {
+    document.querySelector("#syncState").textContent = `Extinguisher import failed: ${error.message}`;
+  }
+}
+
+async function loadExtinguisherAssetProposals() {
+  try {
+    const response = await fetch("/api/extinguisher-assets/proposals");
+    const result = await response.json();
+    state.extinguisherAssetProposals = response.ok && result.ok ? result.proposals || [] : [];
+  } catch (error) {
+    state.extinguisherAssetProposals = [];
+  }
+  renderExtinguisherAssetAdminPanel();
+}
+
+function renderExtinguisherAssetAdminPanel() {
+  if (!extAssetAdminSummary || getCurrentUserRole() === "Technician") return;
+  const master = state.extinguisherAssetMaster;
+  if (extAssetMasterStatus) extAssetMasterStatus.textContent = master?.revision
+    ? `${master.assets?.length || 0} assets | revision ${master.revision}`
+    : "No master list loaded";
+  const editingSchedule = state.schedules.find((schedule) => schedule.scheduleId === state.editingScheduleId);
+  const editingSnapshot = editingSchedule?.scheduleId === state.extinguisherAssetJobState?.scheduleId
+    ? state.extinguisherAssetJobState?.extinguisherAssetSnapshot
+    : null;
+  const editingCounts = editingSnapshot ? getExtinguisherReconciliationFromState() : null;
+  extAssetAdminSummary.innerHTML = master?.assets?.length ? `
+    <p><b>${escapeHtml(master.companyName)} / ${escapeHtml(master.siteName)}</b> | ${master.assets.length} serial-based assets</p>
+    <p>Sources: ${(master.sourceDocuments || []).map((source) => escapeHtml(source.reference || source.name)).join(", ") || "No source reference"}</p>
+    ${editingSchedule?.extinguisherAssetSnapshotId ? `
+      <p><b>Frozen job:</b> ${escapeHtml(editingSchedule.scheduleId)} | ${Number(editingSchedule.extinguisherAssetCount || 0)} assets</p>
+      ${editingCounts ? `<p><b>Reconciliation:</b> ${editingCounts.verified} verified, ${editingCounts.missing} missing, ${editingCounts.moved} moved, ${editingCounts.fault} fault, ${editingCounts.replaced} replaced, ${editingCounts.newUnitFound} new found.</p>` : ""}
+      ${editingSnapshot ? `<details><summary>Review frozen serial list</summary><div class="ext-frozen-serials">${editingSnapshot.assets.map((asset) => `<span>${escapeHtml(asset.serialNumber)} - ${escapeHtml(asset.location || "No location")}</span>`).join("")}</div></details>` : ""}
+    ` : ""}
+  ` : `<p class="hint">Select a client/site and import its official extinguisher register.</p>`;
+  const proposals = (state.extinguisherAssetProposals || []).filter((proposal) => !master || (proposal.companyName === master.companyName && proposal.siteName === master.siteName));
+  extAssetProposalList.innerHTML = proposals.length ? `
+    <h3>Proposed Master Changes</h3>
+    ${proposals.map((proposal) => `
+      <article class="ext-asset-proposal ${escapeHtml(String(proposal.status || "").toLowerCase())}">
+        <div><strong>${escapeHtml(proposal.proposalType)}</strong> | ${escapeHtml(proposal.serialNumber || proposal.assetId)}</div>
+        <p>${escapeHtml(proposal.reason || "Technician verification proposal")} | ${escapeHtml(proposal.technicianName || "-")}</p>
+        <div class="ext-asset-proposal-adjust">
+          <input data-proposal-location="${escapeHtml(proposal.proposalId)}" value="${escapeHtml(proposal.proposedChanges?.location || "")}" placeholder="Adjusted location">
+          <input data-proposal-serial="${escapeHtml(proposal.proposalId)}" value="${escapeHtml(proposal.proposedChanges?.replacementSerial || proposal.proposedChanges?.serialNumber || "")}" placeholder="Adjusted/new serial">
+        </div>
+        <div class="panel-actions">
+          <span class="status-pill">${escapeHtml(proposal.status)}</span>
+          ${proposal.status === "PENDING_ADMIN_REVIEW" ? `
+            <button type="button" class="secondary ext-proposal-adjust-btn" data-schedule-id="${escapeHtml(proposal.scheduleId)}" data-proposal-id="${escapeHtml(proposal.proposalId)}">Adjust</button>
+            <button type="button" class="ext-proposal-approve-btn" data-schedule-id="${escapeHtml(proposal.scheduleId)}" data-proposal-id="${escapeHtml(proposal.proposalId)}">Approve</button>
+            <button type="button" class="secondary danger ext-proposal-reject-btn" data-schedule-id="${escapeHtml(proposal.scheduleId)}" data-proposal-id="${escapeHtml(proposal.proposalId)}">Reject</button>
+          ` : ""}
+        </div>
+      </article>
+    `).join("")}
+  ` : `<p class="hint">No extinguisher master-list change proposals.</p>`;
+  extAssetProposalList.querySelectorAll(".ext-proposal-adjust-btn, .ext-proposal-approve-btn, .ext-proposal-reject-btn").forEach((button) => {
+    button.addEventListener("click", () => reviewExtinguisherAssetProposal(button));
+  });
+}
+
+async function reviewExtinguisherAssetProposal(button) {
+  if (!canEditMasterData()) return;
+  const proposalId = button.dataset.proposalId;
+  const scheduleId = button.dataset.scheduleId;
+  const action = button.classList.contains("ext-proposal-approve-btn") ? "APPROVE" : button.classList.contains("ext-proposal-reject-btn") ? "REJECT" : "ADJUST";
+  const location = extAssetProposalList.querySelector(`[data-proposal-location="${proposalId}"]`)?.value.trim() || "";
+  const serial = normalizeExtinguisherSerial(extAssetProposalList.querySelector(`[data-proposal-serial="${proposalId}"]`)?.value || "");
+  const response = await fetch(`/api/jobs/${encodeURIComponent(scheduleId)}/extinguisher-proposal-review`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ proposalId, action, reviewedBy: getCurrentUserName(), proposedChanges: { location, replacementSerial: serial, serialNumber: serial } })
+  });
+  const result = await response.json();
+  document.querySelector("#syncState").textContent = response.ok && result.ok ? `Proposal ${action.toLowerCase()} complete` : `Proposal review failed: ${result.error || "Unknown error"}`;
+  await loadExtinguisherAssetMaster();
+  await loadExtinguisherAssetProposals();
+}
+
+async function freezeExtinguisherAssetsForSchedule(schedule) {
+  if (!isExtinguisherJobSchedule(schedule)) return null;
+  const response = await fetch(`/api/jobs/${encodeURIComponent(schedule.scheduleId)}/extinguisher-freeze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ schedule, frozenBy: getCurrentUserName() })
+  });
+  const result = await response.json();
+  if (!response.ok || !result.ok) throw new Error(result.error || "Unable to freeze extinguisher list");
+  const snapshot = result.snapshot;
+  schedule.extinguisherAssetSnapshotId = snapshot.snapshotId;
+  schedule.extinguisherAssetMasterRevision = snapshot.masterRevision;
+  schedule.plannedExtinguisherAssetIds = [...snapshot.assetIds];
+  schedule.extinguisherAssetCount = snapshot.assetIds.length;
+  schedule.extinguisherScopeFrozen = true;
+  return result;
+}
+
+async function loadExtinguisherAssetJobState(schedule) {
+  if (!schedule?.scheduleId) return null;
+  try {
+    let response = await fetch(`/api/jobs/${encodeURIComponent(schedule.scheduleId)}/state`);
+    let result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || "Unable to load frozen extinguisher list");
+    if (!result.store?.extinguisherAssetSnapshot && isExtinguisherJobSchedule(schedule)) {
+      response = await fetch(`/api/jobs/${encodeURIComponent(schedule.scheduleId)}/extinguisher-freeze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ schedule, frozenBy: schedule.createdBy || "Admin" })
+      });
+      result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || "Unable to freeze extinguisher list");
+    }
+    state.extinguisherAssetJobState = result.store || result;
+    if (result.snapshot && !state.extinguisherAssetJobState.extinguisherAssetSnapshot) state.extinguisherAssetJobState.extinguisherAssetSnapshot = result.snapshot;
+    renderTechExtinguisherAssetWorkflow();
+    return state.extinguisherAssetJobState;
+  } catch (error) {
+    state.extinguisherAssetJobState = null;
+    if (techExtAssetFreezeStatus) techExtAssetFreezeStatus.textContent = "Server unavailable. Asset verification can only be stored as an unsynced draft.";
+    renderTechExtinguisherAssetWorkflow();
+    return null;
+  }
+}
+
+function getExtinguisherAssetDraftKey(scheduleId, assetId) {
+  return `${scheduleId}::${assetId}`;
+}
+
+function persistExtinguisherAssetDrafts() {
+  writeStoredJson("rmtExtinguisherAssetDrafts", state.extinguisherAssetDrafts || {});
+}
+
+function getCurrentExtinguisherSchedule() {
+  const scheduleId = saveTechExtinguisherBtn?.dataset.scheduleId || "";
+  return state.schedules.find((schedule) => schedule.scheduleId === scheduleId) || null;
+}
+
+function getExtinguisherReconciliationFromState() {
+  const store = state.extinguisherAssetJobState || {};
+  const assets = store.extinguisherAssetSnapshot?.assets || [];
+  const records = Object.values(store.extinguisherVerificationRecords || {});
+  const byAsset = new Map(records.map((record) => [record.assetId, record]));
+  const counts = { expected: assets.length, verified: 0, missing: 0, moved: 0, newUnitFound: 0, fault: 0, replaced: 0, pending: 0, pendingMasterChanges: 0 };
+  assets.forEach((asset) => {
+    const result = byAsset.get(asset.assetId)?.result || "";
+    if (!result) counts.pending += 1;
+    else if (result === "VERIFIED") counts.verified += 1;
+    else if (result === "MISSING") counts.missing += 1;
+    else if (result === "MOVED") counts.moved += 1;
+    else if (result === "FAULT") counts.fault += 1;
+    else if (result === "REPLACED") counts.replaced += 1;
+  });
+  counts.newUnitFound = records.filter((record) => record.result === "NEW_UNIT_FOUND").length;
+  counts.pendingMasterChanges = Object.values(store.extinguisherChangeProposals || {}).filter((proposal) => proposal.status === "PENDING_ADMIN_REVIEW").length;
+  return counts;
+}
+
+function renderTechExtinguisherAssetWorkflow() {
+  if (!techExtAssetList) return;
+  const schedule = getCurrentExtinguisherSchedule();
+  const store = state.extinguisherAssetJobState;
+  const snapshot = store?.extinguisherAssetSnapshot;
+  if (!schedule || !snapshot) {
+    techExtAssetList.innerHTML = `<p class="hint">No frozen extinguisher asset list is available for this job.</p>`;
+    if (techExtAssetReconciliation) techExtAssetReconciliation.innerHTML = "";
+    return;
+  }
+  const records = store.extinguisherVerificationRecords || {};
+  const search = normalizeScopeText(techExtAssetSearch?.value || "");
+  const drafts = state.extinguisherAssetDrafts || {};
+  const counts = getExtinguisherReconciliationFromState();
+  if (techExtAssetFreezeStatus) techExtAssetFreezeStatus.textContent = `${snapshot.assets.length} expected asset(s) | Frozen ${formatShortDateTime(snapshot.frozenAt)}`;
+  if (techExtAssetReconciliation) techExtAssetReconciliation.innerHTML = [
+    ["Expected", counts.expected], ["Verified", counts.verified], ["Missing", counts.missing], ["Moved", counts.moved],
+    ["New Found", counts.newUnitFound], ["Fault", counts.fault], ["Replaced", counts.replaced], ["Pending", counts.pending], ["Master Changes", counts.pendingMasterChanges]
+  ].map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join("");
+  const assets = snapshot.assets.filter((asset) => !search || normalizeScopeText(`${asset.serialNumber} ${asset.location} ${asset.floor} ${asset.agentType}`).includes(search));
+  const foundRecords = Object.values(records).filter((record) => record.result === "NEW_UNIT_FOUND" && (!search || normalizeScopeText(`${record.serialNumber} ${record.currentLocation} ${record.notes}`).includes(search)));
+  const assetCards = assets.map((asset) => {
+    const recordId = `ext-verification::${schedule.scheduleId}::${asset.assetId}`;
+    const saved = records[recordId] || {};
+    const draft = drafts[getExtinguisherAssetDraftKey(schedule.scheduleId, asset.assetId)];
+    const current = draft || saved;
+    const expanded = state.extinguisherAssetExpandedId === asset.assetId;
+    return `
+      <article class="ext-asset-item ${current.result ? "has-result" : "pending"}" data-ext-asset-id="${escapeHtml(asset.assetId)}">
+        <div class="ext-asset-item-head">
+          <div><strong>${escapeHtml(asset.serialNumber)}</strong><span>${escapeHtml(asset.agentType || "Extinguisher")} ${escapeHtml(asset.sizeKg || "")}</span></div>
+          <span class="status-pill">${escapeHtml(draft ? `${draft.result} - UNSYNCED` : current.result || "PENDING")}</span>
+        </div>
+        <p>${escapeHtml(asset.floor || "-")} | ${escapeHtml(asset.location || "Location not recorded")}</p>
+        <div class="ext-asset-quick-actions">
+          <button type="button" class="ext-asset-verify-btn" data-asset-id="${escapeHtml(asset.assetId)}">Verified</button>
+          <button type="button" class="secondary ext-asset-exception-btn" data-asset-id="${escapeHtml(asset.assetId)}">Exception</button>
+        </div>
+        <form class="ext-asset-exception-form ${expanded ? "" : "hidden"}" data-ext-exception-form="${escapeHtml(asset.assetId)}">
+          <label>Result<select data-ext-result><option>Missing</option><option>Moved</option><option>Fault</option><option>Replaced</option></select></label>
+          <label data-ext-location-wrap>Current location<input data-ext-current-location value="${escapeHtml(current.currentLocation || asset.location || "")}"></label>
+          <label data-ext-replacement-wrap>Replacement serial<input data-ext-replacement-serial value="${escapeHtml(current.replacementSerial || "")}"></label>
+          <label>Evidence / Photo<input data-ext-evidence type="file" accept="image/*"></label>
+          <label data-ext-remove-wrap><input data-ext-propose-remove type="checkbox"> Propose removal from master if confirmed missing</label>
+          <label class="schedule-wide">Notes<textarea data-ext-notes rows="2">${escapeHtml(current.notes || "")}</textarea></label>
+          <button type="submit">Save Exception</button>
+        </form>
+      </article>
+    `;
+  }).join("");
+  const foundCards = foundRecords.map((record) => `
+    <article class="ext-asset-item site-found">
+      <div class="ext-asset-item-head"><div><strong>${escapeHtml(record.serialNumber)}</strong><span>Additional site-found device</span></div><span class="status-pill">PENDING ADMIN REVIEW</span></div>
+      <p>${escapeHtml(record.currentLocation || "Location not recorded")} | Outside frozen ${snapshot.assets.length}-asset checklist</p>
+    </article>
+  `).join("");
+  techExtAssetList.innerHTML = assetCards || foundCards
+    ? `${assetCards}${foundCards ? `<h3>Additional Site-Found Units</h3>${foundCards}` : ""}`
+    : `<p class="hint">No extinguisher matches this search.</p>`;
+  techExtAssetList.querySelectorAll(".ext-asset-verify-btn").forEach((button) => button.addEventListener("click", () => saveExtinguisherAssetVerification(button.dataset.assetId, "VERIFIED")));
+  techExtAssetList.querySelectorAll(".ext-asset-exception-btn").forEach((button) => button.addEventListener("click", () => {
+    state.extinguisherAssetExpandedId = state.extinguisherAssetExpandedId === button.dataset.assetId ? "" : button.dataset.assetId;
+    renderTechExtinguisherAssetWorkflow();
+  }));
+  techExtAssetList.querySelectorAll("[data-ext-exception-form]").forEach((form) => {
+    const syncFields = () => {
+      const result = form.querySelector("[data-ext-result]")?.value.toUpperCase();
+      form.querySelector("[data-ext-location-wrap]")?.classList.toggle("hidden", !["MOVED", "REPLACED"].includes(result));
+      form.querySelector("[data-ext-replacement-wrap]")?.classList.toggle("hidden", result !== "REPLACED");
+      form.querySelector("[data-ext-remove-wrap]")?.classList.toggle("hidden", result !== "MISSING");
+    };
+    form.querySelector("[data-ext-result]")?.addEventListener("change", syncFields);
+    syncFields();
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await saveExtinguisherAssetVerification(form.dataset.extExceptionForm, form.querySelector("[data-ext-result]").value.toUpperCase(), form);
+    });
+  });
+}
+
+async function saveExtinguisherAssetVerification(assetId, result, form = null, extra = {}) {
+  const schedule = getCurrentExtinguisherSchedule();
+  const store = state.extinguisherAssetJobState || {};
+  const asset = store.extinguisherAssetSnapshot?.assets?.find((item) => item.assetId === assetId) || null;
+  if (!schedule || (!asset && result !== "NEW_UNIT_FOUND")) return;
+  const recordId = `ext-verification::${schedule.scheduleId}::${assetId}`;
+  const current = store.extinguisherVerificationRecords?.[recordId] || {};
+  const evidenceInput = form?.querySelector("[data-ext-evidence]") || extra.evidenceInput || null;
+  const evidenceRefs = evidenceInput?.files?.length ? await readPhotoAttachmentFiles(evidenceInput, "Extinguisher Evidence") : [];
+  const record = {
+    assetId,
+    serialNumber: asset?.serialNumber || normalizeExtinguisherSerial(extra.serialNumber),
+    result,
+    technicianId: state.currentUser?.email || getCurrentUserName(),
+    technicianName: getCurrentUserName(),
+    timestamp: new Date().toISOString(),
+    notes: form?.querySelector("[data-ext-notes]")?.value.trim() || extra.notes || "",
+    currentLocation: form?.querySelector("[data-ext-current-location]")?.value.trim() || extra.currentLocation || "",
+    replacementSerial: normalizeExtinguisherSerial(form?.querySelector("[data-ext-replacement-serial]")?.value || extra.replacementSerial),
+    agentType: extra.agentType || asset?.agentType || "",
+    sizeKg: extra.sizeKg || asset?.sizeKg || "",
+    evidenceRefs,
+    proposeRemoval: Boolean(form?.querySelector("[data-ext-propose-remove]")?.checked),
+    proposalId: extra.proposalId || `EXT-PROP-${schedule.scheduleId}-${slugify(`${assetId}-${result}`)}`
+  };
+  try {
+    const response = await fetch(`/api/jobs/${encodeURIComponent(schedule.scheduleId)}/extinguisher-verifications`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schedule, expectedRevision: Number(current.revision || 0), record })
+    });
+    const responseData = await response.json();
+    if (!response.ok || !responseData.ok) {
+      if (response.status === 409) {
+        document.querySelector("#syncState").textContent = `${record.serialNumber} changed on another device. Reload before saving.`;
+        return;
+      }
+      document.querySelector("#syncState").textContent = `Cannot save ${record.serialNumber}: ${responseData.error || "Server rejected the verification"}`;
+      return;
+    }
+    store.extinguisherVerificationRecords = { ...(store.extinguisherVerificationRecords || {}), [responseData.record.recordId]: responseData.record };
+    if (responseData.proposal) store.extinguisherChangeProposals = { ...(store.extinguisherChangeProposals || {}), [responseData.proposal.proposalId]: responseData.proposal };
+    delete state.extinguisherAssetDrafts[getExtinguisherAssetDraftKey(schedule.scheduleId, assetId)];
+    persistExtinguisherAssetDrafts();
+    state.extinguisherAssetExpandedId = "";
+    renderTechExtinguisherAssetWorkflow();
+    document.querySelector("#syncState").textContent = `${record.serialNumber} ${result.toLowerCase()} saved by ${record.technicianName}`;
+    return responseData.record;
+  } catch (error) {
+    const draft = { ...record, scheduleId: schedule.scheduleId, expectedRevision: Number(current.revision || 0), syncState: "LOCAL_DRAFT_UNSYNCED", savedLocallyAt: new Date().toISOString() };
+    state.extinguisherAssetDrafts[getExtinguisherAssetDraftKey(schedule.scheduleId, assetId)] = draft;
+    persistExtinguisherAssetDrafts();
+    renderTechExtinguisherAssetWorkflow();
+    document.querySelector("#syncState").textContent = `${record.serialNumber} saved locally and is waiting for server sync`;
+    return draft;
+  }
+}
+
+async function saveNewExtinguisherAssetFinding(event) {
+  event.preventDefault();
+  const schedule = getCurrentExtinguisherSchedule();
+  if (!schedule) return;
+  const serialNumber = normalizeExtinguisherSerial(document.querySelector("#newExtAssetSerial")?.value || "");
+  const currentLocation = document.querySelector("#newExtAssetLocation")?.value.trim() || "";
+  if (!serialNumber || !currentLocation) {
+    document.querySelector("#syncState").textContent = "New unit serial number and location are required";
+    return;
+  }
+  const assetId = `ext-found::${slugify(serialNumber)}`;
+  await saveExtinguisherAssetVerification(assetId, "NEW_UNIT_FOUND", null, {
+    serialNumber,
+    currentLocation,
+    agentType: document.querySelector("#newExtAssetType")?.value.trim() || "",
+    sizeKg: document.querySelector("#newExtAssetSize")?.value.trim() || "",
+    notes: document.querySelector("#newExtAssetNote")?.value.trim() || "",
+    evidenceInput: document.querySelector("#newExtAssetPhoto"),
+    proposalId: `EXT-PROP-${schedule.scheduleId}-NEW-${slugify(serialNumber)}`
+  });
+  newExtAssetForm?.reset();
+  newExtAssetForm?.classList.add("hidden");
+}
+
+async function syncExtinguisherAssetDrafts() {
+  const drafts = Object.values(state.extinguisherAssetDrafts || {});
+  let synced = 0;
+  for (const draft of drafts) {
+    const schedule = state.schedules.find((item) => item.scheduleId === draft.scheduleId);
+    if (!schedule) continue;
+    try {
+      const response = await fetch(`/api/jobs/${encodeURIComponent(draft.scheduleId)}/extinguisher-verifications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ schedule, expectedRevision: draft.expectedRevision || 0, record: draft })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) {
+        if (response.status === 409) state.extinguisherAssetDrafts[getExtinguisherAssetDraftKey(draft.scheduleId, draft.assetId)].syncState = "CONFLICT";
+        continue;
+      }
+      delete state.extinguisherAssetDrafts[getExtinguisherAssetDraftKey(draft.scheduleId, draft.assetId)];
+      synced += 1;
+    } catch (error) {
+      break;
+    }
+  }
+  persistExtinguisherAssetDrafts();
+  const activeSchedule = getCurrentExtinguisherSchedule();
+  if (activeSchedule) await loadExtinguisherAssetJobState(activeSchedule);
+  return synced;
+}
+
 function renderScheduleCalendar() {
   if (!scheduleCalendarGrid || !calendarTitle) return;
 
@@ -6219,6 +6850,9 @@ function loadScheduleIntoForm(scheduleId) {
   setScheduleTrackingForm(schedule.tracking || {});
   state.calendarMonth = String(schedule.date || "").slice(0, 7) || state.calendarMonth;
   renderSchedulePanel();
+  if (isExtinguisherJobSchedule(schedule)) {
+    loadExtinguisherAssetJobState(schedule).then(renderExtinguisherAssetAdminPanel);
+  }
   document.querySelector("#syncState").textContent = `${scheduleId} loaded for review`;
 }
 
@@ -6975,6 +7609,15 @@ async function saveSchedule() {
     ? state.schedules.find((item) => item.scheduleId === state.editingScheduleId)
     : null;
   const schedule = buildSchedulePayload();
+  if (isExtinguisherJobSchedule(schedule)) {
+    try {
+      const frozen = await freezeExtinguisherAssetsForSchedule(schedule);
+      state.extinguisherAssetJobState = frozen?.store || state.extinguisherAssetJobState;
+    } catch (error) {
+      document.querySelector("#syncState").textContent = `Schedule not saved: ${error.message}`;
+      return;
+    }
+  }
   if (existingSchedule && existingSchedule.rotationHistoryKey !== schedule.rotationHistoryKey) {
     releaseScheduleScopeReservation(existingSchedule);
   }
@@ -9757,6 +10400,14 @@ showTechExtinguisherBtn?.addEventListener("click", () => {
 });
 saveTechExtinguisherBtn?.addEventListener("click", saveTechExtinguisherRecord);
 parseTechExtStickerBtn?.addEventListener("click", parseTechExtinguisherSticker);
+importExtAssetBtn?.addEventListener("click", importExtinguisherAssetSource);
+techExtAssetSearch?.addEventListener("input", renderTechExtinguisherAssetWorkflow);
+showNewExtAssetBtn?.addEventListener("click", () => newExtAssetForm?.classList.toggle("hidden"));
+cancelNewExtAssetBtn?.addEventListener("click", () => {
+  newExtAssetForm?.reset();
+  newExtAssetForm?.classList.add("hidden");
+});
+newExtAssetForm?.addEventListener("submit", saveNewExtinguisherAssetFinding);
 calendarPrevBtn.addEventListener("click", () => shiftCalendarMonth(-1));
 calendarNextBtn.addEventListener("click", () => shiftCalendarMonth(1));
 bindCalendarTemplateHandlers();
@@ -9778,6 +10429,9 @@ bindCalendarTemplateHandlers();
     if ([scheduleClientMode, scheduleClientSite, scheduleManualClient, scheduleManualPlace, scheduleManualAddress, scheduleServiceType, scheduleScope].includes(input)) {
       syncContractRuleControls();
       renderScheduleFloorOptions();
+    }
+    if ([scheduleClientMode, scheduleClientSite, scheduleManualClient, scheduleManualPlace].includes(input)) {
+      loadExtinguisherAssetMaster();
     }
     syncCalendarDragSummary();
     renderExtinguisherTallyStatus();
@@ -10587,6 +11241,7 @@ function renderReportReviews() {
         </div>
         <div class="request-actions">
           <span class="status-pill">${escapeHtml(status)}</span>
+          <button type="button" class="mini-button secondary open-report-btn" data-schedule-id="${escapeHtml(schedule.scheduleId)}">Open Report</button>
           ${canAdminReview ? `
             <button type="button" class="mini-button approve-report-btn" data-schedule-id="${escapeHtml(schedule.scheduleId)}">Approve</button>
             <button type="button" class="mini-button danger return-report-btn" data-schedule-id="${escapeHtml(schedule.scheduleId)}">Return for Correction</button>
@@ -10599,6 +11254,9 @@ function renderReportReviews() {
   reportReviewList.querySelectorAll(".approve-report-btn").forEach((button) => {
     button.addEventListener("click", () => approveSubmittedReport(button.dataset.scheduleId));
   });
+  reportReviewList.querySelectorAll(".open-report-btn").forEach((button) => {
+    button.addEventListener("click", () => showReport(button.dataset.scheduleId));
+  });
   reportReviewList.querySelectorAll(".return-report-btn").forEach((button) => {
     button.addEventListener("click", () => returnSubmittedReportForCorrection(button.dataset.scheduleId));
   });
@@ -10608,7 +11266,27 @@ async function approveSubmittedReport(scheduleId) {
   if (!canEditMasterData()) return;
   const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
   if (!schedule) return;
-  const result = await submitReportReviewAction(schedule, "APPROVED_BY_ADMIN", "Admin approved technician submission.");
+  const latest = await requestSharedJobState(schedule, { migrate: false });
+  if (!latest?.online) {
+    document.querySelector("#syncState").textContent = "Approval blocked: authoritative shared job records are unavailable.";
+    return;
+  }
+  const reportSnapshot = buildReportSnapshot(schedule, { forceLive: true, snapshotStatus: "APPROVED_SNAPSHOT" });
+  if (reportSnapshot.dataIntegrity.unsyncedCount > 0) {
+    document.querySelector("#syncState").textContent = `Approval blocked: ${reportSnapshot.dataIntegrity.unsyncedCount} unsynced report record(s) remain.`;
+    return;
+  }
+  const approvedAt = new Date().toISOString();
+  reportSnapshot.status = "APPROVED_BY_ADMIN";
+  reportSnapshot.approvedAt = approvedAt;
+  reportSnapshot.review = {
+    ...reportSnapshot.review,
+    status: "APPROVED_BY_ADMIN",
+    reviewedBy: getCurrentUserName(),
+    reviewedAt: approvedAt,
+    reviewNote: "Admin approved technician submission."
+  };
+  const result = await submitReportReviewAction(schedule, "APPROVED_BY_ADMIN", "Admin approved technician submission.", { reportSnapshot });
   if (!result.ok) {
     document.querySelector("#syncState").textContent = result.conflict
       ? "Report review changed elsewhere. Reload before approving."
@@ -12286,68 +12964,559 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-async function showReport() {
+function getReportSchedule(scheduleId = "") {
+  const requestedId = typeof scheduleId === "string" ? scheduleId : "";
+  const activeId = requestedId
+    || state.activeReportScheduleId
+    || state.editingScheduleId
+    || state.activeJob?.scheduleId
+    || state.activeJob?.schedule?.scheduleId
+    || "";
+  return (activeId && state.schedules.find((item) => item.scheduleId === activeId))
+    || (activeId && state.activeJob?.schedule?.scheduleId === activeId ? state.activeJob.schedule : null)
+    || getActiveTechnicianMaintenanceSchedule()
+    || getTechMarkerScopeSchedule()
+    || null;
+}
+
+function getReportSuggestedPinsForSchedule(schedule) {
+  const scheduleId = getScheduleKey(schedule);
+  if (!scheduleId) return [];
+  const company = normalizeScopeText(schedule.companyName);
+  const site = normalizeScopeText(schedule.siteName);
+  const floorNames = new Set(getScheduledAssignedDevices(schedule).flatMap((device) => [
+    device.floorId,
+    device.floor,
+    device.floorTitle
+  ]).map(normalizeScopeText).filter(Boolean));
+  [schedule.floorId, schedule.floorTitle, schedule.startFloorId, schedule.startFloorTitle]
+    .map(normalizeScopeText)
+    .filter(Boolean)
+    .forEach((value) => floorNames.add(value));
+  return state.requests.filter((request) => {
+    if (String(request.scheduleId || "") !== scheduleId) return false;
+    if (company && normalizeScopeText(request.companyName) !== company) return false;
+    if (site && normalizeScopeText(request.siteName) !== site) return false;
+    const floor = normalizeScopeText(request.floor || request.floorTitle || request.floorId);
+    return !floor || !floorNames.size || floorNames.has(floor);
+  });
+}
+
+function getReportEvidenceRefs(record = {}) {
+  const refs = Array.isArray(record.evidenceRefs) ? record.evidenceRefs : [];
+  const named = [
+    record.beforePhoto ? { type: "before", name: record.beforePhoto } : null,
+    record.afterPhoto ? { type: "after", name: record.afterPhoto } : null,
+    record.photo ? { type: "photo", name: record.photo } : null
+  ].filter(Boolean);
+  const seen = new Set();
+  return [...refs, ...named].map((item) => {
+    const ref = {
+      type: String(item?.type || "evidence"),
+      name: String(item?.name || item?.filename || "Evidence"),
+      photoUrl: String(item?.photoUrl || ""),
+      savedToPc: Boolean(item?.savedToPc)
+    };
+    const key = `${ref.type}::${ref.name}::${ref.photoUrl}`;
+    if (seen.has(key)) return null;
+    seen.add(key);
+    return ref;
+  }).filter(Boolean);
+}
+
+function getReportResult(record = {}) {
+  const value = String(record.status || record.result || "pending").trim().toUpperCase();
+  if (["PASS", "PASSED", "VERIFIED", "CONFIRMED", "COMPLETE", "COMPLETED"].includes(value)) return "PASS";
+  if (["FAIL", "FAILED", "FAULT", "MISSING", "MISMATCH_REVIEW_REQUIRED"].includes(value)) return "FAULT";
+  if (["PARTIAL", "IN_PROGRESS", "STARTED"].includes(value)) return "IN PROGRESS";
+  return value || "PENDING";
+}
+
+function getReportSystemForDevice(device, groups) {
+  return groups.find((group) => group.devices.some((item) => (item.id || item.tag) === (device.id || device.tag)))
+    || { id: "other", label: "Other Configured Systems" };
+}
+
+function getReportUnsyncedRecords(schedule, plannedIds) {
+  const scheduleId = getScheduleKey(schedule);
+  const planned = new Set(plannedIds);
+  const isDraft = (record) => {
+    const sync = String(record?.syncStatus || "").toUpperCase();
+    return Boolean(record?.unsynced || sync === "DRAFT" || sync === "CONFLICT" || sync.includes("AWAITING_SYNC"));
+  };
+  const inspections = Object.entries(state.inspections || {}).filter(([id, record]) => planned.has(id) && isDraft(record));
+  const sops = Object.values(state.criticalSops || {}).filter((record) => String(record.scheduleId || "") === scheduleId && isDraft(record));
+  const linked = Object.entries(state.linkedVerificationDrafts || {}).filter(([key]) => key.startsWith(`${scheduleId}::`));
+  const extinguishers = Object.entries(state.extinguisherAssetDrafts || {}).filter(([key]) => key.startsWith(`${scheduleId}::`));
+  return [...inspections, ...sops, ...linked, ...extinguishers].map(([id]) => String(id));
+}
+
+function buildReportCriticalSnapshot(schedule, store, assignedDevices, groups) {
+  const records = Object.values(store?.criticalSopRecords || {});
+  const fallback = Object.values(state.criticalSops || {}).filter((record) => String(record.scheduleId || "") === getScheduleKey(schedule));
+  const source = records.length ? records : fallback;
+  const byDevice = new Map(source.map((record) => [String(record.parentDeviceId || record.deviceId || record.deviceTag || ""), record]));
+  return assignedDevices.filter((device) => isCriticalSopDevice(device)).map((device) => {
+    const deviceId = device.id || device.tag;
+    const record = byDevice.get(deviceId) || {};
+    const template = criticalSopTemplates.find((item) => item.id === record.templateId || item.id === getCriticalSopTemplateIdForDevice(device));
+    const savedSteps = record.steps || {};
+    const steps = (template?.steps || Object.values(savedSteps)).map((step, index) => {
+      const saved = savedSteps[index] || savedSteps[String(index)] || {};
+      return {
+        number: index + 1,
+        title: String(step.title || saved.title || `Checklist step ${index + 1}`),
+        critical: Boolean(step.critical),
+        confirmed: Boolean(saved.confirmed),
+        choice: String(saved.choice || ""),
+        reading: String(saved.reading || ""),
+        remark: String(saved.remark || ""),
+        supervisor: String(saved.supervisor || ""),
+        evidenceRefs: getReportEvidenceRefs(saved)
+      };
+    });
+    const group = getReportSystemForDevice(device, groups);
+    return {
+      deviceId,
+      deviceType: device.type || record.deviceType || "Critical System",
+      title: record.title || template?.title || device.type || "Critical System Check",
+      systemKey: group.id,
+      systemLabel: group.label,
+      floor: device.floorTitle || device.floor || record.floor || "-",
+      location: displayDeviceLocation(device.location || record.location || ""),
+      status: getReportResult(record),
+      workflowStatus: String(record.workflowStatus || ""),
+      finalRestorationComplete: Boolean(record.finalRestorationComplete),
+      sopVersion: String(record.sopVersion || record.definitionVersion || record.templateVersion || "configured"),
+      technicianId: String(record.technicianId || record.filledById || ""),
+      technicianName: String(record.technicianName || record.filledBy || record.savedBy || ""),
+      completedAt: String(record.updatedAt || record.savedAt || ""),
+      generalRemarks: String(record.generalRemarks || ""),
+      evidenceRefs: getReportEvidenceRefs(record),
+      steps
+    };
+  });
+}
+
+function buildReportLinkedVerificationSnapshot(schedule) {
+  return getScheduleLinkedVerificationDefinitions(schedule).map((definition) => {
+    const linked = calculateClientLinkedVerificationState(schedule, definition);
+    return {
+      linkedVerificationId: definition.linkedVerificationId,
+      verificationType: definition.verificationType,
+      title: definition.title,
+      systemId: definition.systemId,
+      definitionVersion: definition.definitionVersion,
+      status: linked.status,
+      sides: linked.sides.map((side) => ({
+        sideId: side.sideId,
+        sideName: side.sideName,
+        location: side.location || side.sideLocation || "",
+        assignedTechnicianId: side.assignedTechnicianId || "",
+        assignedTechnicianName: side.assignedTechnicianName || "",
+        technicianId: side.record?.technicianId || "",
+        technicianName: side.record?.technicianName || "",
+        result: side.record?.result || "PENDING",
+        timestamp: side.record?.timestamp || side.record?.localCompletedAt || "",
+        syncStatus: side.record?.syncStatus || (side.draft ? "LOCAL_COMPLETE_AWAITING_SYNC" : "PENDING"),
+        evidenceRefs: getReportEvidenceRefs(side.record || side.draft || {})
+      }))
+    };
+  });
+}
+
+function buildReportExtinguisherSnapshot(store, schedule) {
+  const snapshot = store?.extinguisherAssetSnapshot;
+  if (!snapshot) return null;
+  const records = Object.values(store.extinguisherVerificationRecords || {});
+  const proposals = Object.values(store.extinguisherChangeProposals || {});
+  const byAsset = new Map(records.map((record) => [record.assetId, record]));
+  const counts = { expected: snapshot.assets?.length || 0, verified: 0, missing: 0, moved: 0, newUnitFound: 0, fault: 0, replaced: 0, pending: 0, pendingMasterChanges: 0 };
+  const assets = (snapshot.assets || []).map((asset) => {
+    const record = byAsset.get(asset.assetId) || {};
+    const result = String(record.result || "PENDING").toUpperCase();
+    const countKey = { VERIFIED: "verified", MISSING: "missing", MOVED: "moved", FAULT: "fault", REPLACED: "replaced" }[result] || "pending";
+    counts[countKey] += 1;
+    return {
+      assetId: asset.assetId,
+      serialNumber: asset.serialNumber,
+      agentType: asset.agentType || "",
+      sizeKg: asset.sizeKg || "",
+      floor: asset.floor || "",
+      expectedLocation: asset.location || "",
+      result,
+      currentLocation: record.currentLocation || "",
+      replacementSerial: record.replacementSerial || "",
+      notes: record.notes || "",
+      technicianId: record.technicianId || "",
+      technicianName: record.technicianName || "",
+      timestamp: record.timestamp || record.updatedAt || "",
+      evidenceRefs: getReportEvidenceRefs(record)
+    };
+  });
+  const found = records.filter((record) => record.result === "NEW_UNIT_FOUND").map((record) => ({
+    assetId: record.assetId,
+    serialNumber: record.serialNumber,
+    result: "NEW_UNIT_FOUND",
+    currentLocation: record.currentLocation || "",
+    notes: record.notes || "",
+    technicianName: record.technicianName || "",
+    timestamp: record.timestamp || record.updatedAt || "",
+    evidenceRefs: getReportEvidenceRefs(record)
+  }));
+  counts.newUnitFound = found.length;
+  counts.pendingMasterChanges = proposals.filter((proposal) => proposal.status === "PENDING_ADMIN_REVIEW").length;
+  return {
+    snapshotId: snapshot.snapshotId || "",
+    masterRevision: Number(snapshot.masterRevision || 0),
+    sourceDocuments: (snapshot.sourceDocuments || []).map((source) => ({ name: source.name || "", reference: source.reference || "" })),
+    counts,
+    assets,
+    newUnitsFound: found,
+    collectionReturn: {
+      tracking: { ...(schedule?.tracking || {}) },
+      extinguisherDetails: schedule?.extinguisherDetails || "",
+      unitDetails: { ...(schedule?.extinguisherUnitDetails || schedule?.unitDetails || {}) },
+      photoEvidenceRefs: Object.entries(schedule?.photoProof || {}).flatMap(([type, photos]) => (photos || []).map((photo) => ({
+        type,
+        name: typeof photo === "string" ? photo : photo?.name || "Evidence",
+        photoUrl: typeof photo === "object" ? photo?.photoUrl || "" : ""
+      })))
+    }
+  };
+}
+
+function buildReportSnapshot(schedule, options = {}) {
+  const submission = getScheduleReportSubmission(schedule) || {};
+  if (!options.forceLive && submission.reportSnapshot && isScheduleAdminApproved(schedule)) {
+    return submission.reportSnapshot;
+  }
+  const scheduleId = getScheduleKey(schedule);
+  const cache = getSharedJobCache(schedule);
+  const store = cache?.store || {};
+  const assignedDevices = getScheduledAssignedDevices(schedule);
+  const plannedIds = assignedDevices.map((device) => device.id || device.tag).filter(Boolean);
+  const groups = getTechnicianFireSystemGroups(schedule);
+  const criticalItems = buildReportCriticalSnapshot(schedule, store, assignedDevices, groups);
+  const criticalIds = new Set(criticalItems.map((item) => item.deviceId));
+  const devices = assignedDevices.filter((device) => !criticalIds.has(device.id || device.tag)).map((device) => {
+    const record = getStoredInspectionForDevice(device, schedule) || {};
+    const group = getReportSystemForDevice(device, groups);
+    return {
+      deviceId: device.id || device.tag,
+      deviceType: device.type || "Device",
+      systemKey: group.id,
+      systemLabel: group.label,
+      floor: device.floorTitle || device.floor || "-",
+      location: displayDeviceLocation(device.location || ""),
+      result: getReportResult(record),
+      notes: String(record.notes || ""),
+      correctiveAction: String(record.action || record.correctiveAction || ""),
+      technicianId: String(record.technicianId || record.inspectedById || ""),
+      technicianName: String(record.technicianName || record.inspectedBy || ""),
+      inspectedAt: String(record.inspectedAt || record.updatedAt || ""),
+      durationMs: Number(record.checklistTotalDurationMs || record.checklistDurationMs || 0),
+      evidenceRefs: getReportEvidenceRefs(record),
+      revision: Number(record.revision || record.sharedRevision || 0)
+    };
+  });
+  const resultByDevice = new Map([...devices, ...criticalItems].map((item) => [item.deviceId, item]));
+  const systemTotals = groups.map((group) => {
+    const results = [...new Set(group.devices.map((device) => device.id || device.tag))].map((id) => resultByDevice.get(id)).filter(Boolean);
+    const pass = results.filter((item) => item.status === "PASS" || item.result === "PASS").length;
+    const fault = results.filter((item) => item.status === "FAULT" || item.result === "FAULT").length;
+    const completed = pass + fault;
+    return {
+      systemKey: group.id,
+      label: group.label,
+      assigned: results.length,
+      pass,
+      fault,
+      pending: Math.max(0, results.length - pass - fault),
+      completed,
+      completionPercent: results.length ? Math.round((completed / results.length) * 100) : 0,
+      criticalAssigned: results.filter((item) => criticalIds.has(item.deviceId)).length
+    };
+  });
+  const passCount = [...devices, ...criticalItems].filter((item) => item.result === "PASS" || item.status === "PASS").length;
+  const faultCount = [...devices, ...criticalItems].filter((item) => item.result === "FAULT" || item.status === "FAULT").length;
+  const pendingCount = Math.max(0, assignedDevices.length - passCount - faultCount);
+  const suggestedPins = getReportSuggestedPinsForSchedule(schedule).map((request) => ({
+    requestId: request.id,
+    scheduleId: request.scheduleId,
+    label: request.label || "Suggested device",
+    deviceType: request.type || request.system || "",
+    floor: request.floor || request.floorTitle || "",
+    location: request.location || "",
+    status: request.status || "PENDING_ADMIN_REVIEW",
+    requestedBy: request.requestedBy || request.createdBy || "",
+    requestedAt: request.requestedAt || request.createdAt || "",
+    note: request.reason || request.note || "",
+    evidenceRefs: getReportEvidenceRefs({ evidenceRefs: request.photoEvidence, photo: request.photo })
+  }));
+  const unsyncedRecordIds = getReportUnsyncedRecords(schedule, plannedIds);
+  const profile = { companyName: schedule.companyName || "", siteName: schedule.siteName || "" };
+  const coverage = getAnnualCoverageSummary(profile, {
+    frequencyPercent: schedule.contractFrequencyPercent || schedule.serviceFrequencyPercent,
+    annualCycleId: schedule.annualCycleId || schedule.contractCycleId,
+    date: schedule.date
+  });
+  const nextSchedule = state.schedules
+    .filter((item) => item.scheduleId !== scheduleId && item.companyName === schedule.companyName && item.siteName === schedule.siteName && item.date && item.date > schedule.date)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)))[0];
+  const linkedVerifications = buildReportLinkedVerificationSnapshot(schedule);
+  const extinguisher = buildReportExtinguisherSnapshot(store, schedule);
+  const linkedReviewCount = linkedVerifications.filter((item) => item.status === "MISMATCH_REVIEW_REQUIRED").length;
+  const overallStatus = faultCount || linkedReviewCount
+    ? "DEFECTS / REVIEW REQUIRED"
+    : pendingCount
+      ? "IN PROGRESS"
+      : isScheduleAdminApproved(schedule) ? "APPROVED" : "COMPLETED - AWAITING REVIEW";
+  const faults = devices.filter((item) => item.result === "FAULT").map((item) => ({
+    deviceId: item.deviceId,
+    systemLabel: item.systemLabel,
+    floor: item.floor,
+    location: item.location,
+    finding: item.notes,
+    correctiveAction: item.correctiveAction,
+    evidenceRefs: item.evidenceRefs
+  }));
+  const generatedAt = new Date().toISOString();
+  const evidence = [
+    ...devices.flatMap((item) => item.evidenceRefs.map((ref) => ({ ...ref, sourceType: "device", sourceId: item.deviceId }))),
+    ...criticalItems.flatMap((item) => item.evidenceRefs.map((ref) => ({ ...ref, sourceType: "critical", sourceId: item.deviceId }))),
+    ...suggestedPins.flatMap((item) => item.evidenceRefs.map((ref) => ({ ...ref, sourceType: "suggested-pin", sourceId: item.requestId }))),
+    ...linkedVerifications.flatMap((item) => item.sides.flatMap((side) => side.evidenceRefs.map((ref) => ({ ...ref, sourceType: "linked-verification", sourceId: `${item.linkedVerificationId}::${side.sideId}` })))),
+    ...(extinguisher ? [...extinguisher.assets, ...extinguisher.newUnitsFound].flatMap((item) => item.evidenceRefs.map((ref) => ({ ...ref, sourceType: "extinguisher", sourceId: item.assetId }))) : [])
+  ];
+  const createdAt = schedule.reportCreatedAt || submission.submittedAt || generatedAt;
+  return {
+    schemaVersion: "rmt-report-snapshot-v1",
+    reportId: `REPORT-${scheduleId}`,
+    scheduleId,
+    jobId: schedule.jobId || `JOB-${scheduleId}`,
+    clientId: schedule.clientId || schedule.companyName || "",
+    siteId: schedule.siteId || schedule.siteName || "",
+    createdAt,
+    submittedAt: submission.submittedAt || schedule.reportSubmittedAt || "",
+    reviewedAt: submission.reviewedAt || schedule.reviewedAt || "",
+    approvedAt: submission.status === "APPROVED_BY_ADMIN" ? submission.reviewedAt || schedule.reviewedAt || "" : "",
+    status: options.snapshotStatus === "APPROVED_SNAPSHOT" ? "APPROVED_BY_ADMIN" : submission.status || schedule.reportSubmissionStatus || schedule.status || "",
+    snapshotStatus: options.snapshotStatus || "LIVE_PREVIEW",
+    generatedAt,
+    generatedBy: getCurrentUserName(),
+    source: {
+      mode: cache?.online ? "AUTHORITATIVE_SHARED_RECORDS" : "CACHED_FALLBACK",
+      sharedStoreSchemaVersion: store.schemaVersion || "",
+      reportSubmissionRevision: Number(submission.revision || 0)
+    },
+    header: {
+      clientName: schedule.companyName || "-",
+      siteName: schedule.siteName || "-",
+      serviceDate: schedule.date || "",
+      serviceTime: schedule.time || "",
+      reportReference: schedule.reportReference || scheduleId,
+      serviceType: schedule.serviceType || schedule.scopeLabel || "Maintenance Inspection",
+      frequencyPercent: Number(schedule.contractFrequencyPercent || schedule.serviceFrequencyPercent || 0),
+      nextServiceDate: nextSchedule?.date || "",
+      technicianName: submission.submittedBy || schedule.reportSubmittedBy || state.activeJob?.inspector || "-"
+    },
+    summary: {
+      overallStatus,
+      assignedCount: assignedDevices.length,
+      completedCount: passCount + faultCount,
+      passCount,
+      faultCount,
+      pendingCount,
+      suggestedPinCount: suggestedPins.length,
+      linkedReviewCount,
+      systemTotals
+    },
+    systems: systemTotals,
+    coverage: {
+      annualCycleId: coverage.annualCycleId,
+      eligibleCount: coverage.eligibleCount,
+      uniqueCoveredCount: coverage.uniqueCoveredCount,
+      uniqueCoveragePercent: coverage.uniqueCoveragePercent,
+      totalInspections: coverage.totalInspections,
+      repeatInspections: coverage.repeatInspections,
+      faultRecheckRepeatCount: coverage.faultRecheckRepeatCount
+    },
+    devices,
+    deviceResults: devices,
+    criticalItems,
+    faults,
+    suggestedPins,
+    linkedVerifications,
+    extinguisher,
+    extinguisherSummary: extinguisher?.counts || null,
+    extinguisherAssets: extinguisher?.assets || [],
+    evidence,
+    acknowledgement: {
+      ...(submission.clientAcknowledgement || {}),
+      signedBy: store.signOff?.supervisorName || store.signOff?.clientName || "",
+      signedAt: store.signOff?.signedAt || submission.clientAcknowledgement?.signedAt || "",
+      signatureCaptured: Boolean(store.signOff?.signatureData || store.signOff?.supervisorSignatureData || submission.clientAcknowledgement?.signatureCaptured)
+    },
+    review: {
+      status: submission.status || schedule.reportSubmissionStatus || schedule.status || "",
+      submittedBy: submission.submittedBy || schedule.reportSubmittedBy || "",
+      submittedAt: submission.submittedAt || schedule.reportSubmittedAt || "",
+      reviewedBy: submission.reviewedBy || schedule.reviewedBy || "",
+      reviewedAt: submission.reviewedAt || schedule.reviewedAt || "",
+      reviewNote: submission.reviewNote || ""
+    },
+    dataIntegrity: {
+      serverOnline: Boolean(cache?.online),
+      unsyncedCount: unsyncedRecordIds.length,
+      unsyncedRecordIds
+    }
+  };
+}
+
+function renderReportEvidenceReferences(refs = []) {
+  if (!refs.length) return `<span class="report-muted">No evidence reference</span>`;
+  return `<ul class="report-evidence-list">${refs.map((ref) => `<li>${escapeHtml(ref.type)}: ${escapeHtml(ref.name)}${ref.photoUrl ? ` <span>${escapeHtml(ref.photoUrl)}</span>` : ""}</li>`).join("")}</ul>`;
+}
+
+function renderReportSnapshot(snapshot) {
+  state.activeReportSnapshot = snapshot;
+  const title = `${snapshot.header.clientName} / ${snapshot.header.siteName}`;
+  document.querySelector("#reportDocumentTitle").textContent = title;
+  document.querySelector("#reportDetailTitle").textContent = title;
+  document.querySelector("#reportDetailReference").textContent = snapshot.header.reportReference;
+  document.querySelector("#reportDate").textContent = snapshot.header.serviceDate || "-";
+  document.querySelector("#reportReference").textContent = snapshot.header.reportReference;
+  document.querySelector("#reportFrequency").textContent = snapshot.header.frequencyPercent ? `${snapshot.header.frequencyPercent}% maintenance` : snapshot.header.serviceType;
+  document.querySelector("#reportInspectorName").textContent = snapshot.header.technicianName || "-";
+  const status = document.querySelector("#reportStatus");
+  status.textContent = snapshot.summary.overallStatus;
+  status.dataset.status = snapshot.summary.overallStatus.toLowerCase().replace(/[^a-z]+/g, "-").replace(/^-|-$/g, "");
+  document.querySelector("#reportSummaryText").textContent = `${snapshot.summary.completedCount} of ${snapshot.summary.assignedCount} assigned items were completed. ${snapshot.summary.passCount} passed and ${snapshot.summary.faultCount} fault item(s) were recorded.${snapshot.header.nextServiceDate ? ` Next scheduled service: ${snapshot.header.nextServiceDate}.` : ""}`;
+  document.querySelector("#reportSummaryMetrics").innerHTML = [
+    ["Assigned", snapshot.summary.assignedCount],
+    ["Completed", snapshot.summary.completedCount],
+    ["Pass", snapshot.summary.passCount],
+    ["Fault", snapshot.summary.faultCount],
+    ["Pending", snapshot.summary.pendingCount],
+    ["Suggested pins", snapshot.summary.suggestedPinCount]
+  ].map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join("");
+  document.querySelector("#reportSystemSummaryRows").innerHTML = snapshot.summary.systemTotals.map((system) => `
+    <tr><td>${escapeHtml(system.label)}</td><td>${system.assigned}</td><td>${system.completed}</td><td>${system.pass}</td><td>${system.fault}</td><td>${system.completionPercent}%</td></tr>
+  `).join("") || `<tr><td colspan="6">No configured system results.</td></tr>`;
+  document.querySelector("#reportCoverageSummary").innerHTML = `
+    <p><strong>${snapshot.coverage.uniqueCoveragePercent}% unique coverage</strong></p>
+    <p>${snapshot.coverage.uniqueCoveredCount} of ${snapshot.coverage.eligibleCount} eligible devices | ${escapeHtml(snapshot.coverage.annualCycleId || "No cycle")}</p>
+    <p>${snapshot.summary.assignedCount} planned | ${snapshot.summary.completedCount} completed | ${snapshot.summary.passCount} pass | ${snapshot.summary.faultCount} fault</p>
+    <p>${snapshot.coverage.totalInspections} total annual inspections | ${snapshot.coverage.repeatInspections} repeats | ${snapshot.coverage.faultRecheckRepeatCount} fault/recheck repeats</p>`;
+  document.querySelector("#reportCriticalSummary").innerHTML = snapshot.criticalItems.length
+    ? snapshot.criticalItems.map((item) => `<p><strong>${escapeHtml(item.deviceId)}</strong> ${escapeHtml(item.title)} <span class="report-result ${item.status === "PASS" ? "pass" : "pending"}">${escapeHtml(item.status)}</span></p>`).join("")
+    : `<p class="report-muted">No critical system record in this job scope.</p>`;
+  document.querySelector("#reportKeyFindings").innerHTML = snapshot.faults.length
+    ? snapshot.faults.map((fault) => `<p><strong>${escapeHtml(fault.deviceId)}</strong> ${escapeHtml(fault.finding || "Fault recorded")}</p>`).join("")
+    : `<p class="report-muted">No fault findings recorded.</p>`;
+  const recommendations = snapshot.faults.filter((fault) => fault.correctiveAction);
+  document.querySelector("#reportRecommendations").innerHTML = recommendations.length
+    ? recommendations.map((fault) => `<p><strong>${escapeHtml(fault.deviceId)}</strong> ${escapeHtml(fault.correctiveAction)}</p>`).join("")
+    : `<p class="report-muted">No corrective recommendation was recorded.</p>`;
+
+  renderReportCriticalSystems(snapshot);
+  const grouped = new Map();
+  snapshot.devices.forEach((device) => {
+    const key = `${device.systemLabel}::${device.floor}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(device);
+  });
+  document.querySelector("#reportRows").innerHTML = [...grouped.entries()].map(([key, items]) => {
+    const [system, floor] = key.split("::");
+    return items.map((item, index) => `
+      <tr class="${item.result === "FAULT" ? "report-fault-row" : ""}">
+        <td>${index === 0 ? `<strong>${escapeHtml(system)}</strong><br><span>${escapeHtml(floor)}</span>` : ""}</td>
+        <td><strong>${escapeHtml(item.deviceId)}</strong><br>${escapeHtml(item.deviceType)}<br><span>${escapeHtml(item.location)}</span></td>
+        <td><span class="report-result ${item.result === "PASS" ? "pass" : item.result === "FAULT" ? "fault" : "pending"}">${escapeHtml(item.result)}</span></td>
+        <td>${escapeHtml(item.technicianName || "-")}<br><span>${escapeHtml(formatReportDateTime(item.inspectedAt))}</span></td>
+        <td>${renderReportEvidenceReferences(item.evidenceRefs)}${item.result === "FAULT" ? `<p><b>Finding:</b> ${escapeHtml(item.notes || "-")}</p><p><b>Corrective:</b> ${escapeHtml(item.correctiveAction || "-")}</p>` : item.notes ? `<p>${escapeHtml(item.notes)}</p>` : ""}</td>
+      </tr>`).join("");
+  }).join("") || `<tr><td colspan="5">No field-device records in this job.</td></tr>`;
+  document.querySelector("#reportDefectList").innerHTML = snapshot.faults.length
+    ? snapshot.faults.map((fault) => `<article class="report-note fail-note"><strong>${escapeHtml(fault.deviceId)} - ${escapeHtml(fault.systemLabel)}</strong><p>${escapeHtml(fault.finding || "Fault recorded")}</p><p><b>Recorded corrective action:</b> ${escapeHtml(fault.correctiveAction || "-")}</p>${renderReportEvidenceReferences(fault.evidenceRefs)}</article>`).join("")
+    : `<p class="report-muted">No faults recorded.</p>`;
+  document.querySelector("#reportSetupList").innerHTML = snapshot.suggestedPins.length
+    ? snapshot.suggestedPins.map((request) => `<article class="report-note"><strong>${escapeHtml(request.label)} - ${escapeHtml(request.deviceType)}</strong><p>${escapeHtml(request.floor)} | ${escapeHtml(request.location)}</p><p>${escapeHtml(request.note || "-")}</p><p>${escapeHtml(request.status)} | ${escapeHtml(request.requestedBy)} | ${escapeHtml(formatReportDateTime(request.requestedAt))}</p>${renderReportEvidenceReferences(request.evidenceRefs)}</article>`).join("")
+    : `<p class="report-muted">No suggested pin recorded for this job context.</p>`;
+  renderReportExtinguisherSnapshot(snapshot.extinguisher);
+  renderReportLinkedVerificationSnapshot(snapshot.linkedVerifications);
+  document.querySelector("#reportAcknowledgement").innerHTML = `
+    <div class="report-ack-grid">
+      <p><strong>Client / witness</strong>${escapeHtml(snapshot.acknowledgement.witnessName || snapshot.acknowledgement.signedBy || "-")}</p>
+      <p><strong>Technician</strong>${escapeHtml(snapshot.acknowledgement.technicianName || snapshot.review.submittedBy || "-")}</p>
+      <p><strong>Signature</strong>${snapshot.acknowledgement.signatureCaptured ? "Captured" : "Not captured"}</p>
+      <p><strong>Signed</strong>${escapeHtml(formatReportDateTime(snapshot.acknowledgement.signedAt))}</p>
+      <p><strong>Admin review</strong>${escapeHtml(snapshot.review.status || "Not reviewed")}</p>
+      <p><strong>Reviewed by</strong>${escapeHtml(snapshot.review.reviewedBy || "-")}</p>
+    </div>`;
+  document.querySelector("#reportFooter").textContent = `${snapshot.reportId} | Snapshot ${snapshot.schemaVersion} | Generated ${formatReportDateTime(snapshot.generatedAt)}`;
+}
+
+function renderReportExtinguisherSnapshot(extinguisher) {
+  const section = document.querySelector("#reportExtinguisherSection");
+  const container = document.querySelector("#reportExtinguisherDetails");
+  section.classList.toggle("hidden", !extinguisher);
+  if (!extinguisher) {
+    container.innerHTML = "";
+    return;
+  }
+  const counts = extinguisher.counts;
+  const collection = extinguisher.collectionReturn || {};
+  const tracking = collection.tracking || {};
+  const hasCollectionData = Object.values(tracking).some((value) => String(value || "").trim())
+    || collection.extinguisherDetails
+    || Object.values(collection.unitDetails || {}).some((value) => String(value || "").trim());
+  container.innerHTML = `
+    <div class="report-summary-metrics">${[["Expected", counts.expected], ["Verified", counts.verified], ["Missing", counts.missing], ["Moved", counts.moved], ["Fault", counts.fault], ["Replaced", counts.replaced], ["New found", counts.newUnitFound], ["Master changes", counts.pendingMasterChanges]].map(([label, value]) => `<div><strong>${value}</strong><span>${label}</span></div>`).join("")}</div>
+    ${hasCollectionData ? `<div class="report-ext-collection"><p><strong>Collection / return:</strong> Total ${Number(tracking.totalUnits || 0)}, collected ${Number(tracking.collectedUnits || 0)}, returned ${Number(tracking.returnedUnits || 0)}, loan issued ${Number(tracking.loanUnits || 0)}, loan returned ${Number(tracking.loanReturnedUnits || 0)}.</p>${collection.extinguisherDetails ? `<p>${escapeHtml(collection.extinguisherDetails)}</p>` : ""}${collection.unitDetails?.loanUnitDetails ? `<p><strong>Loan unit:</strong> ${escapeHtml(collection.unitDetails.loanUnitDetails)}</p>` : ""}${collection.photoEvidenceRefs?.length ? renderReportEvidenceReferences(collection.photoEvidenceRefs) : ""}</div>` : ""}
+    <div class="report-table-wrap"><table><thead><tr><th>Serial / Type</th><th>Expected / Current Location</th><th>Result</th><th>Technician / Time</th><th>Evidence / Notes</th></tr></thead><tbody>
+      ${[...extinguisher.assets, ...extinguisher.newUnitsFound].map((asset) => `<tr><td><strong>${escapeHtml(asset.serialNumber)}</strong><br>${escapeHtml([asset.agentType, asset.sizeKg].filter(Boolean).join(" "))}</td><td>${escapeHtml(asset.expectedLocation || "-")}<br>${asset.currentLocation ? `<b>Current:</b> ${escapeHtml(asset.currentLocation)}` : ""}</td><td>${escapeHtml(asset.result)}</td><td>${escapeHtml(asset.technicianName || "-")}<br>${escapeHtml(formatReportDateTime(asset.timestamp))}</td><td>${renderReportEvidenceReferences(asset.evidenceRefs)}${asset.notes ? `<p>${escapeHtml(asset.notes)}</p>` : ""}${asset.replacementSerial ? `<p><b>Replacement:</b> ${escapeHtml(asset.replacementSerial)}</p>` : ""}</td></tr>`).join("")}
+    </tbody></table></div>`;
+}
+
+function renderReportLinkedVerificationSnapshot(items) {
+  const section = document.querySelector("#reportLinkedVerificationSection");
+  const container = document.querySelector("#reportLinkedVerificationDetails");
+  section.classList.toggle("hidden", !items.length);
+  container.innerHTML = items.map((item) => `
+    <article class="report-linked-card">
+      <div><strong>${escapeHtml(item.title)}</strong><span class="report-result ${item.status === "VERIFIED" ? "pass" : item.status === "MISMATCH_REVIEW_REQUIRED" ? "fault" : "pending"}">${escapeHtml(item.status.replaceAll("_", " "))}</span></div>
+      <div class="report-table-wrap"><table><thead><tr><th>Side / Location</th><th>Technician</th><th>Result / Time</th><th>Sync / Evidence</th></tr></thead><tbody>${item.sides.map((side) => `<tr><td><strong>${escapeHtml(side.sideName)}</strong><br>${escapeHtml(side.location)}</td><td>${escapeHtml(side.technicianName || side.assignedTechnicianName || "-")}</td><td>${escapeHtml(side.result)}<br>${escapeHtml(formatReportDateTime(side.timestamp))}</td><td>${escapeHtml(side.syncStatus)}${renderReportEvidenceReferences(side.evidenceRefs)}</td></tr>`).join("")}</tbody></table></div>
+    </article>`).join("");
+}
+
+async function showReport(scheduleId = "") {
   if (state.scheduleStartInProgressId) {
     document.querySelector("#syncState").textContent = "Please wait until the scheduled job finishes loading before generating the report.";
     return;
   }
-  const reportScheduleId = state.activeJob?.scheduleId || state.activeJob?.schedule?.scheduleId || "";
-  const reportSchedule = reportScheduleId
-    ? state.schedules.find((item) => item.scheduleId === reportScheduleId) || state.activeJob?.schedule
-    : getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule();
+  const reportSchedule = getReportSchedule(scheduleId);
+  if (!reportSchedule) {
+    document.querySelector("#syncState").textContent = "Select a scheduled job before opening its report.";
+    return;
+  }
+  state.activeReportScheduleId = reportSchedule.scheduleId;
   if (reportSchedule) {
     await requestSharedJobState(reportSchedule, { migrate: false });
   }
-  const inspectionDevices = getInspectionDevicesForRun();
-  const profile = getCurrentSiteIdentity();
+  const snapshot = buildReportSnapshot(reportSchedule);
   applyCompanyBranding();
   workspace.classList.add("hidden");
   document.querySelector("#reportView").classList.remove("hidden");
   const reportTitle = document.querySelector("#reportView .report-header h1");
   if (reportTitle) {
-    reportTitle.textContent = `${profile.companyName} - Maintenance Inspection`;
+    reportTitle.textContent = `${snapshot.header.clientName} / ${snapshot.header.siteName}`;
   }
-  document.querySelector("#reportDate").textContent = new Date().toLocaleDateString();
-  const reportInspector = document.querySelector("#reportInspectorName");
-  if (reportInspector) reportInspector.textContent = getCurrentUserName();
-  document.querySelector("#reportSaveStatus").textContent = "Ready to save";
-
-  const rows = inspectionDevices.map((device) => {
-    const inspection = getStoredInspectionForDevice(device, reportSchedule);
-    const status = inspection?.status || "pending";
-    return `
-      <tr>
-        <td>${escapeHtml(device.id)}</td>
-        <td>${escapeHtml(device.type)}</td>
-        <td>${escapeHtml(displayDeviceLocation(device.location))}</td>
-        <td>${escapeHtml(status.toUpperCase())}</td>
-        <td>${escapeHtml(inspection?.inspectedBy || "-")}${inspection?.checklistTotalDurationMs ? `<br><small>${escapeHtml(formatDurationMs(inspection.checklistTotalDurationMs))}</small>` : ""}</td>
-        <td>${escapeHtml(inspection?.notes || state.history[device.id]?.[0]?.notes || "-")}</td>
-        <td>${escapeHtml(inspection?.action || state.history[device.id]?.[0]?.action || "-")}</td>
-        <td>${renderReportPhotos(inspection)}</td>
-      </tr>
-    `;
-  }).join("");
-
-  const requestRows = state.requests.map((request) => `
-    <tr>
-      <td>${escapeHtml(request.label)}</td>
-      <td>${escapeHtml(request.type)}</td>
-      <td>${escapeHtml(request.location)}</td>
-      <td>REQUEST</td>
-      <td>${escapeHtml(request.requestedBy || request.createdBy || "-")}</td>
-      <td>${escapeHtml(request.reason)}</td>
-      <td>Pending admin add-in</td>
-      <td>${escapeHtml(request.photo || "No photo attached")}</td>
-    </tr>
-  `).join("");
-
-  document.querySelector("#reportRows").innerHTML = rows + requestRows;
-  renderReportCriticalSystems();
-  const hasFail = inspectionDevices.some((device) => deviceStatus(device.id) === "fail");
-  const hasPending = inspectionDevices.some((device) => deviceStatus(device.id) === "pending");
-  document.querySelector("#reportStatus").textContent = hasFail ? "Defects Found" : hasPending ? "In Progress" : "Completed";
-  renderReportSummary();
+  renderReportSnapshot(snapshot);
+  document.querySelector("#reportSaveStatus").textContent = snapshot.snapshotStatus === "APPROVED_SNAPSHOT"
+    ? "Approved snapshot"
+    : snapshot.dataIntegrity.serverOnline ? "Live authoritative preview" : "Cached preview - approval blocked";
 }
 
 async function saveInspectionRunToPc() {
@@ -12804,7 +13973,7 @@ async function submitSharedReportSubmission(schedule, submission) {
   }
 }
 
-async function submitReportReviewAction(schedule, status, reviewNote = "") {
+async function submitReportReviewAction(schedule, status, reviewNote = "", additions = {}) {
   const scheduleId = getScheduleKey(schedule);
   if (!scheduleId) return { ok: false, localOnly: true };
   const latest = await requestSharedJobState(schedule, { migrate: false });
@@ -12819,6 +13988,7 @@ async function submitReportReviewAction(schedule, status, reviewNote = "") {
         schedule: getScheduleSnapshotForSharedApi(schedule),
         submission: {
           ...(latest.store?.reportSubmission || {}),
+          ...additions,
           status,
           reviewedById: getCurrentUserId(),
           reviewedBy: getCurrentUserName(),
@@ -12855,8 +14025,33 @@ async function submitReportReviewAction(schedule, status, reviewNote = "") {
 
 function buildInspectionRunPayload() {
   const now = new Date();
+  const reportSnapshot = state.activeReportSnapshot;
+  if (reportSnapshot) {
+    return {
+      runId: reportSnapshot.jobId || reportSnapshot.reportId,
+      reportId: reportSnapshot.reportId,
+      scheduleId: reportSnapshot.scheduleId,
+      serviceProvider: companyProfile,
+      companyName: reportSnapshot.header.clientName,
+      siteName: reportSnapshot.header.siteName,
+      inspector: reportSnapshot.header.technicianName,
+      serviceType: reportSnapshot.header.serviceType,
+      serviceFrequencyPercent: reportSnapshot.header.frequencyPercent,
+      createdAt: reportSnapshot.createdAt,
+      jobStatus: reportSnapshot.status,
+      summary: reportSnapshot.summary,
+      devices: reportSnapshot.deviceResults,
+      requests: reportSnapshot.suggestedPins,
+      criticalSops: reportSnapshot.criticalItems,
+      linkedVerifications: reportSnapshot.linkedVerifications,
+      extinguisher: reportSnapshot.extinguisher,
+      evidence: reportSnapshot.evidence,
+      reportSnapshot
+    };
+  }
   const profile = getCurrentSiteIdentity();
   const activeJob = state.activeJob;
+  const reportSchedule = getReportSchedule();
   const inspectionDevices = getInspectionDevicesForRun();
   const inspections = {};
   inspectionDevices.forEach((device) => {
@@ -12892,7 +14087,7 @@ function buildInspectionRunPayload() {
     summary,
     devices: inspectionDevices.map(serializeDeviceForRun),
     inspections,
-    requests: state.requests,
+    requests: getReportSuggestedPinsForSchedule(reportSchedule),
     setupDevices: getVisibleSetupDevices(),
     systemChecks,
     criticalSops,
@@ -12947,7 +14142,7 @@ function buildInspectionRunSummary(devicesForRun, inspections, systemChecks, cri
     pass: counts.pass || 0,
     fail: counts.fail || 0,
     pending: counts.pending || 0,
-    missingDeviceRequests: state.requests.length,
+    missingDeviceRequests: getReportSuggestedPinsForSchedule(getReportSchedule()).length,
     setupDevices: getVisibleSetupDevices().length,
     confirmedSetupDevices: getVisibleSetupDevices().filter((device) => device.status === "Confirmed").length,
     systemChecklistsSaved: systemChecks.length,
@@ -13102,16 +14297,17 @@ function renderReportSummary() {
       && check.siteName === document.querySelector("#mimicSite").value.trim();
   }).length;
 
+  const reportRequests = getReportSuggestedPinsForSchedule(getReportSchedule());
   document.querySelector("#reportSummaryText").textContent =
     `${completed} of ${inspectionDevices.length} planned devices have been inspected. ` +
     `${failedDevices.length} defect item(s) require follow-up. ` +
-    `${state.requests.length} missing device request(s) were raised. ` +
+    `${reportRequests.length} missing device request(s) were raised. ` +
     `${state.setupDevices.length} first-time setup device(s) captured, with ${confirmedSetup} confirmed. ` +
     `${savedSystemChecks} system checklist(s) saved. ` +
     `${savedCriticalSops} critical SOP workflow(s) saved.`;
 
   const defectList = document.querySelector("#reportDefectList");
-  if (!failedDevices.length && !state.requests.length) {
+  if (!failedDevices.length && !reportRequests.length) {
     defectList.innerHTML = `<p class="hint">No defect or quotation follow-up items recorded in this demo report.</p>`;
   } else {
     const defects = failedDevices.map((device) => {
@@ -13124,7 +14320,7 @@ function renderReportSummary() {
         </article>
       `;
     }).join("");
-    const requests = state.requests.map((request) => `
+    const requests = reportRequests.map((request) => `
       <article class="report-note">
         <strong>${escapeHtml(request.label)} - ${escapeHtml(request.type)}</strong>
         <p>${escapeHtml(request.reason)}</p>
@@ -14179,14 +15375,14 @@ function formatReportDateTime(value) {
   return date.toLocaleString();
 }
 
-function renderReportCriticalSystems() {
+function renderReportCriticalSystems(snapshot = state.activeReportSnapshot) {
   const container = document.querySelector("#reportCriticalSystemDetails");
   if (!container) return;
-  const records = getScopedCriticalSops(getCurrentSiteIdentity())
-    .sort((a, b) => String(a.floor || "").localeCompare(String(b.floor || "")) || String(a.deviceTag || a.title || "").localeCompare(String(b.deviceTag || b.title || "")));
+  const records = [...(snapshot?.criticalItems || [])]
+    .sort((a, b) => String(a.floor || "").localeCompare(String(b.floor || "")) || String(a.deviceId || a.title || "").localeCompare(String(b.deviceId || b.title || "")));
 
   if (!records.length) {
-    container.innerHTML = `<p class="hint">No critical system detailed SOP record saved yet. Pump, gas discharge, CO2, FM200, wet chemical and panel records will appear here after technician completion.</p>`;
+    container.innerHTML = `<p class="report-muted">No critical system record is part of this scheduled job.</p>`;
     return;
   }
 
@@ -14194,37 +15390,29 @@ function renderReportCriticalSystems() {
 }
 
 function renderCriticalSopReportCard(record) {
-  const template = criticalSopTemplates.find((item) => item.id === record.templateId);
-  const steps = template?.steps || Object.values(record.steps || {}).map((step) => ({ title: step.title || "Checklist step", detail: "" }));
-  const completed = template ? getCriticalSopCompleteCount(template, record) : Object.values(record.steps || {}).filter((step) => step.confirmed).length;
-  const total = steps.length || Object.keys(record.steps || {}).length;
-  const complete = template ? isCriticalSopRecordComplete(template, record) : completed === total;
-  const evidenceText = [
-    `Before: ${record.beforePhoto || "Not recorded"}`,
-    `After: ${record.afterPhoto || "Not recorded"}`
-  ].join(" | ");
-  const location = displayDeviceLocation(record.location || "");
-  const title = `${record.deviceTag || "Critical System"} - ${record.title || template?.title || "Critical SOP"}`;
+  const steps = record.steps || [];
+  const completed = steps.filter((step) => step.confirmed).length;
+  const total = steps.length;
+  const complete = record.status === "PASS" && Boolean(record.finalRestorationComplete || !total || completed === total);
+  const title = `${record.deviceId || "Critical System"} - ${record.title || "Critical SOP"}`;
 
   const rows = steps.map((step, index) => {
-    const savedStep = record.steps?.[index] || {};
-    const missing = template ? getMissingSopRequirements(step, savedStep, template, index, record) : [];
-    const result = savedStep.confirmed && !missing.length ? "Confirmed" : `Missing${missing.length ? `: ${missing.join(", ")}` : ""}`;
+    const result = step.confirmed ? "Confirmed" : "Not confirmed";
     const detailParts = [
-      savedStep.remark,
-      savedStep.supervisor ? `Supervisor: ${savedStep.supervisor}` : "",
-      savedStep.photo ? `Photo: ${savedStep.photo}` : ""
+      step.remark,
+      step.supervisor ? `Supervisor: ${step.supervisor}` : "",
+      step.evidenceRefs?.length ? `${step.evidenceRefs.length} evidence reference(s)` : ""
     ].filter(Boolean);
     return `
       <tr>
-        <td class="step-no">${index + 1}</td>
+        <td class="step-no">${step.number || index + 1}</td>
         <td class="step-title">
-          ${escapeHtml(step.title || savedStep.title || "Checklist step")}
+          ${escapeHtml(step.title || "Checklist step")}
           ${step.critical ? `<span class="scope-badge active">Critical</span>` : ""}
         </td>
-        <td class="${savedStep.confirmed && !missing.length ? "critical-report-ok" : "critical-report-missing"}">${escapeHtml(result)}</td>
-        <td>${escapeHtml(savedStep.choice || "-")}</td>
-        <td>${escapeHtml(savedStep.reading || "-")}</td>
+        <td class="${step.confirmed ? "critical-report-ok" : "critical-report-missing"}">${escapeHtml(result)}</td>
+        <td>${escapeHtml(step.choice || "-")}</td>
+        <td>${escapeHtml(step.reading || "-")}</td>
         <td>${escapeHtml(detailParts.join(" | ") || "-")}</td>
       </tr>
     `;
@@ -14235,16 +15423,16 @@ function renderCriticalSopReportCard(record) {
       <div class="critical-report-head">
         <div>
           <h3>${escapeHtml(title)}</h3>
-          <p>${escapeHtml(record.deviceType || "Active / critical fire protection system")} - ${escapeHtml(record.floor || "-")} - ${escapeHtml(location)}</p>
+          <p>${escapeHtml(record.systemLabel || record.deviceType || "Critical system")} - ${escapeHtml(record.floor || "-")} - ${escapeHtml(record.location || "-")}</p>
         </div>
         <span class="critical-report-status ${complete ? "" : "incomplete"}">${complete ? "Completed" : "Needs Review"}</span>
       </div>
       <div class="critical-report-meta">
         <p><strong>Step Completion</strong>${completed} of ${total || 0}</p>
-        <p><strong>Filled By</strong>${escapeHtml(record.filledBy || record.savedBy || "-")}</p>
-        <p><strong>Saved Time</strong>${escapeHtml(formatReportDateTime(record.savedAt))}</p>
-        <p><strong>Duration</strong>${escapeHtml(formatDurationMs(record.checklistTotalDurationMs || record.checklistDurationMs || 0))}</p>
-        <p><strong>Photo Evidence</strong>${escapeHtml(evidenceText)}</p>
+        <p><strong>Filled By</strong>${escapeHtml(record.technicianName || "-")}</p>
+        <p><strong>Saved Time</strong>${escapeHtml(formatReportDateTime(record.completedAt))}</p>
+        <p><strong>SOP Version</strong>${escapeHtml(record.sopVersion || "configured")}</p>
+        <p><strong>Evidence</strong>${record.evidenceRefs?.length || 0} reference(s)</p>
       </div>
       <table class="critical-report-table">
         <thead>
@@ -14260,6 +15448,7 @@ function renderCriticalSopReportCard(record) {
         <tbody>${rows}</tbody>
       </table>
       ${record.generalRemarks ? `<p class="critical-report-remarks"><strong>Overall remarks:</strong> ${escapeHtml(record.generalRemarks)}</p>` : ""}
+      ${renderReportEvidenceReferences(record.evidenceRefs)}
     </article>
   `;
 }
