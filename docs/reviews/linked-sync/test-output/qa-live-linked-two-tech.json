@@ -1,0 +1,281 @@
+{
+  "generatedAt": "2026-09-24T14:18:49.634Z",
+  "scheduleId": "DEMO-WETEX-RETEST-20260924",
+  "jobId": "JOB-DEMO-WETEX-RETEST-20260924",
+  "provider": "Playwright with two independent Edge contexts",
+  "pump": {
+    "states": [
+      {
+        "linkedVerificationId": "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::JOCKEY_MANUAL",
+        "status": "VERIFIED",
+        "sides": [
+          {
+            "sideId": "PUMP_ROOM",
+            "technicianId": "tech2@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:18:51.353Z"
+          },
+          {
+            "sideId": "MFAP",
+            "technicianId": "tech@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:19:01.668Z"
+          }
+        ]
+      },
+      {
+        "linkedVerificationId": "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::DUTY_MANUAL",
+        "status": "VERIFIED",
+        "sides": [
+          {
+            "sideId": "PUMP_ROOM",
+            "technicianId": "tech2@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:18:51.365Z"
+          },
+          {
+            "sideId": "MFAP",
+            "technicianId": "tech@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:18:56.106Z"
+          }
+        ]
+      },
+      {
+        "linkedVerificationId": "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::STANDBY_MANUAL",
+        "status": "VERIFIED",
+        "sides": [
+          {
+            "sideId": "PUMP_ROOM",
+            "technicianId": "tech2@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:18:51.385Z"
+          },
+          {
+            "sideId": "MFAP",
+            "technicianId": "tech@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 2,
+            "timestamp": "2026-09-24T14:19:10.980Z"
+          }
+        ]
+      }
+    ]
+  },
+  "co2": {
+    "states": [
+      {
+        "linkedVerificationId": "DEMO-WETEX-RETEST-20260924::CO2_MFAP::GRD.CO2.1::INDICATION",
+        "status": "VERIFIED",
+        "sides": [
+          {
+            "sideId": "SUPPRESSION_SYSTEM_LOCATION",
+            "technicianId": "tech2@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:19:15.940Z"
+          },
+          {
+            "sideId": "REMOTE_PANEL_OR_MFAP",
+            "technicianId": "tech@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:19:21.214Z"
+          }
+        ]
+      },
+      {
+        "linkedVerificationId": "DEMO-WETEX-RETEST-20260924::CO2_MFAP::GRD.CO2.2::INDICATION",
+        "status": "VERIFIED",
+        "sides": [
+          {
+            "sideId": "SUPPRESSION_SYSTEM_LOCATION",
+            "technicianId": "tech2@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:19:26.028Z"
+          },
+          {
+            "sideId": "REMOTE_PANEL_OR_MFAP",
+            "technicianId": "tech@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 2,
+            "timestamp": "2026-09-24T14:19:36.001Z"
+          }
+        ]
+      },
+      {
+        "linkedVerificationId": "DEMO-WETEX-RETEST-20260924::CO2_MFAP::R.CO2.1::INDICATION",
+        "status": "VERIFIED",
+        "sides": [
+          {
+            "sideId": "SUPPRESSION_SYSTEM_LOCATION",
+            "technicianId": "tech2@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:19:40.911Z"
+          },
+          {
+            "sideId": "REMOTE_PANEL_OR_MFAP",
+            "technicianId": "tech@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:19:45.906Z"
+          }
+        ]
+      }
+    ]
+  },
+  "offline": {
+    "serverWhileTechAOffline": [
+      {
+        "linkedVerificationId": "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::JOCKEY_MANUAL",
+        "status": "AWAITING_COUNTERPART",
+        "sides": [
+          {
+            "sideId": "PUMP_ROOM",
+            "technicianId": "tech2@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:18:51.353Z"
+          },
+          {
+            "sideId": "MFAP",
+            "technicianId": "",
+            "result": "",
+            "revision": 0,
+            "timestamp": ""
+          }
+        ]
+      },
+      {
+        "linkedVerificationId": "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::DUTY_MANUAL",
+        "status": "AWAITING_COUNTERPART",
+        "sides": [
+          {
+            "sideId": "PUMP_ROOM",
+            "technicianId": "tech2@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:18:51.365Z"
+          },
+          {
+            "sideId": "MFAP",
+            "technicianId": "",
+            "result": "",
+            "revision": 0,
+            "timestamp": ""
+          }
+        ]
+      },
+      {
+        "linkedVerificationId": "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::STANDBY_MANUAL",
+        "status": "AWAITING_COUNTERPART",
+        "sides": [
+          {
+            "sideId": "PUMP_ROOM",
+            "technicianId": "tech2@rmtfire.local",
+            "result": "CONFIRMED",
+            "revision": 1,
+            "timestamp": "2026-09-24T14:18:51.385Z"
+          },
+          {
+            "sideId": "MFAP",
+            "technicianId": "",
+            "result": "",
+            "revision": 0,
+            "timestamp": ""
+          }
+        ]
+      }
+    ],
+    "reconnectElapsedMs": 3873
+  },
+  "fapStep8": {
+    "initial": {
+      "text": "Step 8 Locked Overall Pump / gas release linked indication Complete the required value below to continue. Read-only result from authoritative Pump and CO2/Gas linked-verification records. Assigned Flow Switch points remain part of the frozen job scope. PumpPENDINGCO2PENDING OverallPENDING Source: Linked Verification Complete previous step first.",
+      "details": [
+        {
+          "label": "Pump",
+          "status": "PENDING"
+        },
+        {
+          "label": "CO2",
+          "status": "PENDING"
+        },
+        {
+          "label": "Overall",
+          "status": "PENDING"
+        }
+      ]
+    },
+    "final": {
+      "text": "Step 8 Locked Overall Pump / gas release linked indication Complete the required value below to continue. Read-only result from authoritative Pump and CO2/Gas linked-verification records. Assigned Flow Switch points remain part of the frozen job scope. PumpPASSCO2PASS OverallPASS Source: Linked Verification Complete previous step first.",
+      "details": [
+        {
+          "label": "Pump",
+          "status": "PASS"
+        },
+        {
+          "label": "CO2",
+          "status": "PASS"
+        },
+        {
+          "label": "Overall",
+          "status": "PASS"
+        }
+      ]
+    }
+  },
+  "updateDelaysMs": {
+    "pumpPromptAfterReconnect": 3870,
+    "dutyResultToTechB": 4659,
+    "co2PromptToTechA": 4970,
+    "co2ResultToTechB": 4542
+  },
+  "screenshots": [
+    "09-fap-step8-pending.png",
+    "01-pump-awaiting-counterpart.png",
+    "02-mfap-live-pump-prompt.png",
+    "04-mfap-verified-result.png",
+    "03-pump-verified-result.png",
+    "05-pump-mismatch-result.png",
+    "06-co2-linked-prompt.png",
+    "07-co2-verified-result.png",
+    "08-co2-mismatch-result.png",
+    "10-fap-step8-final-derived.png"
+  ],
+  "assertions": {
+    "pumpTwoContext": "PASS",
+    "pumpLiveWithoutRefresh": "PASS",
+    "jockey": "PASS",
+    "duty": "PASS",
+    "standby": "PASS",
+    "pumpMismatch": "PASS",
+    "co2TwoContext": "PASS",
+    "co2LiveWithoutRefresh": "PASS",
+    "co2Mismatch": "PASS",
+    "offlineReconnect": "PASS",
+    "duplicateRecords": "PASS",
+    "ownership": "PASS",
+    "fapStep8": "PASS"
+  },
+  "consoleErrors": [],
+  "recordCounts": {
+    "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::JOCKEY_MANUAL": 2,
+    "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::DUTY_MANUAL": 2,
+    "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::STANDBY_MANUAL": 2,
+    "DEMO-WETEX-RETEST-20260924::CO2_MFAP::GRD.CO2.1::INDICATION": 2,
+    "DEMO-WETEX-RETEST-20260924::CO2_MFAP::GRD.CO2.2::INDICATION": 2,
+    "DEMO-WETEX-RETEST-20260924::CO2_MFAP::R.CO2.1::INDICATION": 2
+  },
+  "navigationCounts": {
+    "techA": 0,
+    "techB": 0
+  }
+}
