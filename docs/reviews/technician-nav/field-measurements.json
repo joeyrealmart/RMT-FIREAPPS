@@ -1,0 +1,215 @@
+{
+  "capturedAt": "2026-09-24T14:38:19.036Z",
+  "appUrl": "http://127.0.0.1:8026/?tech-nav-review=1",
+  "inventory": {
+    "scheduleId": "DEMO-WETEX-RETEST-20260924",
+    "plannedCount": 65,
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "document": {
+      "height": 5805,
+      "width": 393
+    },
+    "groups": [
+      {
+        "id": "fire-alarm",
+        "label": "Fire Alarm Panel",
+        "done": 0,
+        "total": 10,
+        "parents": [
+          "GRD.MFAP.1"
+        ],
+        "fieldTypes": [
+          "Manual Call Point",
+          "Smoke Detector"
+        ],
+        "fieldCount": 9,
+        "stageStatuses": [
+          {
+            "title": "1. Panel Check",
+            "status": "active"
+          },
+          {
+            "title": "2. MCP / Smoke / Heat",
+            "status": "locked"
+          },
+          {
+            "title": "3. Normal Status",
+            "status": "locked"
+          }
+        ]
+      },
+      {
+        "id": "pump-system",
+        "label": "SPP / Sprinkler",
+        "done": 0,
+        "total": 12,
+        "parents": [
+          "LG.SPP.1",
+          "LG.WRP.1"
+        ],
+        "fieldTypes": [
+          "Flow Switch"
+        ],
+        "fieldCount": 10,
+        "stageStatuses": [
+          {
+            "title": "1. Pump / Panel Check",
+            "status": "active"
+          },
+          {
+            "title": "2. Flow Switch / Riser / Hydrant",
+            "status": "locked"
+          },
+          {
+            "title": "3. Water System Normal Status",
+            "status": "locked"
+          }
+        ]
+      },
+      {
+        "id": "gas-release",
+        "label": "CO2 / Gas Release",
+        "done": 0,
+        "total": 6,
+        "parents": [
+          "GRD.CO2.1",
+          "GRD.CO2.2",
+          "LG.CO2.1",
+          "LG.CO2.2",
+          "LG.CO2.3",
+          "R.CO2.1"
+        ],
+        "fieldTypes": [],
+        "fieldCount": 0,
+        "stageStatuses": [
+          {
+            "title": "1. Release Panel Check",
+            "status": "active"
+          },
+          {
+            "title": "2. Configured Release Devices",
+            "status": "locked"
+          },
+          {
+            "title": "3. Normal / Restored",
+            "status": "locked"
+          }
+        ]
+      },
+      {
+        "id": "emergency-light",
+        "label": "Emergency Light",
+        "done": 0,
+        "total": 37,
+        "parents": [],
+        "fieldTypes": [
+          "Emergency Light"
+        ],
+        "fieldCount": 37,
+        "stageStatuses": [
+          {
+            "title": "1. Circuit / Area Check",
+            "status": "complete"
+          },
+          {
+            "title": "2. Emergency Light Points",
+            "status": "active"
+          },
+          {
+            "title": "3. Lighting Summary",
+            "status": "locked"
+          }
+        ]
+      }
+    ],
+    "touchTargets": [
+      {
+        "text": "Fire Alarm Panel 0 / 10 Not started",
+        "width": 273,
+        "height": 94
+      },
+      {
+        "text": "SPP / Sprinkler 0 / 12 Not started",
+        "width": 273,
+        "height": 94
+      },
+      {
+        "text": "CO2 / Gas Release 0 / 6 Not started",
+        "width": 273,
+        "height": 94
+      },
+      {
+        "text": "Emergency Light 0 / 37 Not started",
+        "width": 273,
+        "height": 94
+      },
+      {
+        "text": "All Mimic",
+        "width": 299,
+        "height": 48
+      },
+      {
+        "text": "Outstanding Faults",
+        "width": 299,
+        "height": 48
+      },
+      {
+        "text": "Complete Job",
+        "width": 299,
+        "height": 48
+      }
+    ],
+    "undersizedTouchTargets": []
+  },
+  "routes": [
+    {
+      "id": "fire-alarm",
+      "label": "Fire Alarm Panel",
+      "screen": "inspection",
+      "systemKey": "fire-alarm",
+      "scrollY": 925,
+      "stageText": "Fire Alarm Panel 0/10 SPP / Sprinkler 0/12 CO2 / Gas Release 0/6 Emergency Light 0/37 Fire Alarm Panel System prerequisite -> field devices -> completion 0/10 1. Panel Check Complete GRD.MFAP.1 before field testing. Ready Open System Check 2. MCP / Smoke / Heat Pins remain visible, but inspection is locked until the system check is completed. Locked View Locked Mimic 3. Normal Status Locked until prerequisite and required field devices are completed. Locked Locked Linked VerificationRecord only your assigned location. Both synced sides are required. Linked Test - Jockey Pump ManualFIRE_PUMP_INDICATION Not Started Your sideMFAPWETEX-02 / GroundNot Started CounterpartPump RoomWETEX-01 / LGAwaiting counterpart Result Select result Indication ReceivedNo Indication Photo Evidence (Optional) Short Note (Optional) No photo attached Save My Side Linked Test - Duty Pump ManualFIRE_PUMP_INDICATION Not Started Your sideMFAPWETEX-02 / GroundNot Started CounterpartPump RoomWETEX-01 / LGAwaiting counterpart Result Select result Indication ReceivedNo Indication Photo Evidence (Optional) Short Note (Optional) No photo attached Save My Side Linked Test - Standby Pump ManualFIRE_PUMP_INDICATION Not Started Your sideMFAPWETEX-02 / GroundNot Started CounterpartPump RoomWETEX-01 / LGAwaiting counterpart Result Select result Indication ReceivedNo Indication Photo Evidence (Optional) Short Note (Optional) No photo attached Save My Side Linked Test - GRD.CO2.1 Gas/CO2 IndicationCO2_GAS_RELEASE_INDICATION Not Started Your sideRemote Panel / MFAPWETEX-02 / GroundNot Started CounterpartSuppression System LocationWETEX-02 / GroundAwaiting counterpart Result Select result Indication ReceivedNo Indication Photo Evidence (Optional) Short Note (Optional) No photo attached Save My Side Linked Test - GRD.CO2.2 Gas/CO2 IndicationCO2_GAS_RELEASE_INDICATION Not Started Your sideRemote Panel / MFAPWETEX-02 / GroundNot Started CounterpartSuppression System LocationWETEX-02 / GroundAwaiting counterpart Result Select result Indication ReceivedNo Indication Photo Evidence (Optional) Short Note (Optional) No photo attached Save My Side Linked Test - R.CO2.1 Gas/CO2 IndicationCO2_GAS_RELEASE_INDICATION Not Started Your sideRemote Panel / MFAPWETEX-02 / GroundNot Started CounterpartSuppression System LocationROOF TOP SSBAwaiting counterpart Result Select result Indication ReceivedNo Indication Photo Evidence (Optional) Short Note (Optional) No photo attached Save My Side",
+      "inspectionVisible": true,
+      "mimicVisible": false,
+      "markerCount": 1
+    },
+    {
+      "id": "pump-system",
+      "label": "SPP / Sprinkler",
+      "screen": "inspection",
+      "systemKey": "pump-system",
+      "scrollY": 285,
+      "stageText": "Fire Alarm Panel 0/10 SPP / Sprinkler 0/12 CO2 / Gas Release 0/6 Emergency Light 0/37 SPP / Sprinkler System prerequisite -> field devices -> completion 0/12 1. Pump / Panel Check Complete LG.SPP.1 / LG.WRP.1 before field testing. Ready Open System Check 2. Flow Switch / Riser / Hydrant Pins remain visible, but inspection is locked until the system check is completed. Locked View Locked Mimic 3. Water System Normal Status Locked until prerequisite and required field devices are completed. Locked Locked Linked VerificationRecord only your assigned location. Both synced sides are required. Linked Test - Jockey Pump ManualFIRE_PUMP_INDICATION Not Started Your sideMFAPWETEX-02 / GroundNot Started CounterpartPump RoomWETEX-01 / LGAwaiting counterpart Result Select result Indication ReceivedNo Indication Photo Evidence (Optional) Short Note (Optional) No photo attached Save My Side Linked Test - Duty Pump ManualFIRE_PUMP_INDICATION Not Started Your sideMFAPWETEX-02 / GroundNot Started CounterpartPump RoomWETEX-01 / LGAwaiting counterpart Result Select result Indication ReceivedNo Indication Photo Evidence (Optional) Short Note (Optional) No photo attached Save My Side Linked Test - Standby Pump ManualFIRE_PUMP_INDICATION Not Started Your sideMFAPWETEX-02 / GroundNot Started CounterpartPump RoomWETEX-01 / LGAwaiting counterpart Result Select result Indication ReceivedNo Indication Photo Evidence (Optional) Short Note (Optional) No photo attached Save My Side",
+      "inspectionVisible": true,
+      "mimicVisible": false,
+      "markerCount": 2
+    },
+    {
+      "id": "gas-release",
+      "label": "CO2 / Gas Release",
+      "screen": "inspection",
+      "systemKey": "gas-release",
+      "scrollY": 285,
+      "stageText": "Fire Alarm Panel 0/10 SPP / Sprinkler 0/12 CO2 / Gas Release 0/6 Emergency Light 0/37 CO2 / Gas Release System prerequisite -> field devices -> completion 0/6 1. Release Panel Check Complete GRD.CO2.1 / GRD.CO2.2 / LG.CO2.1 / LG.CO2.2 / LG.CO2.3 / R.CO2.1 before field testing. Ready Open System Check 2. Configured Release Devices Pins remain visible, but inspection is locked until the system check is completed. Locked View Locked Mimic 3. Normal / Restored Locked until prerequisite and required field devices are completed. Locked Locked Linked VerificationRecord only your assigned location. Both synced sides are required. Linked Test - GRD.CO2.1 Gas/CO2 IndicationCO2_GAS_RELEASE_INDICATION Not Started Your sideRemote Panel / MFAPWETEX-02 / GroundNot Started CounterpartSuppression System LocationWETEX-02 / GroundAwaiting counterpart Result Select result Indication ReceivedNo Indication Photo Evidence (Optional) Short Note (Optional) No photo attached Save My Side Linked Test - GRD.CO2.2 Gas/CO2 IndicationCO2_GAS_RELEASE_INDICATION Not Started Your sideRemote Panel / MFAPWETEX-02 / GroundNot Started CounterpartSuppression System LocationWETEX-02 / GroundAwaiting counterpart Result Select result Indication ReceivedNo Indication Photo Evidence (Optional) Short Note (Optional) No photo attached Save My Side Linked Test - R.CO2.1 Gas/CO2 IndicationCO2_GAS_RELEASE_INDICATION Not Started Your sideRemote Panel / MFAPWETEX-02 / GroundNot Started CounterpartSuppression System LocationROOF TOP SSBAwaiting counterpart Result Select result Indication ReceivedNo Indication Photo Evidence (Optional) Short Note (Optional) No photo attached Save My Side",
+      "inspectionVisible": true,
+      "mimicVisible": false,
+      "markerCount": 0
+    },
+    {
+      "id": "emergency-light",
+      "label": "Emergency Light",
+      "screen": "mimic",
+      "systemKey": "emergency-light",
+      "scrollY": 978,
+      "stageText": "Fire Alarm Panel 0/10 SPP / Sprinkler 0/12 CO2 / Gas Release 0/6 Emergency Light 0/37 Emergency Light System prerequisite -> field devices -> completion 0/37 1. Circuit / Area Check No configured parent prerequisite for this system. Complete No prerequisite 2. Emergency Light Points 0/37 done. Use the mimic pins as the main workspace. Ready Open Mimic 3. Lighting Summary Finish assigned field devices before completion. Locked Locked",
+      "inspectionVisible": true,
+      "mimicVisible": true,
+      "markerCount": 1
+    }
+  ],
+  "consoleErrors": [],
+  "failedRequests": []
+}

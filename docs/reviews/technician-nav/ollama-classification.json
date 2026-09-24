@@ -1,0 +1,12 @@
+{
+  "provider": "ollama",
+  "model": "qwen2.5:1.5b-instruct",
+  "endpoint": "http://127.0.0.1:11434",
+  "durationMs": 56883,
+  "usage": {
+    "inputTokens": 1374,
+    "outputTokens": 308,
+    "totalTokens": 1682
+  },
+  "output": "```json\n{\n  \"topFindings\": [\n    {\n      \"CURRENT\": \"Manual Call Point not checked\",\n      \"PROBLEM\": \"Fire Alarm Panel\",\n      \"PROPOSED\": \"Check Manual Call Points\",\n      \"WHY\": \"Manual call points are part of the fire alarm system and should be checked to ensure they are functioning correctly.\"\n    },\n    {\n      \"CURRENT\": \"Smoke Detector not checked\",\n      \"PROBLEM\": \"Fire Alarm Panel\",\n      \"PROPOSED\": \"Check Smoke Detectors\",\n      \"WHY\": \"Smoke detectors are part of the fire alarm system and should be checked to ensure they are functioning correctly.\"\n    },\n    {\n      \"CURRENT\": \"Flow Switch not checked\",\n      \"PROBLEM\": \"SPP / Sprinkler\",\n      \"PROPOSED\": \"Check Flow Switches\",\n      \"WHY\": \"Flow switches are part of the sprinkler system and should be checked to ensure they are functioning correctly.\"\n    },\n    {\n      \"CURRENT\": \"Emergency Light not checked\",\n      \"PROBLEM\": \"Emergency Light\",\n      \"PROPOSED\": \"Check Emergency Lights\",\n      \"WHY\": \"Emergency lights are part of the emergency lighting system and should be checked to ensure they are functioning correctly.\"\n    }\n  ],\n  \"discoverability\": 1,\n  \"tapFlow\": 1,\n  \"scrollRisk\": 1,\n  \"keep\": 1,\n  \"proposedRailRules\": 1\n}\n```"
+}

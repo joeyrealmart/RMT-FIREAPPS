@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RMT Technician Navigation Review</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="review-header">
+    <div>
+      <p>RMT FIREAPPS / REVIEW ONLY</p>
+      <h1>Technician Navigation V3</h1>
+    </div>
+    <nav aria-label="Review states">
+      <button data-view="desktop">Desktop rail</button>
+      <button data-view="collapsed">Collapsed rail</button>
+      <button data-view="mobile-home">Mobile systems</button>
+      <button data-view="mobile-checklist">Mobile checklist</button>
+      <button data-view="mobile-mimic">Mobile mimic</button>
+    </nav>
+  </header>
+
+  <main>
+    <section class="review-note">
+      <strong>Proposal scope</strong>
+      <span>Navigation shell only. Existing stage gates, checklist logic, shared records, pins, and WETEX frozen scope remain authoritative.</span>
+    </section>
+
+    <section class="comparison-strip" aria-label="Current and proposed comparison">
+      <article><span>Current / System selection</span><img src="../screenshots/current/02-system-selection.png" alt="Current WETEX technician system selection"></article>
+      <article><span>Proposed / System drawer</span><img src="../screenshots/proposed/03-mobile-system-drawer.png" alt="Proposed WETEX system drawer"></article>
+      <article><span>Current / Checklist</span><img src="../screenshots/current/11-checklist-active.png" alt="Current technician checklist"></article>
+      <article><span>Proposed / Checklist</span><img src="../screenshots/proposed/04-mobile-active-checklist.png" alt="Proposed technician checklist"></article>
+    </section>
+
+    <section class="screen desktop-view" data-screen="desktop">
+      <aside class="system-rail" aria-label="Fire systems">
+        <div class="rail-job">
+          <span class="brand-mark">R</span>
+          <div><strong>WETEX</strong><small>Monthly maintenance</small></div>
+        </div>
+        <div class="overall-progress"><span>Overall</span><strong>0 / 65</strong><div><i style="width:0%"></i></div></div>
+        <button class="system-card active">
+          <span class="system-icon">FA</span><span><strong>Fire Alarm Panel</strong><small>System check active</small></span><b>0/10</b>
+        </button>
+        <div class="system-cluster open">
+          <button class="system-card cluster-head">
+            <span class="system-icon">PS</span><span><strong>Pump Systems</strong><small>2 configured systems</small></span><b>0/12</b>
+          </button>
+          <div class="cluster-items">
+            <button><span>Sprinkler Pump</span><b>0/6</b></button>
+            <button><span>Wet Riser Pump</span><b>0/6</b></button>
+          </div>
+        </div>
+        <button class="system-card">
+          <span class="system-icon">CO</span><span><strong>CO2 / Gas Release</strong><small>System check pending</small></span><b>0/6</b>
+        </button>
+        <button class="system-card">
+          <span class="system-icon">EL</span><span><strong>Emergency Light</strong><small>Field devices ready</small></span><b>0/37</b>
+        </button>
+        <div class="rail-key"><span><i class="dot active-dot"></i>Current</span><span><i class="dot pending-dot"></i>Pending</span><span><i class="dot done-dot"></i>Complete</span></div>
+      </aside>
+
+      <section class="workspace-shell">
+        <header class="workspace-header">
+          <button class="collapse-control" aria-label="Collapse system rail">&#8249;</button>
+          <div><span>Fire Alarm Panel</span><h2>GRD.MFAP.1</h2><p>Ground Floor / Main Fire Alarm Panel</p></div>
+          <div class="item-progress"><strong>System check</strong><span>Step 1 of 3</span></div>
+        </header>
+        <div class="stage-strip"><b class="current">1 System Check</b><b>2 Field Devices</b><b>3 Completion</b></div>
+        <article class="device-card">
+          <div class="context-line"><span class="status-pill pending">Pending</span><span>Known job, technician, site and time are recorded automatically</span></div>
+          <h3>Panel Check</h3>
+          <p class="muted">Use the approved Realmart checklist. Only failed answers reveal notes and evidence fields.</p>
+          <div class="question"><span>1. Approved panel check item</span><div><button>Pass</button><button>Fault</button><button>N/A</button></div></div>
+          <div class="question"><span>2. Approved panel check item</span><div><button>Pass</button><button>Fault</button><button>N/A</button></div></div>
+          <div class="question"><span>3. Approved panel check item</span><div><button>Pass</button><button>Fault</button><button>N/A</button></div></div>
+        </article>
+        <footer class="action-bar"><button class="secondary">Mimic</button><button class="primary">Save &amp; Next</button></footer>
+      </section>
+    </section>
+
+    <section class="screen desktop-view collapsed" data-screen="collapsed">
+      <aside class="icon-rail">
+        <span class="brand-mark">R</span>
+        <button class="active"><span>FA</span><small>0/10</small></button>
+        <button><span>PS</span><small>0/12</small></button>
+        <button><span>CO</span><small>0/6</small></button>
+        <button><span>EL</span><small>0/37</small></button>
+      </aside>
+      <section class="workspace-shell">
+        <header class="workspace-header">
+          <button class="collapse-control">&#8250;</button>
+          <div><span>Fire Alarm Panel</span><h2>GRD.MFAP.1</h2><p>Ground Floor / Main Fire Alarm Panel</p></div>
+          <div class="item-progress"><strong>0 / 10</strong><span>System progress</span></div>
+        </header>
+        <div class="stage-strip"><b class="current">1 System Check</b><b>2 Field Devices</b><b>3 Completion</b></div>
+        <article class="device-card compact"><h3>Focused checklist workspace</h3><p>Collapsing the rail keeps system access one tap away while giving the active checklist more room.</p></article>
+        <footer class="action-bar"><button class="secondary">Mimic</button><button class="primary">Save &amp; Next</button></footer>
+      </section>
+    </section>
+
+    <section class="phone-frame" data-screen="mobile-home">
+      <header class="phone-header"><span class="brand-mark">R</span><div><small>WETEX / WETEX</small><strong>Systems</strong></div><button>More</button></header>
+      <div class="phone-progress"><div><span>Monthly maintenance</span><strong>0 / 65 complete</strong></div><div class="progress-line"><i></i></div></div>
+      <div class="phone-list">
+        <button class="mobile-system active"><span class="system-icon">FA</span><span><strong>Fire Alarm Panel</strong><small>System check pending</small></span><b>0/10</b></button>
+        <div class="mobile-cluster">
+          <button class="mobile-system"><span class="system-icon">PS</span><span><strong>Pump Systems</strong><small>Tap to choose configured pump</small></span><b>0/12</b></button>
+          <button class="child"><span>Sprinkler Pump</span><b>0/6</b></button>
+          <button class="child"><span>Wet Riser Pump</span><b>0/6</b></button>
+        </div>
+        <button class="mobile-system"><span class="system-icon">CO</span><span><strong>CO2 / Gas Release</strong><small>System check pending</small></span><b>0/6</b></button>
+        <button class="mobile-system"><span class="system-icon">EL</span><span><strong>Emergency Light</strong><small>37 field devices</small></span><b>0/37</b></button>
+      </div>
+      <nav class="bottom-nav"><button class="active">Systems</button><button>Mimic</button><button>Progress</button><button>More</button></nav>
+    </section>
+
+    <section class="phone-frame" data-screen="mobile-checklist">
+      <header class="phone-header"><button class="back">Back</button><div><small>Fire Alarm Panel</small><strong>GRD.MFAP.1</strong></div><span class="status-pill pending">Pending</span></header>
+      <div class="mobile-context"><strong>Ground Floor / Main Panel</strong><span>System Check / Step 1 of 3</span></div>
+      <div class="mobile-stage"><i class="active"></i><i></i><i></i></div>
+      <article class="mobile-question"><small>Question 1 of 3</small><h2>Approved panel check item</h2><p>Choose the observed result.</p><button class="result pass">Pass</button><button class="result fault">Fault</button><button class="result na">N/A</button></article>
+      <div class="autofill-note">Technician, job, site, device, location and timestamp are saved automatically.</div>
+      <footer class="sticky-save"><button class="mimic-button">Mimic</button><button class="primary">Save &amp; Next</button></footer>
+    </section>
+
+    <section class="phone-frame mimic-phone" data-screen="mobile-mimic">
+      <header class="phone-header"><button class="back">Systems</button><div><small>Fire Alarm Panel</small><strong>Ground Floor Mimic</strong></div><span class="status-pill current">0/10</span></header>
+      <div class="mimic-toolbar"><button>Floor: Ground</button><button class="active">Assigned only</button></div>
+      <div class="mimic-canvas">
+        <div class="room room-a">Production Area</div><div class="room room-b">Office</div><div class="corridor">Corridor</div>
+        <button class="pin locked" style="left:25%;top:31%">MC<span>LG.MCP.3</span></button>
+        <button class="pin current-pin" style="left:66%;top:58%">SD<span>LG.SD.12</span></button>
+      </div>
+      <div class="mimic-key"><span><i class="dot pending-dot"></i>Pending</span><span><i class="dot active-dot"></i>Current</span><span><i class="dot done-dot"></i>Complete</span></div>
+      <nav class="bottom-nav"><button>Systems</button><button class="active">Mimic</button><button>Progress</button><button>More</button></nav>
+    </section>
+  </main>
+  <script src="prototype.js"></script>
+</body>
+</html>
