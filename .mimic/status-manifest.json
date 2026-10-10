@@ -1,0 +1,848 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-17T14:39:06.612860+00:00",
+  "sourceIndex": "outputs/rmt-mimic-factory/factory-index.json",
+  "productionIntegration": false,
+  "summary": {
+    "sourceBackedCandidates": 31,
+    "blockedClients": 7,
+    "approvedCandidates": 0
+  },
+  "items": [
+    {
+      "client": "LTK",
+      "mimicId": "main-panel",
+      "displayName": "Main Panel / Overall Building",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/LTK/main-panel/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/LTK/main-panel/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/LTK/main-panel/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/LTK/main-panel/clean/mimic-clean.png",
+        "comparison": "/factory/LTK/main-panel/review/original-vs-clean.png",
+        "overlay": "/factory/LTK/main-panel/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "LTK",
+      "mimicId": "feed-mill",
+      "displayName": "Feed Mill",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/LTK/feed-mill/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/LTK/feed-mill/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/LTK/feed-mill/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/LTK/feed-mill/clean/mimic-clean.png",
+        "comparison": "/factory/LTK/feed-mill/review/original-vs-clean.png",
+        "overlay": "/factory/LTK/feed-mill/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "LTK",
+      "mimicId": "egg-production",
+      "displayName": "Egg Production",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/LTK/egg-production/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/LTK/egg-production/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/LTK/egg-production/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/LTK/egg-production/clean/mimic-clean.png",
+        "comparison": "/factory/LTK/egg-production/review/original-vs-clean.png",
+        "overlay": "/factory/LTK/egg-production/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-01",
+      "displayName": "Level 1",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-01/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-01/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-01/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-01/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-01/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-01/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-02",
+      "displayName": "Level 2",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-02/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-02/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-02/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-02/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-02/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-02/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-03",
+      "displayName": "Level 3",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-03/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-03/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-03/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-03/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-03/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-03/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-04-05",
+      "displayName": "Typical Level 4 & 5",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-04-05/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-04-05/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-04-05/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-04-05/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-04-05/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-04-05/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-06",
+      "displayName": "Level 6",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-06/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-06/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-06/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-06/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-06/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-06/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-07",
+      "displayName": "Level 7",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-07/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-07/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-07/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-07/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-07/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-07/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-08",
+      "displayName": "Level 8",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-08/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-08/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-08/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-08/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-08/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-08/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-09",
+      "displayName": "Level 9",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-09/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-09/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-09/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-09/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-09/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-09/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-10",
+      "displayName": "Typical Level 10",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-10/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-10/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-10/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-10/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-10/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-10/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-11",
+      "displayName": "Typical Level 11",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-11/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-11/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-11/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-11/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-11/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-11/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-12",
+      "displayName": "Typical Level 12",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-12/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-12/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-12/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-12/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-12/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-12/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-13",
+      "displayName": "Typical Level 13",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-13/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-13/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-13/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-13/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-13/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-13/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-14",
+      "displayName": "Typical Level 14",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-14/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-14/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-14/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-14/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-14/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-14/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-15",
+      "displayName": "Typical Level 15",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-15/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-15/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-15/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-15/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-15/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-15/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-16",
+      "displayName": "Typical Level 16",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-16/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-16/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-16/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-16/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-16/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-16/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-17",
+      "displayName": "Typical Level 17",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-17/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-17/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-17/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-17/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-17/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-17/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-18",
+      "displayName": "Typical Level 18",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-18/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-18/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-18/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-18/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-18/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-18/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-19",
+      "displayName": "Typical Level 19",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-19/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-19/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-19/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-19/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-19/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-19/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-20",
+      "displayName": "Typical Level 20",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-20/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-20/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-20/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-20/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-20/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-20/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-21",
+      "displayName": "Typical Level 21",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-21/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-21/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-21/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-21/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-21/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-21/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-22",
+      "displayName": "Typical Level 22",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-22/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-22/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-22/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-22/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-22/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-22/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-23",
+      "displayName": "Typical Level 23",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-23/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-23/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-23/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-23/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-23/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-23/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "MTB",
+      "mimicId": "level-24",
+      "displayName": "Level 24",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/MTB/level-24/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/MTB/level-24/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/MTB/level-24/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/MTB/level-24/clean/mimic-clean.png",
+        "comparison": "/factory/MTB/level-24/review/original-vs-clean.png",
+        "overlay": "/factory/MTB/level-24/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "Thermofisher",
+      "mimicId": "source-page-1",
+      "displayName": "Source Page 1",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/Thermofisher/source-page-1/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/Thermofisher/source-page-1/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/Thermofisher/source-page-1/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/Thermofisher/source-page-1/clean/mimic-clean.png",
+        "comparison": "/factory/Thermofisher/source-page-1/review/original-vs-clean.png",
+        "overlay": "/factory/Thermofisher/source-page-1/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "Thermofisher",
+      "mimicId": "source-page-2",
+      "displayName": "Source Page 2",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/Thermofisher/source-page-2/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/Thermofisher/source-page-2/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/Thermofisher/source-page-2/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/Thermofisher/source-page-2/clean/mimic-clean.png",
+        "comparison": "/factory/Thermofisher/source-page-2/review/original-vs-clean.png",
+        "overlay": "/factory/Thermofisher/source-page-2/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "Thermofisher",
+      "mimicId": "source-page-3",
+      "displayName": "Source Page 3",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/Thermofisher/source-page-3/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/Thermofisher/source-page-3/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/Thermofisher/source-page-3/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/Thermofisher/source-page-3/clean/mimic-clean.png",
+        "comparison": "/factory/Thermofisher/source-page-3/review/original-vs-clean.png",
+        "overlay": "/factory/Thermofisher/source-page-3/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "Avillion",
+      "mimicId": "main-building-level-1",
+      "displayName": "Main Building Level 1",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/Avillion/main-building-level-1/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/Avillion/main-building-level-1/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/Avillion/main-building-level-1/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/Avillion/main-building-level-1/clean/mimic-clean.png",
+        "comparison": "/factory/Avillion/main-building-level-1/review/original-vs-clean.png",
+        "overlay": "/factory/Avillion/main-building-level-1/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "Avillion",
+      "mimicId": "main-building-level-2",
+      "displayName": "Main Building Level 2",
+      "status": "REVIEW_REQUIRED",
+      "source": "/factory/Avillion/main-building-level-2/source/source-reference.png",
+      "outputs": {
+        "dxf": "outputs/rmt-mimic-factory/Avillion/main-building-level-2/clean/mimic-clean.dxf",
+        "svg": "outputs/rmt-mimic-factory/Avillion/main-building-level-2/clean/mimic-clean.svg",
+        "png": "outputs/rmt-mimic-factory/Avillion/main-building-level-2/clean/mimic-clean.png",
+        "comparison": "/factory/Avillion/main-building-level-2/review/original-vs-clean.png",
+        "overlay": "/factory/Avillion/main-building-level-2/review/overlay.png"
+      },
+      "qaStatus": "REVIEW_REQUIRED",
+      "blocker": null,
+      "acceptanceCriteria": [
+        "Source geometry is the authority; no invented geometry.",
+        "DXF, SVG, PNG, comparison, overlay, and transform manifest exist.",
+        "Runtime pins are excluded from the background candidate.",
+        "Joey visual review is required before production integration."
+      ],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "Hibiscuss",
+      "mimicId": null,
+      "displayName": null,
+      "status": "BLOCKED_SOURCE_MISSING",
+      "source": null,
+      "outputs": null,
+      "qaStatus": "NOT_RUN_SOURCE_MISSING",
+      "blocker": "Authoritative source drawing is not available in the Mimic Factory input set.",
+      "acceptanceCriteria": [],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "Hexachase",
+      "mimicId": null,
+      "displayName": null,
+      "status": "BLOCKED_SOURCE_MISSING",
+      "source": null,
+      "outputs": null,
+      "qaStatus": "NOT_RUN_SOURCE_MISSING",
+      "blocker": "Authoritative source drawing is not available in the Mimic Factory input set.",
+      "acceptanceCriteria": [],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "IATAC",
+      "mimicId": null,
+      "displayName": null,
+      "status": "BLOCKED_SOURCE_MISSING",
+      "source": null,
+      "outputs": null,
+      "qaStatus": "NOT_RUN_SOURCE_MISSING",
+      "blocker": "Authoritative source drawing is not available in the Mimic Factory input set.",
+      "acceptanceCriteria": [],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "UMB",
+      "mimicId": null,
+      "displayName": null,
+      "status": "BLOCKED_SOURCE_MISSING",
+      "source": null,
+      "outputs": null,
+      "qaStatus": "NOT_RUN_SOURCE_MISSING",
+      "blocker": "Authoritative source drawing is not available in the Mimic Factory input set.",
+      "acceptanceCriteria": [],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "Costa Mahkota",
+      "mimicId": null,
+      "displayName": null,
+      "status": "BLOCKED_SOURCE_MISSING",
+      "source": null,
+      "outputs": null,
+      "qaStatus": "NOT_RUN_SOURCE_MISSING",
+      "blocker": "Authoritative source drawing is not available in the Mimic Factory input set.",
+      "acceptanceCriteria": [],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "Myamax",
+      "mimicId": null,
+      "displayName": null,
+      "status": "BLOCKED_SOURCE_MISSING",
+      "source": null,
+      "outputs": null,
+      "qaStatus": "NOT_RUN_SOURCE_MISSING",
+      "blocker": "Authoritative source drawing is not available in the Mimic Factory input set.",
+      "acceptanceCriteria": [],
+      "approved": false,
+      "productionIntegrated": false
+    },
+    {
+      "client": "Wetex",
+      "mimicId": null,
+      "displayName": null,
+      "status": "BLOCKED_SOURCE_MISSING",
+      "source": null,
+      "outputs": null,
+      "qaStatus": "NOT_RUN_SOURCE_MISSING",
+      "blocker": "Authoritative source drawing is not available in the Mimic Factory input set.",
+      "acceptanceCriteria": [],
+      "approved": false,
+      "productionIntegrated": false
+    }
+  ]
+}

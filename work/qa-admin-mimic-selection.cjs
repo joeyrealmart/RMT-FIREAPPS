@@ -59,6 +59,13 @@ async function selectMimic(page, client, site, floor) {
     await login(page);
     await page.locator("#adminMainNav [data-admin-module='mimics']").click();
     await page.waitForSelector("#adminMimicClientSelect option", { state: "attached", timeout: 20000 });
+    await page.waitForFunction(() => {
+      try {
+        return JSON.parse(localStorage.getItem("tmFireSetupDevices") || "[]").length >= 569;
+      } catch {
+        return false;
+      }
+    }, null, { timeout: 20000 });
 
     const clients = await page.locator("#adminMimicClientSelect option").allTextContents();
     ["MTB QA", "UOB QA", "LTK QA"].forEach((name) => assert(clients.includes(name), `${name} should be selectable in Admin Mimics.`));

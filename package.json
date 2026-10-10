@@ -1,0 +1,22 @@
+{
+  "name": "rmt-fireapps-platform-tooling",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Isolated open-source platform hardening prototypes for RMT FIREAPPS. Not the production application runtime.",
+  "scripts": {
+    "qa:offline-prototype": "node work/qa-indexeddb-offline-prototype.cjs",
+    "build:workbox-prototype": "node tools/workbox-prototype/generate-rmt-offline-shell.mjs",
+    "qa:workbox-prototype": "node work/qa-workbox-offline-shell.cjs",
+    "poc:pdfme": "node tools/pdfme-poc/generate-demo-report.mjs",
+    "poc:sharp": "node tools/sharp-poc/create-derived-evidence.mjs"
+  },
+  "dependencies": {
+    "@pdfme/common": "6.1.12",
+    "@pdfme/generator": "6.1.12",
+    "@pdfme/schemas": "6.1.12",
+    "dexie": "4.4.6",
+    "sharp": "0.35.4",
+    "workbox-build": "7.4.0"
+  }
+}

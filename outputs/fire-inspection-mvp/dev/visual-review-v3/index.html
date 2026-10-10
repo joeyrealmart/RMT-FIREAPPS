@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RMT Visual UX Review Round 3</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="review.css">
+</head>
+<body>
+  <aside class="rail">
+    <div class="rail-brand">RMT FIREAPPS</div>
+    <div class="rail-sub">Visual Review · Round 3</div>
+    <nav>
+      <button data-page="summary">Executive</button>
+      <button data-page="desktop">Tech Desktop</button>
+      <button data-page="mobile-home">Mobile Home</button>
+      <button data-page="inspection">Mobile Inspection</button>
+      <button data-page="mimic">Mimic</button>
+      <button data-page="admin">Admin Desk</button>
+      <button data-page="checklist">Checklist</button>
+      <button data-page="autofill">Autofill</button>
+      <button data-page="integrity">Multi-tech / Offline</button>
+      <button data-page="flows">Recommended V1</button>
+    </nav>
+    <p>Review only. Production is unchanged.</p>
+  </aside>
+
+  <main>
+    <header class="topbar"><div><span>LOCAL REVIEW PACKAGE</span><h1 id="pageTitle">Executive Summary</h1></div><b>7/7 measured journeys pass</b></header>
+
+    <section class="page" data-view="summary">
+      <div class="score-grid">
+        <article><small>Technician</small><strong>Task first</strong><span>One dominant next action</span></article>
+        <article><small>Mobile</small><strong>Less scroll</strong><span>PASS visible immediately</span></article>
+        <article><small>Admin</small><strong>Exceptions first</strong><span>30-second operational scan</span></article>
+        <article><small>Integrity</small><strong>Always visible</strong><span>Saved, synced, conflict</span></article>
+      </div>
+      <div class="split">
+        <article class="panel"><h2>Keep</h2><div class="chip-row"><span>Mimic-first field work</span><span>Shared records</span><span>Critical gates</span><span>Save &amp; Next</span><span>Photo evidence</span></div></article>
+        <article class="panel"><h2>Simplify</h2><div class="chip-row danger"><span>Equal-priority buttons</span><span>Repeated context fields</span><span>Hidden sync state</span><span>Long pre-action stacks</span></div></article>
+      </div>
+      <article class="panel flow-panel"><h2>Recommendation</h2><div class="flow"><span>Jobs</span><i>→</i><span>System</span><i>→</i><span>Mimic</span><i>→</i><span>Device</span><i>→</i><span>Result</span><i>→</i><span>Save</span><i>→</i><span>Mimic</span></div></article>
+    </section>
+
+    <section class="page" data-view="desktop">
+      <div class="compare three">
+        <article class="option"><h2>Current</h2><img src="assets/tech-desktop-current.png" alt="Current technician desktop"></article>
+        <article class="option recommended"><h2>Option A · Focused device</h2><img src="assets/tech-desktop-a.png" alt="Focused technician desktop proposal"><div class="tags"><span>Recommended</span><span>Device first</span><span>Sticky save</span></div></article>
+        <article class="option"><h2>Option B · Mimic split</h2><div class="mock desktop-mock"><nav><b>WETEX</b><span>Fire Alarm 8/10</span><span>Pump 6/6</span><span>CO2 4/4</span></nav><div class="map-pane"><em>LEVEL 3 MIMIC</em><u class="dot d1"></u><u class="dot d2"></u><u class="dot d3"></u></div><div class="work-pane"><small>CURRENT DEVICE</small><h3>WEX.SD.032</h3><p>Level 3 Corridor</p><div class="choice"><b>PASS</b><b>FAULT</b></div><button>SAVE &amp; NEXT</button></div></div><div class="tags"><span>Map context</span><span>Fewer page changes</span></div></article>
+      </div>
+    </section>
+
+    <section class="page" data-view="mobile-home">
+      <div class="compare three phone-grid">
+        <article class="option"><h2>Current</h2><img src="assets/mobile-home-current.png" alt="Current technician mobile home"></article>
+        <article class="option"><h2>Option A · System cards</h2><img src="assets/mobile-home-a.png" alt="System card mobile home proposal"></article>
+        <article class="option recommended"><h2>Option B · Resume first</h2><img src="assets/mobile-home-b.png" alt="Resume-first mobile home proposal"><div class="tags"><span>Recommended</span><span>One-hand start</span><span>Exceptions near top</span></div></article>
+      </div>
+    </section>
+
+    <section class="page" data-view="inspection">
+      <div class="compare three phone-grid">
+        <article class="option"><h2>Current</h2><img src="assets/mobile-inspection-current.png" alt="Current mobile inspection"></article>
+        <article class="option recommended"><h2>Option A · PASS first</h2><img src="assets/mobile-inspection-a.png" alt="Pass-first mobile inspection proposal"><div class="tags"><span>Recommended</span><span>Result above fold</span></div></article>
+        <article class="option"><h2>Option B · Progressive sheet</h2><div class="mock phone-mock"><header>‹ Fire Alarm <b>8 / 10</b></header><main><small>LEVEL 3 · CORRIDOR</small><h3>WEX.SD.032</h3><p>Smoke Detector</p><div class="photo">＋ Photo evidence</div><div class="choice"><b>PASS</b><b>FAULT</b></div><div class="collapsed">Fault details appear only after FAULT</div></main><footer><span>● Synced</span><button>SAVE</button></footer></div><div class="tags"><span>Minimal PASS</span><span>Exceptions disclosed later</span></div></article>
+      </div>
+    </section>
+
+    <section class="page" data-view="mimic">
+      <div class="compare three phone-grid">
+        <article class="option"><h2>Current</h2><img src="assets/mimic-current.png" alt="Current technician mimic"></article>
+        <article class="option recommended"><h2>Option A · Full map</h2><img src="assets/mimic-a.png" alt="Full-map technician mimic proposal"><div class="tags"><span>Recommended</span><span>Bottom device sheet</span></div></article>
+        <article class="option"><h2>Option B · Work rail</h2><div class="mock phone-mock map-mock"><header>‹ Level 3 <b>2 remain</b></header><main><em>ACTIVE SERVICE-SCOPE MIMIC</em><u class="dot d1"></u><u class="dot d2"></u><u class="dot d3"></u></main><footer><span>WEX.SD.032 · Pending</span><button>OPEN</button></footer></div><div class="tags"><span>Map stays primary</span><span>Scope pins only</span></div></article>
+      </div>
+    </section>
+
+    <section class="page" data-view="admin">
+      <div class="compare three">
+        <article class="option"><h2>Current</h2><img src="assets/admin-current.png" alt="Current Admin control desk"></article>
+        <article class="option"><h2>Option A · Queue cards</h2><img src="assets/admin-a.png" alt="Admin queue card proposal"></article>
+        <article class="option recommended"><h2>Option B · Command queue</h2><img src="assets/admin-b.png" alt="Admin command queue proposal"><div class="tags"><span>Recommended</span><span>Management by exception</span><span>Fastest scan</span></div></article>
+      </div>
+    </section>
+
+    <section class="page" data-view="checklist">
+      <div class="check-visual">
+        <article class="panel before"><span>BEFORE</span><h2>Everything at once</h2><div class="field">Technician name</div><div class="field">Client / Site / Floor</div><div class="field">Device / System</div><div class="field">Condition</div><div class="field">Photo</div><div class="field">Remarks</div><div class="field">Fault detail</div><div class="field">Corrective action</div></article>
+        <div class="big-arrow">→</div>
+        <article class="panel after"><span>AFTER</span><h2>Common action first</h2><div class="context-strip">WETEX · L3 · WEX.SD.032</div><div class="choice large"><b>PASS</b><b>FAULT</b></div><div class="field">Photo evidence</div><div class="field muted">Remarks · optional</div><div class="exception">FAULT selected → reveal defect and corrective fields</div></article>
+      </div>
+      <div class="score-grid compact"><article><small>Inventory</small><strong>146 fields</strong></article><article><small>Autofill</small><strong>18</strong></article><article><small>Derived</small><strong>8</strong></article><article><small>Remove candidates</small><strong>3</strong></article></div>
+    </section>
+
+    <section class="page" data-view="autofill">
+      <div class="source-grid">
+        <article><b>SESSION</b><span>Technician</span><span>Account / role</span><span>Timestamp</span></article>
+        <article><b>JOB</b><span>Client / site</span><span>Schedule ID</span><span>Assigned scope</span></article>
+        <article><b>DEVICE</b><span>Tag / type</span><span>Floor / location</span><span>Configured model</span></article>
+        <article><b>LINKED</b><span>Pump verification</span><span>CO2 indication</span><span>Counterpart identity</span></article>
+      </div>
+      <article class="panel rule-row"><b>Keep manual</b><span>Measured readings, battery/charging values, PASS/FAULT decision, editable remarks, evidence capture.</span></article>
+    </section>
+
+    <section class="page" data-view="integrity">
+      <div class="integrity-flow">
+        <article class="phone"><b>TECH A</b><span>Pump Room</span><strong>PASS · 09:12</strong><small>Local complete</small></article>
+        <div class="sync-line"><span>PENDING</span><i>→</i><span>SYNCING</span><i>→</i><span>SYNCED</span></div>
+        <article class="server"><b>SHARED JOB</b><span>Revision protected</span><strong>Awaiting counterpart</strong><small>No silent overwrite</small></article>
+        <div class="sync-line reverse"><span>SYNCED</span><i>←</i><span>SYNCING</span><i>←</i><span>PENDING</span></div>
+        <article class="phone"><b>TECH B</b><span>MFAP</span><strong>PASS · 09:14</strong><small>Synced</small></article>
+      </div>
+      <div class="state-row"><span class="ok">VERIFIED</span><span class="wait">AWAITING COUNTERPART</span><span class="bad">MISMATCH REVIEW REQUIRED</span><span class="off">OFFLINE DRAFT</span></div>
+    </section>
+
+    <section class="page" data-view="flows">
+      <article class="panel flow-panel"><span>TECHNICIAN V1</span><div class="flow vertical-mobile"><b>Assigned job</b><i>→</i><b>Choose system</b><i>→</i><b>Mimic</b><i>→</i><b>Tap pin</b><i>→</i><b>PASS / FAULT + evidence</b><i>→</i><b>Save → Mimic</b><i>→</i><b>Complete &amp; submit</b></div></article>
+      <article class="panel flow-panel"><span>ADMIN V1</span><div class="flow"><b>Control desk</b><i>→</i><b>Attention queue</b><i>→</i><b>Open job</b><i>→</i><b>Faults / activity</b><i>→</i><b>Review report</b><i>→</i><b>Approve / return</b></div></article>
+      <div class="decision"><b>Recommended combination</b><span>Desktop A</span><span>Mobile Home B</span><span>Inspection A</span><span>Mimic A</span><span>Admin B</span></div>
+    </section>
+  </main>
+  <script src="review.js"></script>
+</body>
+</html>

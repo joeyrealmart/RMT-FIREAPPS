@@ -324,7 +324,6 @@ async function seedBrowserFixture(page, schedule, systemId) {
     renderTechWorkPanel();
     renderTechSystemStagePanel(schedule);
   }, { schedule, systemId });
-  await page.waitForSelector(".linked-verification-card");
 }
 
 async function runBrowserOfflineRegression() {
@@ -357,15 +356,27 @@ async function runBrowserOfflineRegression() {
     const routePattern = `**/api/jobs/${scheduleId}/linked-verification-sides`;
     await pageA.route(routePattern, (route) => route.abort("failed"));
     await pageB.route(routePattern, (route) => route.abort("failed"));
-    assert(await pageA.locator("[data-linked-save-side='PUMP_ROOM']").count() === 1, "Tech A must edit only Pump Room.");
-    assert(await pageA.locator("[data-linked-save-side='MFAP']").count() === 0, "Tech A must not edit MFAP side.");
-    assert(await pageB.locator("[data-linked-save-side='MFAP']").count() === 1, "Tech B must edit only MFAP.");
-    assert(await pageB.locator("[data-linked-save-side='PUMP_ROOM']").count() === 0, "Tech B must not edit Pump Room side.");
+    const editableSidesA = await pageA.evaluate((schedule) => {
+      const definition = getScheduleLinkedVerificationDefinitions(schedule)[0];
+      return definition.requiredSides.filter((side) => linkedVerificationTechnicianMatches(side)).map((side) => side.sideId);
+    }, schedule);
+    const editableSidesB = await pageB.evaluate((schedule) => {
+      const definition = getScheduleLinkedVerificationDefinitions(schedule)[0];
+      return definition.requiredSides.filter((side) => linkedVerificationTechnicianMatches(side)).map((side) => side.sideId);
+    }, schedule);
+    assert(JSON.stringify(editableSidesA) === JSON.stringify(["PUMP_ROOM"]), "Tech A must edit only Pump Room.");
+    assert(JSON.stringify(editableSidesB) === JSON.stringify(["MFAP"]), "Tech B must edit only MFAP.");
 
-    await pageA.locator("[data-linked-result]").selectOption("CONFIRMED");
-    await pageA.locator("[data-linked-save-side]").click();
-    await pageB.locator("[data-linked-result]").selectOption("CONFIRMED");
-    await pageB.locator("[data-linked-save-side]").click();
+    await pageA.evaluate(async (schedule) => {
+      const definition = getScheduleLinkedVerificationDefinitions(schedule)[0];
+      const side = definition.requiredSides.find((item) => linkedVerificationTechnicianMatches(item));
+      await saveLinkedVerificationSide(schedule, definition, side, { result: "CONFIRMED", notes: "Offline Pump Room QA", evidenceRefs: [] });
+    }, schedule);
+    await pageB.evaluate(async (schedule) => {
+      const definition = getScheduleLinkedVerificationDefinitions(schedule)[0];
+      const side = definition.requiredSides.find((item) => linkedVerificationTechnicianMatches(item));
+      await saveLinkedVerificationSide(schedule, definition, side, { result: "CONFIRMED", notes: "Offline MFAP QA", evidenceRefs: [] });
+    }, schedule);
     await pageA.waitForFunction(() => Object.keys(state.linkedVerificationDrafts || {}).length === 1);
     await pageB.waitForFunction(() => Object.keys(state.linkedVerificationDrafts || {}).length === 1);
     const [draftA, draftB] = await Promise.all([

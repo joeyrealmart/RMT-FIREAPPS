@@ -1,7 +1,8 @@
 import http from "node:http";
-import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import { networkInterfaces } from "node:os";
+import { createHash } from "node:crypto";
 
 const root = "C:\\Users\\Joey\\Documents\\Codex\\2026-07-09\\are-u-able-to-are\\outputs\\fire-inspection-mvp";
 const dataRoot = "C:\\Users\\Joey\\Documents\\Codex\\2026-07-09\\are-u-able-to-are\\outputs\\rmt-fire-local-data";
@@ -38,6 +39,7 @@ mkdirSync(join(dataRoot, "requests"), { recursive: true });
 mkdirSync(join(dataRoot, "requests", "photo-proof"), { recursive: true });
 mkdirSync(join(dataRoot, "shared-records", "jobs"), { recursive: true });
 mkdirSync(join(dataRoot, "shared-records", "linked-verification-evidence"), { recursive: true });
+mkdirSync(join(dataRoot, "pump-configurations"), { recursive: true });
 mkdirSync(join(dataRoot, "extinguisher-assets"), { recursive: true });
 mkdirSync(join(dataRoot, "shared-records", "extinguisher-evidence"), { recursive: true });
 mkdirSync(reportRoot, { recursive: true });
@@ -152,11 +154,14 @@ function createEmptySharedJobStore(scheduleId) {
       migratedAt: ""
     },
     inspectionRecords: {},
+    mutationReceipts: {},
     criticalSopRecords: {},
     systemCheckRecords: {},
     itemClaims: {},
     linkedVerificationDefinitions: {},
     linkedVerificationSideRecords: {},
+    linkedVerificationLiveStates: {},
+    liveCoordinationEvents: {},
     linkedVerificationConflicts: {},
     linkedVerificationAudit: [],
     extinguisherAssetSnapshot: null,
@@ -183,11 +188,14 @@ function readSharedJobStore(scheduleId) {
   store.schemaVersion = store.schemaVersion || "shared-records-v1";
   store.scheduleId = store.scheduleId || scheduleId;
   store.inspectionRecords = store.inspectionRecords || {};
+  store.mutationReceipts = store.mutationReceipts || {};
   store.criticalSopRecords = store.criticalSopRecords || {};
   store.systemCheckRecords = store.systemCheckRecords || {};
   store.itemClaims = store.itemClaims || {};
   store.linkedVerificationDefinitions = store.linkedVerificationDefinitions || {};
   store.linkedVerificationSideRecords = store.linkedVerificationSideRecords || {};
+  store.linkedVerificationLiveStates = store.linkedVerificationLiveStates || {};
+  store.liveCoordinationEvents = store.liveCoordinationEvents || {};
   store.linkedVerificationConflicts = store.linkedVerificationConflicts || {};
   store.linkedVerificationAudit = Array.isArray(store.linkedVerificationAudit) ? store.linkedVerificationAudit : [];
   store.extinguisherAssetSnapshot = store.extinguisherAssetSnapshot || null;
@@ -216,23 +224,67 @@ function writeMissingDeviceRequests(requests = []) {
   });
 }
 
-function writeMissingRequestPhoto(requestId, photo = {}, index = 0) {
-  const image = dataUrlToFile(photo?.dataUrl, "jpg");
-  const clean = { ...(photo || {}) };
-  delete clean.dataUrl;
-  if (!image) return clean;
+function getPumpConfigurationPath(companyName, siteName, pumpDeviceId) {
+  return join(dataRoot, "pump-configurations", `${slugify(`${companyName}-${siteName}-${pumpDeviceId}`)}.json`);
+}
+
+function readPumpConfiguration(companyName, siteName, pumpDeviceId) {
+  if (!companyName || !siteName || !pumpDeviceId) return null;
+  return readJsonFile(getPumpConfigurationPath(companyName, siteName, pumpDeviceId), null);
+}
+
+function savePumpConfiguration(incoming = {}, expectedRevision = 0) {
+  const companyName = String(incoming.companyName || "").trim();
+  const siteName = String(incoming.siteName || "").trim();
+  const pumpDeviceId = String(incoming.pumpDeviceId || "").trim();
+  if (!companyName || !siteName || !pumpDeviceId) {
+    return { ok: false, invalid: true, reason: "Company, site and pump device are required." };
+  }
+  const current = readPumpConfiguration(companyName, siteName, pumpDeviceId);
+  const currentRevision = Number(current?.revision || 0);
+  const expected = Number(expectedRevision ?? incoming.expectedRevision ?? 0);
+  if (expected !== currentRevision) {
+    return { ok: false, conflict: true, expectedRevision: expected, currentRevision, current };
+  }
+  const now = new Date().toISOString();
+  const next = {
+    ...(current || {}),
+    ...incoming,
+    schemaVersion: "pump-configuration-v1",
+    configurationKey: incoming.configurationKey || current?.configurationKey || slugify(`${companyName}-${siteName}-${pumpDeviceId}`),
+    companyName,
+    siteName,
+    pumpDeviceId,
+    revision: currentRevision + 1,
+    createdAt: current?.createdAt || now,
+    updatedAt: now,
+    audit: [
+      ...(Array.isArray(current?.audit) ? current.audit : []),
+      {
+        event: current ? "CONFIGURATION_CHANGED" : "CONFIGURATION_CREATED",
+        by: incoming.updatedBy || incoming.technicianId || "",
+        at: now,
+        revision: currentRevision + 1
+      }
+    ]
+  };
+  delete next.expectedRevision;
+  delete next.unsynced;
+  next.syncStatus = "SYNCED";
+  atomicWriteJson(getPumpConfigurationPath(companyName, siteName, pumpDeviceId), next);
+  return { ok: true, configuration: next };
+}
+
+function writeMissingRequestPhoto(requestId, photo = {}, index = 0, current = null) {
   const safeRequest = slugify(requestId || "missing-request");
   const photoDir = join(dataRoot, "requests", "photo-proof", safeRequest);
-  mkdirSync(photoDir, { recursive: true });
-  const photoName = `${String(index + 1).padStart(2, "0")}-${slugify(photo.name || "missing-device-proof")}.${image.ext}`;
-  const photoPath = join(photoDir, photoName);
-  writeFileSync(photoPath, image.bytes);
-  return {
-    ...clean,
-    photoPath,
-    photoUrl: `/local-data/requests/photo-proof/${safeRequest}/${photoName}`,
-    savedToPc: true
-  };
+  return writeEvidenceCopies({
+    directory: photoDir,
+    publicDirectory: `/local-data/requests/photo-proof/${safeRequest}`,
+    stem: `${String(index + 1).padStart(2, "0")}-${photo.name || "missing-device-proof"}`,
+    photo,
+    current
+  });
 }
 
 function saveMissingDeviceRequestRecord(incoming = {}, expectedRevision = null) {
@@ -255,7 +307,7 @@ function saveMissingDeviceRequestRecord(incoming = {}, expectedRevision = null) 
 
   const rawPhotoEvidence = Array.isArray(incoming.photoEvidence) ? incoming.photoEvidence : [];
   const savedPhotoEvidence = rawPhotoEvidence
-    .map((photo, photoIndex) => writeMissingRequestPhoto(id, photo, photoIndex))
+    .map((photo, photoIndex) => writeMissingRequestPhoto(id, photo, photoIndex, current?.photoEvidence?.find((item) => item.evidenceId === photo.evidenceId)))
     .filter(Boolean);
   const retainedPhotoEvidence = savedPhotoEvidence.length
     ? savedPhotoEvidence
@@ -279,9 +331,7 @@ function saveMissingDeviceRequestRecord(incoming = {}, expectedRevision = null) 
   delete saved.expectedRevision;
   if (saved.photoEvidence) {
     saved.photoEvidence = saved.photoEvidence.map((photo) => {
-      const clean = { ...photo };
-      delete clean.dataUrl;
-      return clean;
+      return stripEvidenceDataUrls(photo);
     });
   }
   if (index >= 0) {
@@ -429,13 +479,13 @@ function writeExtinguisherEvidence(scheduleId, recordId, evidence = [], currentE
   const evidenceDir = join(dataRoot, "shared-records", "extinguisher-evidence", folderName);
   mkdirSync(evidenceDir, { recursive: true });
   return incoming.map((photo, index) => {
-    const image = dataUrlToFile(photo?.dataUrl, "jpg");
-    const clean = { ...(photo || {}) };
-    delete clean.dataUrl;
-    if (!image) return clean;
-    const name = `${String(index + 1).padStart(2, "0")}-${slugify(photo.name || "extinguisher-evidence")}.${image.ext}`;
-    writeFileSync(join(evidenceDir, name), image.bytes);
-    return { ...clean, photoUrl: `/local-data/shared-records/extinguisher-evidence/${folderName}/${name}`, savedToPc: true };
+    return writeEvidenceCopies({
+      directory: evidenceDir,
+      publicDirectory: `/local-data/shared-records/extinguisher-evidence/${folderName}`,
+      stem: `${String(index + 1).padStart(2, "0")}-${photo.name || "extinguisher-evidence"}`,
+      photo,
+      current: currentEvidence.find((item) => item.evidenceId && item.evidenceId === photo.evidenceId) || null
+    });
   });
 }
 
@@ -748,20 +798,13 @@ function writeLinkedVerificationEvidence(scheduleId, linkedVerificationId, sideI
   const evidenceDir = join(dataRoot, "shared-records", "linked-verification-evidence", folderName);
   mkdirSync(evidenceDir, { recursive: true });
   return incoming.map((item, index) => {
-    if (!item?.dataUrl) return item;
-    const image = dataUrlToFile(item.dataUrl, "jpg");
-    if (!image) return null;
-    const photoName = `${String(index + 1).padStart(2, "0")}-${slugify(item.name || "linked-verification")}.${image.ext}`;
-    const photoPath = join(evidenceDir, photoName);
-    writeFileSync(photoPath, image.bytes);
-    const clean = { ...item };
-    delete clean.dataUrl;
-    return {
-      ...clean,
-      photoPath,
-      photoUrl: `/local-data/shared-records/linked-verification-evidence/${folderName}/${photoName}`,
-      savedToPc: true
-    };
+    return writeEvidenceCopies({
+      directory: evidenceDir,
+      publicDirectory: `/local-data/shared-records/linked-verification-evidence/${folderName}`,
+      stem: `${String(index + 1).padStart(2, "0")}-${item.name || "linked-verification"}`,
+      photo: item,
+      current: currentEvidence.find((photo) => photo.evidenceId && photo.evidenceId === item.evidenceId) || null
+    });
   }).filter(Boolean);
 }
 
@@ -791,6 +834,19 @@ function saveLinkedVerificationSide(store, incoming = {}, expectedRevision = 0) 
   if (current && incoming.submissionId && incoming.submissionId === current.submissionId) {
     return { ok: true, idempotent: true, record: current };
   }
+  const evidenceSignature = (items) => JSON.stringify((Array.isArray(items) ? items : []).map((item) => ({
+    evidenceId: item?.evidenceId || "",
+    photoUrl: item?.photoUrl || item?.stampedPhotoUrl || item?.originalPhotoUrl || "",
+    name: item?.name || ""
+  })));
+  const equivalentCurrent = Boolean(current
+    && String(current.result || "").trim().toUpperCase() === String(incoming.result || "").trim().toUpperCase()
+    && String(current.technicianId || "").trim().toLowerCase() === String(incoming.technicianId || "").trim().toLowerCase()
+    && String(current.notes || "").trim() === String(incoming.notes || "").trim()
+    && evidenceSignature(current.evidenceRefs) === evidenceSignature(incoming.evidenceRefs));
+  if (expected !== currentRevision && equivalentCurrent) {
+    return { ok: true, idempotent: true, equivalent: true, record: current };
+  }
   if (expected !== currentRevision) {
     const now = new Date().toISOString();
     store.linkedVerificationConflicts[linkedVerificationId] = {
@@ -799,6 +855,7 @@ function saveLinkedVerificationSide(store, incoming = {}, expectedRevision = 0) 
       status: "MISMATCH_REVIEW_REQUIRED",
       attemptedSideId: sideId,
       attemptedBy: incoming.technicianId || incoming.technicianName || "",
+      attemptedResult: incoming.result || "",
       expectedRevision: expected,
       currentRevision,
       detectedAt: now
@@ -852,6 +909,22 @@ function saveLinkedVerificationSide(store, incoming = {}, expectedRevision = 0) 
   };
   delete record.expectedRevision;
   store.linkedVerificationSideRecords[recordId] = record;
+  const unresolvedConflict = store.linkedVerificationConflicts?.[linkedVerificationId];
+  if (unresolvedConflict?.unresolved && expected === currentRevision) {
+    unresolvedConflict.unresolved = false;
+    unresolvedConflict.status = "RESOLVED";
+    unresolvedConflict.resolvedAt = now;
+    unresolvedConflict.resolvedBy = record.technicianId || record.technicianName || "";
+    store.linkedVerificationAudit.push({
+      event: "SIDE_SAVE_CONFLICT_RESOLVED",
+      linkedVerificationId,
+      sideId,
+      technicianId: record.technicianId || "",
+      technicianName: record.technicianName || "",
+      timestamp: now,
+      revision: record.revision
+    });
+  }
   store.linkedVerificationAudit.push({
     event: "SIDE_SYNCED",
     linkedVerificationId,
@@ -862,6 +935,160 @@ function saveLinkedVerificationSide(store, incoming = {}, expectedRevision = 0) 
     timestamp: now,
     revision: record.revision
   });
+  return { ok: true, record };
+}
+
+function getLinkedVerificationLiveRecordId(linkedVerificationId) {
+  return `linked-live::${linkedVerificationId}`;
+}
+
+function saveLinkedVerificationLiveState(store, incoming = {}, expectedRevision = 0) {
+  const linkedVerificationId = String(incoming.linkedVerificationId || "").trim();
+  const sideId = String(incoming.sideId || "").trim();
+  const definition = store.linkedVerificationDefinitions?.[linkedVerificationId];
+  const side = definition?.requiredSides?.find((item) => item.sideId === sideId);
+  if (!definition || !side) return { ok: false, invalid: true, reason: "Unknown linked verification or side." };
+  if (!technicianMatchesLinkedSide(side, incoming.technicianId, incoming.technicianName)) {
+    return { ok: false, forbidden: true, reason: "This live test side is assigned to another technician." };
+  }
+  const recordId = getLinkedVerificationLiveRecordId(linkedVerificationId);
+  const current = store.linkedVerificationLiveStates?.[recordId] || null;
+  const currentRevision = Number(current?.revision || 0);
+  const expected = Number(expectedRevision ?? incoming.expectedRevision ?? 0);
+  if (expected !== currentRevision) {
+    return { ok: false, conflict: true, current, expectedRevision: expected, currentRevision };
+  }
+  const now = new Date().toISOString();
+  const status = String(incoming.status || "ACTIVE").toUpperCase() === "ENDED" ? "ENDED" : "ACTIVE";
+  const record = {
+    ...(current || {}),
+    recordId,
+    linkedVerificationId,
+    scheduleId: store.scheduleId,
+    sideId,
+    technicianId: incoming.technicianId || "",
+    technicianName: incoming.technicianName || "",
+    equipmentLabel: incoming.equipmentLabel || definition.title || "Linked test",
+    testMode: incoming.testMode || "MANUAL",
+    currentState: incoming.currentState || (status === "ACTIVE" ? "OBSERVATION_REQUIRED" : "CLOSED"),
+    priority: String(incoming.priority || "MEDIUM").toUpperCase(),
+    status,
+    startedAt: status === "ACTIVE" ? (current?.status === "ACTIVE" ? current.startedAt : incoming.startedAt || now) : current?.startedAt || incoming.startedAt || now,
+    endedAt: status === "ENDED" ? now : "",
+    expiresAt: status === "ACTIVE" ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : "",
+    revision: currentRevision + 1,
+    updatedAt: now
+  };
+  store.linkedVerificationLiveStates[recordId] = record;
+  const eventId = `live-event::linked::${linkedVerificationId}`;
+  const existingEvent = store.liveCoordinationEvents?.[eventId] || null;
+  const livePriorityRank = { LOW: 1, MEDIUM: 2, HIGH: 3 };
+  const priorityEscalated = (livePriorityRank[record.priority] || 0) > (livePriorityRank[String(existingEvent?.priority || "LOW").toUpperCase()] || 0);
+  store.liveCoordinationEvents[eventId] = {
+    ...(existingEvent || {}),
+    eventId,
+    scheduleId: store.scheduleId,
+    sourceType: "LINKED_VERIFICATION",
+    linkedVerificationId,
+    linkedInspectionId: linkedVerificationId,
+    systemId: definition.systemId || "",
+    deviceId: definition.pumpDeviceId || definition.gasDeviceId || "",
+    deviceLabel: incoming.equipmentLabel || definition.title || "Linked test",
+    equipmentLabel: incoming.equipmentLabel || definition.title || "Linked test",
+    location: side.location || side.sideName || "",
+    sourceSideId: sideId,
+    sourceTechnicianId: incoming.technicianId || "",
+    sourceTechnicianName: incoming.technicianName || "",
+    observerTechnicianId: definition.requiredSides?.find((item) => item.sideId !== sideId)?.assignedTechnicianId || "",
+    observerTechnicianName: definition.requiredSides?.find((item) => item.sideId !== sideId)?.assignedTechnicianName || "",
+    testType: incoming.testMode || "MANUAL",
+    currentState: record.currentState,
+    priority: record.priority,
+    status,
+    startedAt: record.startedAt,
+    lastUpdated: now,
+    endedAt: record.endedAt,
+    expiresAt: record.expiresAt,
+    acknowledgement: status === "ACTIVE" && (existingEvent?.status !== "ACTIVE" || priorityEscalated) ? null : existingEvent?.acknowledgement || null,
+    revision: Number(existingEvent?.revision || 0) + 1
+  };
+  store.linkedVerificationAudit.push({
+    event: status === "ACTIVE" ? "LIVE_TEST_STARTED" : "LIVE_TEST_ENDED",
+    linkedVerificationId,
+    sideId,
+    technicianId: record.technicianId,
+    technicianName: record.technicianName,
+    testMode: record.testMode,
+    timestamp: now,
+    revision: record.revision
+  });
+  return { ok: true, record };
+}
+
+function saveLiveCoordinationEvent(store, incoming = {}, expectedRevision = 0) {
+  const eventId = String(incoming.eventId || "").trim();
+  if (!eventId) return { ok: false, invalid: true, reason: "Live event ID is required." };
+  const current = store.liveCoordinationEvents?.[eventId] || null;
+  const currentRevision = Number(current?.revision || 0);
+  const expected = Number(expectedRevision ?? incoming.expectedRevision ?? 0);
+  if (expected !== currentRevision) {
+    return { ok: false, conflict: true, current, expectedRevision: expected, currentRevision };
+  }
+  const action = String(incoming.action || "UPSERT").toUpperCase();
+  const now = new Date().toISOString();
+  if (action === "ACKNOWLEDGE") {
+    if (!current || current.status !== "ACTIVE") return { ok: false, invalid: true, reason: "The live event is no longer active." };
+    const observerId = String(current.observerTechnicianId || "").trim().toLowerCase();
+    const observerName = String(current.observerTechnicianName || "").trim().toLowerCase();
+    const technicianId = String(incoming.technicianId || "").trim().toLowerCase();
+    const technicianName = String(incoming.technicianName || "").trim().toLowerCase();
+    if ((observerId || observerName) && observerId !== technicianId && observerName !== technicianName) {
+      return { ok: false, forbidden: true, reason: "This live observation is assigned to another technician." };
+    }
+    const record = {
+      ...current,
+      acknowledgement: {
+        status: String(incoming.acknowledgementStatus || "OBSERVED").toUpperCase(),
+        technicianId: incoming.technicianId || "",
+        technicianName: incoming.technicianName || "",
+        acknowledgedAt: now
+      },
+      lastUpdated: now,
+      revision: currentRevision + 1
+    };
+    store.liveCoordinationEvents[eventId] = record;
+    return { ok: true, record };
+  }
+
+  const schedule = store.scheduleSnapshot || findSavedSchedule(store.scheduleId) || {};
+  const sourceType = String(incoming.sourceType || "FIELD_DEVICE").toUpperCase();
+  if (sourceType === "FIELD_DEVICE" && !technicianMatchesScheduleDeviceAssignment(schedule, {
+    deviceId: incoming.deviceId,
+    technicianId: incoming.sourceTechnicianId,
+    technicianName: incoming.sourceTechnicianName
+  })) {
+    return { ok: false, forbidden: true, reason: "This device is assigned to another technician." };
+  }
+  const status = String(incoming.status || "ACTIVE").toUpperCase() === "ENDED" ? "ENDED" : "ACTIVE";
+  const record = {
+    ...(current || {}),
+    ...incoming,
+    eventId,
+    scheduleId: store.scheduleId,
+    sourceType,
+    status,
+    priority: String(incoming.priority || current?.priority || "MEDIUM").toUpperCase(),
+    currentState: String(incoming.currentState || (status === "ACTIVE" ? "OBSERVATION_REQUIRED" : "CLOSED")).toUpperCase(),
+    startedAt: status === "ACTIVE" ? (current?.startedAt || incoming.startedAt || now) : (current?.startedAt || incoming.startedAt || now),
+    lastUpdated: now,
+    endedAt: status === "ENDED" ? now : "",
+    expiresAt: status === "ACTIVE" ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : "",
+    acknowledgement: status === "ACTIVE" && (incoming.resetAcknowledgement || current?.status !== "ACTIVE") ? null : current?.acknowledgement || null,
+    revision: currentRevision + 1
+  };
+  delete record.action;
+  delete record.expectedRevision;
+  store.liveCoordinationEvents[eventId] = record;
   return { ok: true, record };
 }
 
@@ -982,22 +1209,59 @@ function normalizeSharedInspectionRecord(scheduleId, incoming = {}) {
   };
 }
 
-function normalizeSharedCriticalSopRecord(scheduleId, incoming = {}) {
-  const templateId = incoming.templateId || "critical-sop";
-  const deviceId = incoming.parentDeviceId || incoming.deviceId || incoming.deviceTag || templateId;
-  return {
-    ...incoming,
-    recordId: incoming.recordId || getCriticalSopRecordId(scheduleId, templateId, deviceId),
-    scheduleId,
-    templateId,
-    parentDeviceId: incoming.parentDeviceId || deviceId,
-    deviceId,
-    status: incoming.status || (incoming.workflowStatus === "complete" ? "pass" : "partial"),
-    evidenceRefs: Array.isArray(incoming.evidenceRefs) ? incoming.evidenceRefs : []
-  };
+function writeSharedInspectionEvidence(scheduleId, record = {}, current = null) {
+  const incoming = Array.isArray(record.evidenceRefs) ? record.evidenceRefs : [];
+  if (!incoming.length) return Array.isArray(current?.evidenceRefs) ? current.evidenceRefs : [];
+  const folderName = slugify(`${scheduleId}-${record.deviceId || record.checklistItemId || "inspection"}`);
+  const evidenceDir = join(dataRoot, "shared-records", "inspection-evidence", folderName);
+  const currentEvidence = Array.isArray(current?.evidenceRefs) ? current.evidenceRefs : [];
+  return incoming.map((photo, index) => writeEvidenceCopies({
+    directory: evidenceDir,
+    publicDirectory: `/local-data/shared-records/inspection-evidence/${folderName}`,
+    stem: `${String(index + 1).padStart(2, "0")}-${photo.type || photo.name || "inspection"}`,
+    photo,
+    current: currentEvidence.find((item) => item.evidenceId && item.evidenceId === photo.evidenceId) || null
+  })).filter(Boolean);
 }
 
-function saveRevisionedRecord(store, collectionName, incomingRecord, expectedRevision) {
+function previewSharedInspectionEvidence(record = {}, current = null) {
+  const incoming = Array.isArray(record.evidenceRefs) ? record.evidenceRefs : [];
+  if (!incoming.length) return Array.isArray(current?.evidenceRefs) ? current.evidenceRefs : [];
+  const currentEvidence = Array.isArray(current?.evidenceRefs) ? current.evidenceRefs : [];
+  return incoming.map((photo) => {
+    const clean = stripEvidenceDataUrls(photo);
+    const accepted = currentEvidence.find((item) => item.evidenceId && item.evidenceId === photo.evidenceId);
+    return accepted
+      ? { ...accepted, ...clean, syncedAt: accepted.syncedAt, syncState: "SYNCED" }
+      : clean;
+  });
+}
+
+function getSharedInspectionEvidenceDirectory(scheduleId, record = {}) {
+  const folderName = slugify(`${scheduleId}-${record.deviceId || record.checklistItemId || "inspection"}`);
+  return join(dataRoot, "shared-records", "inspection-evidence", folderName);
+}
+
+function snapshotDirectoryFiles(directory) {
+  return new Set(existsSync(directory) ? readdirSync(directory) : []);
+}
+
+function removeFilesCreatedAfterSnapshot(directory, before = new Set()) {
+  if (!existsSync(directory)) return [];
+  const removed = [];
+  readdirSync(directory).forEach((name) => {
+    if (before.has(name)) return;
+    unlinkSync(join(directory, name));
+    removed.push(name);
+  });
+  return removed;
+}
+
+function hashLogicalMutationPayload(record = {}) {
+  return createHash("sha256").update(JSON.stringify(stableJsonValue(record))).digest("hex");
+}
+
+function inspectRevisionedRecord(store, collectionName, incomingRecord, expectedRevision, options = {}) {
   const collection = store[collectionName] || {};
   const current = collection[incomingRecord.recordId] || null;
   const currentRevision = Number(current?.revision || 0);
@@ -1014,34 +1278,54 @@ function saveRevisionedRecord(store, collectionName, incomingRecord, expectedRev
   };
 
   if (expected !== currentRevision) {
-    if (current && equivalentRecordPayload(current, candidate)) {
-      return {
-        ok: true,
-        idempotent: true,
-        record: current,
-        currentRevision
-      };
+    if (options.allowEquivalent !== false && current && equivalentRecordPayload(current, candidate)) {
+      return { ok: true, idempotent: true, record: current, current, candidate, currentRevision };
     }
-    return {
-      ok: false,
-      conflict: true,
-      current,
-      expectedRevision: expected,
-      currentRevision
-    };
+    return { ok: false, conflict: true, current, candidate, expectedRevision: expected, currentRevision };
   }
+  return { ok: true, current, candidate, currentRevision };
+}
 
-  collection[incomingRecord.recordId] = candidate;
+function normalizeSharedCriticalSopRecord(scheduleId, incoming = {}) {
+  const templateId = incoming.templateId || "critical-sop";
+  const deviceId = incoming.parentDeviceId || incoming.deviceId || incoming.deviceTag || templateId;
+  return {
+    ...incoming,
+    recordId: incoming.recordId || getCriticalSopRecordId(scheduleId, templateId, deviceId),
+    scheduleId,
+    templateId,
+    parentDeviceId: incoming.parentDeviceId || deviceId,
+    deviceId,
+    status: incoming.status || (incoming.workflowStatus === "complete" ? "pass" : "partial"),
+    evidenceRefs: Array.isArray(incoming.evidenceRefs) ? incoming.evidenceRefs : []
+  };
+}
+
+function saveRevisionedRecord(store, collectionName, incomingRecord, expectedRevision) {
+  const inspected = inspectRevisionedRecord(store, collectionName, incomingRecord, expectedRevision);
+  if (!inspected.ok || inspected.idempotent) return inspected;
+  const collection = store[collectionName] || {};
+  collection[incomingRecord.recordId] = inspected.candidate;
   store[collectionName] = collection;
   return {
     ok: true,
-    record: candidate,
-    currentRevision: candidate.revision
+    record: inspected.candidate,
+    currentRevision: inspected.candidate.revision
   };
 }
 
 function getSharedInspectionByDevice(store, deviceId) {
   return Object.values(store.inspectionRecords || {}).find((record) => record.deviceId === deviceId || record.checklistItemId === deviceId) || null;
+}
+
+function technicianMatchesScheduleDeviceAssignment(schedule = {}, record = {}) {
+  const assignment = schedule?.deviceAssignments?.[record.deviceId || record.checklistItemId];
+  if (!assignment) return true;
+  const assignedId = String(assignment.technicianId || assignment.assignedTechnicianId || "").trim().toLowerCase();
+  const assignedName = String(assignment.technicianName || assignment.assignedTechnicianName || "").trim().toLowerCase();
+  const technicianId = String(record.technicianId || "").trim().toLowerCase();
+  const technicianName = String(record.technicianName || record.inspectedBy || "").trim().toLowerCase();
+  return Boolean((assignedId && assignedId === technicianId) || (assignedName && assignedName === technicianName));
 }
 
 function getSharedCriticalSopByDevice(store, deviceId) {
@@ -1097,11 +1381,54 @@ function dataUrlToFile(dataUrl, fallbackExt = "png") {
   if (!match) return null;
 
   const mimeType = match[1];
-  const ext = mimeType.includes("jpeg") ? "jpg" : mimeType.includes("webp") ? "webp" : fallbackExt;
+  const ext = mimeType.includes("jpeg") ? "jpg" : mimeType.includes("png") ? "png" : mimeType.includes("webp") ? "webp" : fallbackExt;
   return {
     ext,
     bytes: Buffer.from(match[2], "base64")
   };
+}
+
+function stripEvidenceDataUrls(photo = {}) {
+  const clean = { ...(photo || {}) };
+  delete clean.dataUrl;
+  delete clean.originalDataUrl;
+  delete clean.stampedDataUrl;
+  return clean;
+}
+
+function writeEvidenceCopies({ directory, publicDirectory, stem, photo, current = null }) {
+  const clean = stripEvidenceDataUrls(photo);
+  const sameEvidence = current?.evidenceId && photo?.evidenceId && current.evidenceId === photo.evidenceId;
+  if (sameEvidence && current.originalPhotoUrl && (current.stampedPhotoUrl || current.photoUrl)) {
+    return { ...current, ...clean, syncedAt: current.syncedAt || new Date().toISOString(), syncState: "SYNCED" };
+  }
+
+  const original = dataUrlToFile(photo?.originalDataUrl, "jpg");
+  const stamped = dataUrlToFile(photo?.stampedDataUrl || photo?.dataUrl, "jpg");
+  if (!original && !stamped) return current ? { ...current, ...clean } : clean;
+  mkdirSync(directory, { recursive: true });
+  const safeStem = slugify(photo?.evidenceId || stem || photo?.name || "evidence");
+  const saved = { ...clean };
+  if (original) {
+    const originalName = `${safeStem}-original.${original.ext}`;
+    const originalPath = join(directory, originalName);
+    writeFileSync(originalPath, original.bytes);
+    saved.originalPhotoPath = originalPath;
+    saved.originalPhotoUrl = `${publicDirectory}/${originalName}`;
+  }
+  if (stamped) {
+    const stampedName = `${safeStem}-stamped.${stamped.ext}`;
+    const stampedPath = join(directory, stampedName);
+    writeFileSync(stampedPath, stamped.bytes);
+    saved.stampedPhotoPath = stampedPath;
+    saved.stampedPhotoUrl = `${publicDirectory}/${stampedName}`;
+  }
+  saved.photoPath = saved.stampedPhotoPath || saved.originalPhotoPath || "";
+  saved.photoUrl = saved.stampedPhotoUrl || saved.originalPhotoUrl || "";
+  saved.savedToPc = true;
+  saved.syncedAt = current?.syncedAt || new Date().toISOString();
+  saved.syncState = "SYNCED";
+  return saved;
 }
 
 function csvCell(value) {
@@ -1198,18 +1525,26 @@ function prepareInspectionRun(payload, runKey) {
   const inspections = {};
   Object.entries(payload.inspections || {}).forEach(([deviceId, inspection]) => {
     const next = { ...inspection };
-    const beforePhoto = writeInspectionPhoto(runKey, deviceId, "before", next.beforePhotoData);
-    const afterPhoto = writeInspectionPhoto(runKey, deviceId, "after", next.afterPhotoData);
+    const runPhotoDir = join(dataRoot, "inspection-runs", `${runKey}-photos`);
+    const runPhotoUrl = `/local-data/inspection-runs/${runKey}-photos`;
+    const beforePhoto = next.beforePhotoEvidence
+      ? writeEvidenceCopies({ directory: runPhotoDir, publicDirectory: runPhotoUrl, stem: `${deviceId}-before`, photo: next.beforePhotoEvidence })
+      : writeInspectionPhoto(runKey, deviceId, "before", next.beforePhotoData);
+    const afterPhoto = next.afterPhotoEvidence
+      ? writeEvidenceCopies({ directory: runPhotoDir, publicDirectory: runPhotoUrl, stem: `${deviceId}-after`, photo: next.afterPhotoEvidence })
+      : writeInspectionPhoto(runKey, deviceId, "after", next.afterPhotoData);
 
     if (beforePhoto) {
       next.beforePhotoPath = beforePhoto.photoPath;
       next.beforePhotoUrl = beforePhoto.photoUrl;
       next.beforePhotoCaptured = true;
+      if (next.beforePhotoEvidence) next.beforePhotoEvidence = beforePhoto;
     }
     if (afterPhoto) {
       next.afterPhotoPath = afterPhoto.photoPath;
       next.afterPhotoUrl = afterPhoto.photoUrl;
       next.afterPhotoCaptured = true;
+      if (next.afterPhotoEvidence) next.afterPhotoEvidence = afterPhoto;
     }
     delete next.beforePhotoData;
     delete next.afterPhotoData;
@@ -1226,23 +1561,15 @@ function prepareInspectionRun(payload, runKey) {
 }
 
 function writeSchedulePhoto(scheduleId, category, photo, index) {
-  const image = dataUrlToFile(photo?.dataUrl, "jpg");
-  if (!image) return photo || null;
-
   const safeSchedule = slugify(scheduleId || "extinguisher-job");
   const safeCategory = slugify(category || "photo");
   const photoDir = join(dataRoot, "schedules", "photo-proof", safeSchedule);
-  mkdirSync(photoDir, { recursive: true });
-  const photoName = `${safeCategory}-${String(index + 1).padStart(2, "0")}-${slugify(photo.name || "proof")}.${image.ext}`;
-  const photoPath = join(photoDir, photoName);
-  writeFileSync(photoPath, image.bytes);
-  return {
-    ...photo,
-    dataUrl: undefined,
-    photoPath,
-    photoUrl: `/local-data/schedules/photo-proof/${safeSchedule}/${photoName}`,
-    savedToPc: true
-  };
+  return writeEvidenceCopies({
+    directory: photoDir,
+    publicDirectory: `/local-data/schedules/photo-proof/${safeSchedule}`,
+    stem: `${safeCategory}-${String(index + 1).padStart(2, "0")}-${photo?.name || "proof"}`,
+    photo
+  });
 }
 
 function prepareScheduleRecord(schedule = {}) {
@@ -1251,11 +1578,7 @@ function prepareScheduleRecord(schedule = {}) {
     photoProof[category] = (Array.isArray(photos) ? photos : [])
       .map((photo, index) => writeSchedulePhoto(schedule.scheduleId, category, photo, index))
       .filter(Boolean)
-      .map((photo) => {
-        const next = { ...photo };
-        delete next.dataUrl;
-        return next;
-      });
+      .map(stripEvidenceDataUrls);
   });
   return {
     ...schedule,
@@ -1456,32 +1779,173 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
+      if (req.method === "POST" && action === "linked-verification-live") {
+        const payload = await readRequestJson(req);
+        const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
+        const result = saveLinkedVerificationLiveState(store, payload.record || payload, payload.expectedRevision);
+        if (!result.ok) {
+          sendJson(res, result.conflict ? 409 : result.forbidden ? 403 : 400, {
+            ...result,
+            scheduleId,
+            type: "linked-verification-live"
+          });
+          return;
+        }
+        writeSharedJobStore(store);
+        sendJson(res, 200, { ...result, scheduleId });
+        return;
+      }
+
+      if (req.method === "POST" && action === "live-events") {
+        const payload = await readRequestJson(req);
+        const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
+        const result = saveLiveCoordinationEvent(store, payload.record || payload, payload.expectedRevision);
+        if (!result.ok) {
+          sendJson(res, result.conflict ? 409 : result.forbidden ? 403 : 400, {
+            ...result,
+            scheduleId,
+            type: "live-coordination-event"
+          });
+          return;
+        }
+        writeSharedJobStore(store);
+        sendJson(res, 200, { ...result, scheduleId });
+        return;
+      }
+
       if (req.method === "POST" && action === "inspection-records") {
         const payload = await readRequestJson(req);
         const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
         const record = normalizeSharedInspectionRecord(scheduleId, payload.record || payload);
-        const result = saveRevisionedRecord(store, "inspectionRecords", record, payload.expectedRevision);
-        if (!result.ok) {
+        const schedule = findSavedSchedule(scheduleId) || store.scheduleSnapshot || payload.schedule || {};
+        if (!technicianMatchesScheduleDeviceAssignment(schedule, record)) {
+          sendJson(res, 403, {
+            ok: false,
+            forbidden: true,
+            type: "inspection-assignment",
+            scheduleId,
+            deviceId: record.deviceId,
+            error: "This device is assigned to another technician."
+          });
+          return;
+        }
+        const logicalMutationId = String(payload.logicalMutationId || record.logicalMutationId || "").trim();
+        if (logicalMutationId) record.logicalMutationId = logicalMutationId;
+        const mutationHash = logicalMutationId ? hashLogicalMutationPayload(record) : "";
+        const receipt = logicalMutationId ? store.mutationReceipts[logicalMutationId] : null;
+        if (receipt) {
+          const sameMutation = receipt.recordId === record.recordId
+            && receipt.technicianId === record.technicianId
+            && receipt.payloadHash === mutationHash;
+          if (!sameMutation) {
+            sendJson(res, 409, {
+              ok: false,
+              conflict: true,
+              mutationCollision: true,
+              type: "inspection-logical-mutation",
+              scheduleId,
+              logicalMutationId,
+              error: "Logical mutation ID is already associated with a different technician action."
+            });
+            return;
+          }
+          sendJson(res, 200, {
+            ok: true,
+            scheduleId,
+            record: receipt.record,
+            idempotent: true,
+            alreadyProcessed: true,
+            idempotencyReceipt: receipt,
+            progress: calculateSharedProgress(store, payload.schedule || null)
+          });
+          return;
+        }
+
+        const currentRecord = store.inspectionRecords?.[record.recordId] || null;
+        const previewRecord = {
+          ...record,
+          evidenceRefs: previewSharedInspectionEvidence(record, currentRecord)
+        };
+        const preflight = inspectRevisionedRecord(
+          store,
+          "inspectionRecords",
+          previewRecord,
+          payload.expectedRevision,
+          { allowEquivalent: !logicalMutationId }
+        );
+        if (!preflight.ok) {
           sendJson(res, 409, {
             ok: false,
             conflict: true,
             type: "inspection",
             scheduleId,
             recordId: record.recordId,
-            expectedRevision: result.expectedRevision,
-            currentRevision: result.currentRevision,
-            current: result.current
+            expectedRevision: preflight.expectedRevision,
+            currentRevision: preflight.currentRevision,
+            current: preflight.current
           });
           return;
         }
-        writeSharedJobStore(store);
-        sendJson(res, 200, {
-          ok: true,
-          scheduleId,
-          record: result.record,
-          idempotent: Boolean(result.idempotent),
-          progress: calculateSharedProgress(store, payload.schedule || null)
-        });
+        if (preflight.idempotent) {
+          sendJson(res, 200, {
+            ok: true,
+            scheduleId,
+            record: preflight.record,
+            idempotent: true,
+            alreadyProcessed: true,
+            progress: calculateSharedProgress(store, payload.schedule || null)
+          });
+          return;
+        }
+
+        const evidenceDirectory = getSharedInspectionEvidenceDirectory(scheduleId, record);
+        const evidenceFilesBefore = snapshotDirectoryFiles(evidenceDirectory);
+        let responsePayload;
+        try {
+          record.evidenceRefs = writeSharedInspectionEvidence(scheduleId, record, currentRecord);
+          const result = saveRevisionedRecord(store, "inspectionRecords", record, payload.expectedRevision);
+          if (!result.ok) {
+            removeFilesCreatedAfterSnapshot(evidenceDirectory, evidenceFilesBefore);
+            sendJson(res, 409, {
+              ok: false,
+              conflict: true,
+              type: "inspection",
+              scheduleId,
+              recordId: record.recordId,
+              expectedRevision: result.expectedRevision,
+              currentRevision: result.currentRevision,
+              current: result.current
+            });
+            return;
+          }
+          if (logicalMutationId) {
+            store.mutationReceipts[logicalMutationId] = {
+              logicalMutationId,
+              type: "inspection",
+              recordId: result.record.recordId,
+              technicianId: result.record.technicianId,
+              deviceId: result.record.deviceId,
+              payloadHash: mutationHash,
+              acceptedRevision: result.record.revision,
+              acceptedAt: result.record.serverReceivedAt,
+              record: result.record
+            };
+          }
+          writeSharedJobStore(store);
+          responsePayload = {
+            ok: true,
+            scheduleId,
+            record: result.record,
+            idempotent: Boolean(result.idempotent),
+            alreadyProcessed: false,
+            idempotencyReceipt: logicalMutationId ? store.mutationReceipts[logicalMutationId] : null,
+            progress: calculateSharedProgress(store, payload.schedule || null)
+          };
+        } catch (error) {
+          removeFilesCreatedAfterSnapshot(evidenceDirectory, evidenceFilesBefore);
+          throw error;
+        }
+        sendJson(res, 200, responsePayload);
         return;
       }
 
@@ -1489,6 +1953,18 @@ const server = http.createServer(async (req, res) => {
         const payload = await readRequestJson(req);
         const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
         const record = normalizeSharedCriticalSopRecord(scheduleId, payload.record || payload);
+        const schedule = findSavedSchedule(scheduleId) || store.scheduleSnapshot || payload.schedule || {};
+        if (!technicianMatchesScheduleDeviceAssignment(schedule, record)) {
+          sendJson(res, 403, {
+            ok: false,
+            forbidden: true,
+            type: "critical-sop-assignment",
+            scheduleId,
+            deviceId: record.deviceId,
+            error: "This critical system item is assigned to another technician."
+          });
+          return;
+        }
         const result = saveRevisionedRecord(store, "criticalSopRecords", record, payload.expectedRevision);
         if (!result.ok) {
           sendJson(res, 409, {
@@ -1766,6 +2242,30 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, { ok: true, proposals });
     } catch (error) {
       sendJson(res, 500, { ok: false, error: error.message, proposals: [] });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && urlPath === "/api/pump-configurations") {
+    const companyName = requestUrl.searchParams.get("companyName") || "";
+    const siteName = requestUrl.searchParams.get("siteName") || "";
+    const pumpDeviceId = requestUrl.searchParams.get("pumpDeviceId") || "";
+    const configuration = readPumpConfiguration(companyName, siteName, pumpDeviceId);
+    sendJson(res, 200, { ok: true, configuration });
+    return;
+  }
+
+  if (req.method === "POST" && urlPath === "/api/pump-configurations") {
+    try {
+      const payload = await readRequestJson(req);
+      const result = savePumpConfiguration(payload.configuration || payload, payload.expectedRevision);
+      if (!result.ok) {
+        sendJson(res, result.conflict ? 409 : 400, result);
+        return;
+      }
+      sendJson(res, 200, result);
+    } catch (error) {
+      sendJson(res, 500, { ok: false, error: error.message });
     }
     return;
   }

@@ -10,6 +10,8 @@ desktop.ini
 
 # Dependencies / caches
 node_modules/
+.npm-cache/
+.tools/
 work/__pycache__/
 *.pyc
 
@@ -31,6 +33,7 @@ outputs/rmt-fire-local-data/
 
 # Generated reports, rendered QA images, and temporary working files
 output/pdf/
+tools/sharp-poc/output/
 tmp/
 outputs/fire-inspection-mvp/mobile-qa/
 outputs/fire-inspection-mvp/performance-qa/

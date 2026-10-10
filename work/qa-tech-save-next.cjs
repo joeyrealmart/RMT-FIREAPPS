@@ -141,10 +141,15 @@ async function completeMfapPrerequisite(page) {
         title: step.title,
         critical: Boolean(step.critical),
         choice: step.requiresChoice ? (step.choices?.[0] || "Pass") : "",
-        reading: step.requiresReading ? "QA reading normal" : "",
+        reading: step.requiresReading ? (step.readingType === "number" ? "26.7" : "QA reading normal") : "",
         remark: sopStepNeedsRemark(step) ? "QA remark" : "",
         photo: step.requiresPhoto ? "QA photo" : "",
-        supervisor: step.requiresSupervisor ? "QA Supervisor" : ""
+        supervisor: step.requiresSupervisor ? "QA Supervisor" : "",
+        fieldValues: Object.fromEntries((step.fields || []).map((field) => [
+          field.id,
+          field.kind === "number" ? "1" : field.choices?.[0] || "QA value"
+        ])),
+        fieldRemarks: {}
       };
     });
     state.criticalSops["fire-alarm-tripping-sop::QA.MFAP.SN"] = {

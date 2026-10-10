@@ -133,8 +133,8 @@ function assert(condition, message) {
 
   await page.evaluate((id) => startOrResumeTechnicianSchedule(id), testSchedule.scheduleId);
   await page.waitForFunction((id) => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.scheduleId === id, testSchedule.scheduleId);
-  await page.waitForSelector("#techActiveJobSummary [data-tech-system='emergency-exit']", { timeout: 15000 });
-  await page.click("#techActiveJobSummary [data-tech-system='emergency-exit']");
+  await page.waitForSelector("#techActiveJobSummary [data-tech-system='emergency-light']", { timeout: 15000 });
+  await page.click("#techActiveJobSummary [data-tech-system='emergency-light']");
   await page.waitForSelector("#workspace.tech-screen-mimic", { timeout: 15000 });
   await page.waitForFunction(() => document.querySelectorAll(".marker.assigned-scope").length > 0, null, { timeout: 15000 });
   await page.evaluate((deviceId) => focusTechnicianAssignedDevice(deviceId, { openChecklist: true }), testSchedule.firstId);
@@ -147,19 +147,20 @@ function assert(condition, message) {
     };
     return {
       checklistOpen: !document.querySelector("#checklistForm")?.classList.contains("hidden"),
-      questionListHidden: !isVisible("#questionList"),
+      questionListVisible: isVisible("#questionList"),
+      questionChoiceCount: document.querySelectorAll("#questionList .choice-row label").length,
       photoEvidenceVisible: isVisible(".inspection-photo-row"),
       faultFieldsHidden: !isVisible(".inspection-notes-field") && !isVisible(".inspection-action-field"),
       actionText: document.querySelector("#checklistForm button[type='submit']")?.textContent.trim() || ""
     };
   });
   assert(simplifiedCard.checklistOpen, "Simplified technician card did not open.");
-  assert(simplifiedCard.questionListHidden, "Technician card still exposes the full checklist question list.");
+  assert(simplifiedCard.questionListVisible && simplifiedCard.questionChoiceCount >= 3, "Technician card must show the short PASS / FAULT / N/A checklist.");
   assert(simplifiedCard.photoEvidenceVisible, "Photo evidence should be visible before PASS/FAULT selection.");
   assert(simplifiedCard.faultFieldsHidden, "Fault fields are visible before FAULT is selected.");
   assert(simplifiedCard.actionText.includes("PASS"), "Technician card does not show a primary PASS action.");
   const beforeScroll = await page.evaluate(() => window.scrollY);
-  await page.click("#markFailBtn");
+  await page.locator('#questionList input[value="Fail"]').first().check();
   await page.waitForFunction(() => document.querySelector("#workspace")?.classList.contains("tech-fault-entry-active"));
   await page.waitForTimeout(250);
   const afterScroll = await page.evaluate(() => window.scrollY);

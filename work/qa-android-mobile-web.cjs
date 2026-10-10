@@ -124,7 +124,8 @@ async function openTechnicianJob(page, companyName) {
 async function openTechnicianSystem(page, companyName, systemName = "Fire Alarm") {
   const scheduleId = await openTechnicianJob(page, companyName);
   const activeSummary = page.locator("#techActiveJobSummary");
-  const button = activeSummary.locator("[data-tech-system]", { hasText: systemName }).first();
+  const systemKey = systemName === "Fire Alarm" ? "fire-alarm" : systemName;
+  const button = activeSummary.locator(`[data-tech-system="${systemKey}"]`).first();
   await button.waitFor({ state: "visible", timeout: 15000 });
   await button.click();
   await page.waitForSelector("#workspace.tech-screen-mimic", { timeout: 15000 });
@@ -204,10 +205,11 @@ async function waitForAssignedPins(page, label) {
 
 async function seedTemporaryMtbSchedule(page) {
   const seeded = await page.evaluate(() => {
+    const runId = Date.now();
     const specs = [
-      { scheduleId: "QA-MOBILE-WETEX", companyName: "WETEX", siteName: "WETEX QA", floorId: "qa-wetex-lv1", floorTitle: "WETEX QA L1", prefix: "WETEX.QA", time: "09:00" },
-      { scheduleId: "QA-MOBILE-UOB", companyName: "UOB", siteName: "UOB", floorId: "qa-uob-lv1", floorTitle: "UOB QA Ground Floor", prefix: "UOB.QA", time: "10:00" },
-      { scheduleId: "QA-MOBILE-MTB", companyName: "MTB Reality Sdn Bhd", siteName: "Bandar Hilir", floorId: "qa-mtb-lv1", floorTitle: "MTB Reality QA L1", prefix: "MTB.QA", time: "10:30" }
+      { scheduleId: `QA-MOBILE-WETEX-${runId}`, companyName: "WETEX", siteName: "WETEX QA", floorId: "qa-wetex-lv1", floorTitle: "WETEX QA L1", prefix: "WETEX.QA", time: "09:00" },
+      { scheduleId: `QA-MOBILE-UOB-${runId}`, companyName: "UOB", siteName: "UOB", floorId: "qa-uob-lv1", floorTitle: "UOB QA Ground Floor", prefix: "UOB.QA", time: "10:00" },
+      { scheduleId: `QA-MOBILE-MTB-${runId}`, companyName: "MTB Reality Sdn Bhd", siteName: "Bandar Hilir", floorId: "qa-mtb-lv1", floorTitle: "MTB Reality QA L1", prefix: "MTB.QA", time: "10:30" }
     ];
     const fallbackSeedDevices = devices.filter((device) => deviceMatchesScheduleScope(device, "fire-alarm")).slice(0, 6);
     if (!fallbackSeedDevices.length) return false;
@@ -402,6 +404,7 @@ function ensureQaFaultPhoto() {
       jobCards: document.querySelectorAll(".tech-job-card").length,
       systemButtons: document.querySelectorAll("#techActiveJobSummary [data-tech-system]").length,
       workflowNavVisible: isVisible("#techWorkflowNav"),
+      workflowNavLabels: [...document.querySelectorAll("#techWorkflowNav button strong")].map((item) => item.textContent.trim()),
       diagnosticsVisible: isVisible("#diagnosticsPanel"),
       suggestVisible: isVisible("#showRequestBtn"),
       contentGridHidden: !isVisible(".content-grid")
@@ -439,7 +442,8 @@ function ensureQaFaultPhoto() {
       selectedDevice: document.querySelector("#deviceName")?.textContent.trim() || "",
       photoEvidenceVisibleBeforeResult: isVisible(".inspection-photo-row"),
       faultDetailFieldsHiddenBeforeFault: !isVisible(".inspection-notes-field") && !isVisible(".inspection-action-field"),
-      questionListHidden: !isVisible("#questionList"),
+      questionListVisible: isVisible("#questionList"),
+      questionChoiceCount: document.querySelectorAll("#questionList .choice-row label").length,
       actionText: document.querySelector("#checklistForm button[type='submit']")?.textContent.trim() || ""
     };
   });
@@ -465,13 +469,18 @@ function ensureQaFaultPhoto() {
       return Boolean(element && element.getClientRects().length && getComputedStyle(element).display !== "none");
     };
     return {
+      selectedDevice: document.querySelector("#deviceName")?.textContent.trim() || "",
+      choices: [...document.querySelectorAll("#questionList input")].map((input) => input.value),
+      workspaceClass: document.querySelector("#workspace")?.className || "",
+      manualFault: document.querySelector("#checklistForm")?.dataset.manualFault || "",
+      questionFault: document.querySelector("#checklistForm")?.dataset.questionFault || "",
       photosVisible: isVisible(".inspection-photo-row"),
       notesVisible: isVisible(".inspection-notes-field"),
       actionVisible: isVisible(".inspection-action-field"),
-      failButton: document.querySelector("#markFailBtn")?.textContent.trim() || ""
+      faultChoiceVisible: isVisible('#questionList input[value="Fail"]')
     };
   });
-  await page.locator("#markFailBtn").click();
+  await page.locator('#questionList input[value="Fail"]').first().check();
   await page.waitForFunction(() => document.querySelector("#workspace")?.classList.contains("tech-fault-entry-active"), null, { timeout: 15000 });
   const faultFieldsAfter = await page.evaluate(() => {
     const isVisible = (selector) => {
@@ -482,12 +491,12 @@ function ensureQaFaultPhoto() {
       photosVisible: isVisible(".inspection-photo-row"),
       notesVisible: isVisible(".inspection-notes-field"),
       actionVisible: isVisible(".inspection-action-field"),
-      failButton: document.querySelector("#markFailBtn")?.textContent.trim() || ""
+      failedQuestionCount: document.querySelectorAll("#questionList .question-failed").length
     };
   });
   await page.locator("#notes").fill("Android QA fault evidence test.");
   await page.setInputFiles("#beforePhoto", faultPhotoPath);
-  await page.locator("#markFailBtn").click();
+  await page.locator("#checklistForm button[type='submit']").click();
   await page.waitForSelector("#workspace.tech-screen-mimic", { timeout: 15000 });
   const tapResult = await page.evaluate(() => ({
     backOnMimic: document.querySelector("#workspace")?.classList.contains("tech-screen-mimic"),
@@ -572,7 +581,8 @@ function ensureQaFaultPhoto() {
   assertNoHorizontalOverflow(mtbResult, "MTB Android view");
   assert(listFirstResult.jobCards >= 3, "Technician Today's Jobs did not show WETEX/UOB/MTB cards.");
   assert(listFirstResult.systemButtons > 0, "Opening a technician job did not show fire-system buttons.");
-  assert(!listFirstResult.workflowNavVisible, "Hidden technician workflow tabs are still visible on Android.");
+  assert(listFirstResult.workflowNavVisible, "Technician mobile bottom navigation is not visible on Android.");
+  assert(JSON.stringify(listFirstResult.workflowNavLabels) === JSON.stringify(["Home", "Tasks", "Mimic", "Reports", "More"]), `Technician mobile navigation order is incorrect: ${JSON.stringify(listFirstResult.workflowNavLabels)}.`);
   assert(!listFirstResult.diagnosticsVisible, "Diagnostics panel is visible in normal technician workflow.");
   assert(!listFirstResult.suggestVisible, "Topbar suggest-device control is visible in normal technician workflow.");
   assert(listFirstResult.contentGridHidden, "Technician job landing still shows the large admin/content grid.");
@@ -583,12 +593,12 @@ function ensureQaFaultPhoto() {
   assert(autoStartItemResult.checklistOpen && !autoStartItemResult.criticalSopOpen, "Tapping a normal mimic pin did not open the focused inspection card.");
   assert(autoStartItemResult.photoEvidenceVisibleBeforeResult, "Photo evidence must be visible before PASS/FAULT selection.");
   assert(autoStartItemResult.faultDetailFieldsHiddenBeforeFault, "FAULT detail fields are visible before FAULT is selected.");
-  assert(autoStartItemResult.questionListHidden, "Normal technician card is still showing the full checklist question block.");
+  assert(autoStartItemResult.questionListVisible && autoStartItemResult.questionChoiceCount >= 3, "Technician checklist questions and PASS / FAULT / N/A choices must be visible.");
   assert(autoStartItemResult.actionText.includes("PASS"), "Technician PASS action is not the primary card action.");
   assert(autoStartTapResult.backOnMimic && autoStartTapResult.checklistHidden, "PASS save did not return technician to mimic.");
   assert(autoStartTapResult.passMarkers > 0, "PASS save did not update any mimic pin status.");
-  assert(faultFieldsBefore.photosVisible && !faultFieldsBefore.notesVisible && !faultFieldsBefore.actionVisible, "Photo should be visible before FAULT, but FAULT detail fields should stay hidden.");
-  assert(faultFieldsAfter.photosVisible && faultFieldsAfter.notesVisible && faultFieldsAfter.actionVisible, "FAULT selection did not reveal description/corrective fields.");
+  assert(faultFieldsBefore.photosVisible && faultFieldsBefore.faultChoiceVisible && !faultFieldsBefore.notesVisible && !faultFieldsBefore.actionVisible, `Photo and checklist FAULT choice should be visible before selection, but FAULT detail fields should stay hidden: ${JSON.stringify(faultFieldsBefore)}.`);
+  assert(faultFieldsAfter.photosVisible && faultFieldsAfter.notesVisible && faultFieldsAfter.actionVisible && faultFieldsAfter.failedQuestionCount === 1, "Checklist FAULT selection did not reveal description/corrective fields.");
   assert(tapResult.backOnMimic && tapResult.checklistHidden && tapResult.faultFieldsCleared, "FAULT save did not return cleanly to mimic.");
   assert(tapResult.failMarkers > 0, "FAULT save did not update any mimic pin status.");
   assert(mtbWhileWetexActiveResult.assignedPins > 0, "MTB assigned pins disappeared while another tech job was active.");
@@ -671,7 +681,7 @@ function ensureQaFaultPhoto() {
   });
   await openTechnicianSystem(stalePage, "MTB Reality", "Fire Alarm");
   const stalePick = await stalePage.evaluate(() => {
-    const schedule = state.schedules.find((item) => item.scheduleId === "QA-MOBILE-MTB");
+    const schedule = state.schedules.find((item) => item.companyName === "MTB Reality Sdn Bhd");
     if (schedule) {
       state.activeTechPreviewScheduleId = schedule.scheduleId;
       showTechnicianScheduleOnMap(schedule.scheduleId, { scrollToMap: false });

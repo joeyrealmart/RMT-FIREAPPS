@@ -1,0 +1,12 @@
+{
+  "provider": "ollama",
+  "model": "qwen2.5:1.5b-instruct",
+  "endpoint": "http://127.0.0.1:11434",
+  "durationMs": 32665,
+  "usage": {
+    "inputTokens": 347,
+    "outputTokens": 289,
+    "totalTokens": 636
+  },
+  "output": "```json\n{\n  \"smallestChange\": \"Add CHECKLIST and LIVE INDICATIONS tabs inside the existing MFAP SOP workspace.\",\n  \"reusableComponents\": [\n    \"renderCriticalSop builds the MFAP checklist in #criticalSopForm\",\n    \"renderCriticalSopLiveLinkedPrompt renders initiated Pump and CO2/Gas MFAP confirmations\",\n    \"renderTechnicianLinkedVerificationCards owns the working response cards and buttons\",\n    \"renderActiveCriticalSopLinkedPrompt refreshes cards after shared-state changes\",\n    \"refreshActiveTechnicianSharedState polls authoritative shared state every five seconds\"\n  ],\n  \"risks\": [\n    \"UI only; no API, schema, ownership, revision, reconciliation, or sync changes\",\n    \"One Live Indications tab for all current and future linked systems\",\n    \"Badge derived from existing linked state\",\n    \"Do not force navigation away from a checklist in progress\",\n    \"Mobile tabs must not create horizontal scrolling\"\n  ],\n  \"qaMatrix\": [\n    \"Pump request appears while Tech 1 remains scrolled inside Checklist\",\n    \"Badge and sticky alert update without manual refresh\",\n    \"VIEW opens Live Indications and focuses the new card\",\n    \"Pump confirmation reconciles\",\n    \"CO2 Step 12 repeats the same flow\",\n    \"Gas Release and Wet Chemical are reported as configured or not configured\"\n  ]\n}\n```"
+}

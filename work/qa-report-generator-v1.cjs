@@ -238,7 +238,11 @@ async function runBrowserQa() {
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("console", (message) => {
+    if (message.type() !== "error") return;
+    const location = message.location();
+    errors.push(`${message.text()}${location?.url ? ` @ ${location.url}` : ""}`);
+  });
   await page.goto(APP_URL, { waitUntil: "domcontentloaded" });
   await page.fill("#loginEmail", "admin@rmtfire.local");
   await page.fill("#loginPassword", "qa-report-v1");

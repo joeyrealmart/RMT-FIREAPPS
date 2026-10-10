@@ -117,6 +117,26 @@ async function seedCriticalDependencyJob(page) {
         date: new Date().toISOString().slice(0, 10),
         time: "09:00",
         technician: "Demo Technician",
+        technicians: [
+          { technicianId: "tech@rmtfire.local", technicianName: "Demo Technician" },
+          { technicianId: "tech2@rmtfire.local", technicianName: "Tech 2" }
+        ],
+        deviceAssignments: {
+          "QA.MFAP.1": { technicianId: "tech@rmtfire.local", technicianName: "Demo Technician" },
+          "QA.SPP.1": { technicianId: "tech2@rmtfire.local", technicianName: "Tech 2" }
+        },
+        linkedVerifications: [{
+          linkedVerificationId: "QA-CRITICAL-DEPENDENCY::CO2_MFAP::QA.CO2.1::INDICATION",
+          verificationType: "CO2_GAS_RELEASE_INDICATION",
+          title: "QA CO2 indication",
+          systemId: "gas-release",
+          systemIds: ["gas-release", "fire-alarm"],
+          reconciliationMode: "MATCHING_RESULTS",
+          requiredSides: [
+            { sideId: "SUPPRESSION_SYSTEM_LOCATION", sideName: "Suppression System Location", assignedTechnicianId: "tech2@rmtfire.local", assignedTechnicianName: "Tech 2" },
+            { sideId: "REMOTE_PANEL_OR_MFAP", sideName: "Remote Panel / MFAP", assignedTechnicianId: "tech@rmtfire.local", assignedTechnicianName: "Demo Technician" }
+          ]
+        }],
         serviceType: "Maintenance / Inspection",
         scope: "yearly-100",
         scopeLabel: "Yearly Full Inspection",
@@ -149,15 +169,21 @@ async function writeSopStage(page, tag, templateId, throughIndex) {
     const steps = {};
     template.steps.forEach((step, index) => {
       if (index > throughIndex) return;
+      const structuredFields = [
+        ...(step.fields || []),
+        ...Object.values(step.variants || {}).flat()
+      ];
       steps[index] = {
         confirmed: true,
         title: step.title,
         critical: Boolean(step.critical),
         choice: step.requiresChoice ? (step.choices?.[0] || "Pass") : "",
-        reading: step.requiresReading ? "QA reading normal" : "",
+        reading: step.requiresReading ? (step.readingType === "number" ? "26.7" : "QA reading normal") : "",
         remark: sopStepNeedsRemark(step) ? "QA remark" : "",
         photo: step.requiresPhoto ? "QA photo" : "",
-        supervisor: step.requiresSupervisor ? "QA Supervisor" : ""
+        supervisor: step.requiresSupervisor ? "QA Supervisor" : "",
+        fieldValues: Object.fromEntries(structuredFields.map((field) => [field.id, field.kind === "number" ? "415" : field.choices?.[0] || "QA value"])),
+        fieldRemarks: {}
       };
     });
     state.criticalSops[`${templateId}::${tag}`] = {
@@ -208,6 +234,42 @@ async function saveNormalInspection(page, tag, status = "pass") {
   }, { tag, status });
 }
 
+async function seedCompletedLinkedVerifications(page) {
+  await page.evaluate(() => {
+    const schedule = getActiveTechnicianMaintenanceSchedule();
+    const scheduleId = getScheduleKey(schedule);
+    const cache = ensureSharedCacheForSchedule(schedule);
+    const store = {
+      ...cache.store,
+      linkedVerificationDefinitions: { ...(cache.store?.linkedVerificationDefinitions || {}) },
+      linkedVerificationSideRecords: { ...(cache.store?.linkedVerificationSideRecords || {}) }
+    };
+    getScheduleLinkedVerificationDefinitions(schedule).forEach((definition) => {
+      store.linkedVerificationDefinitions[definition.linkedVerificationId] = definition;
+      definition.requiredSides.forEach((side) => {
+        const recordId = getLinkedVerificationSideRecordId(scheduleId, definition.linkedVerificationId, side.sideId);
+        store.linkedVerificationSideRecords[recordId] = {
+          recordId,
+          linkedVerificationId: definition.linkedVerificationId,
+          scheduleId,
+          jobId: definition.jobId || `JOB-${scheduleId}`,
+          verificationType: definition.verificationType,
+          sideId: side.sideId,
+          sideName: side.sideName,
+          assignedTechnicianId: side.assignedTechnicianId,
+          technicianId: side.assignedTechnicianId,
+          technicianName: side.assignedTechnicianName,
+          result: "CONFIRMED",
+          status: "COMPLETE",
+          revision: 1,
+          timestamp: new Date().toISOString()
+        };
+      });
+    });
+    setSharedJobCache(scheduleId, { store, progress: cache.progress }, { online: true });
+  });
+}
+
 (async () => {
   const executablePath = EDGE_PATHS.find((item) => existsSync(item));
   const browser = await chromium.launch({ headless: true, executablePath });
@@ -236,24 +298,19 @@ async function saveNormalInspection(page, tag, status = "pass") {
   let deviceName = (await page.textContent("#deviceName")).trim();
   assert(deviceName === "QA.MCP.1", `MCP should open after MFAP prerequisite, got ${deviceName}`);
 
+  await writeSopStage(page, "QA.SPP.1", "sprinkler-hydrant-pump-sop", 5);
   await page.evaluate(() => selectDevice("QA.FS.1"));
-  await page.waitForSelector(".critical-sop-active #criticalSopPanel");
-  heading = (await page.textContent("#criticalSopPanel h2")).trim();
-  assert(heading.includes("QA.SPP.1"), `Flow Switch should next be blocked by water-system prerequisite, got ${heading}`);
+  await page.waitForSelector("#checklistForm:not(.hidden)");
+  deviceName = (await page.textContent("#deviceName")).trim();
+  assert(deviceName === "QA.FS.1", `Flow Switch should open after the FAP prerequisite, got ${deviceName}`);
 
   const flowAccessBeforeWater = await page.evaluate(() => {
     const schedule = getActiveTechnicianMaintenanceSchedule();
     const device = getScheduledAssignedDevices(schedule).find((item) => item.id === "QA.FS.1");
     return getDeviceCriticalAccessState(device, schedule);
   });
-  assert(flowAccessBeforeWater.allowed === false, "Flow Switch should still be locked before sprinkler prerequisite");
-  assert(flowAccessBeforeWater.dependencies.length === 2, "Flow Switch should carry both primary and secondary dependencies");
-
-  await writeSopStage(page, "QA.SPP.1", "sprinkler-hydrant-pump-sop", 5);
-  await page.evaluate(() => selectDevice("QA.FS.1"));
-  await page.waitForSelector("#checklistForm:not(.hidden)");
-  deviceName = (await page.textContent("#deviceName")).trim();
-  assert(deviceName === "QA.FS.1", `Flow Switch should open after both prerequisites, got ${deviceName}`);
+  assert(flowAccessBeforeWater.allowed === true, "Flow Switch should open once the FAP prerequisite is complete");
+  assert(flowAccessBeforeWater.dependencies.length === 1, "Flow Switch should retain only its FAP dependency");
 
   await saveNormalInspection(page, "QA.MCP.1");
   await saveNormalInspection(page, "QA.FS.1");
@@ -261,10 +318,27 @@ async function saveNormalInspection(page, tag, status = "pass") {
   assert(beforeFinalSummary.ready === false, "Job should not be ready before final restoration");
   assert(beforeFinalSummary.partial >= 2, "Critical parents should remain partial before final restoration");
 
+  await seedCompletedLinkedVerifications(page);
   await writeSopStage(page, "QA.MFAP.1", "fire-alarm-tripping-sop", 10);
-  await writeSopStage(page, "QA.SPP.1", "sprinkler-hydrant-pump-sop", 16);
+  await writeSopStage(page, "QA.SPP.1", "sprinkler-hydrant-pump-sop", 17);
   const afterFinalSummary = await page.evaluate(() => getAssignedCompletionSummary(getActiveTechnicianMaintenanceSchedule()));
-  assert(afterFinalSummary.ready === true, "Job should be ready after child devices and final restoration are complete");
+  const finalStatuses = await page.evaluate(() => {
+    const schedule = getActiveTechnicianMaintenanceSchedule();
+    const template = getCriticalSopTemplate("sprinkler-hydrant-pump-sop");
+    const mfapTemplate = getCriticalSopTemplate("fire-alarm-tripping-sop");
+    const mfapRecord = state.criticalSops["fire-alarm-tripping-sop::QA.MFAP.1"];
+    const record = state.criticalSops["sprinkler-hydrant-pump-sop::QA.SPP.1"];
+    return {
+      devices: getScheduledAssignedDevices(schedule).map((device) => ({ id: device.id || device.tag, status: getAssignedDeviceCompletionStatus(device, schedule) })),
+      pumpCompleted: getCriticalSopCompleteCount(template, record),
+      pumpTotal: template.steps.length,
+      pumpSteps: template.steps.map((step, index) => ({ index, complete: isSopStepComplete(step, record.steps[index] || {}, template, index, record), missing: getMissingSopRequirements(step, record.steps[index] || {}, template, index, record) })),
+      mfapCompleted: getCriticalSopCompleteCount(mfapTemplate, mfapRecord),
+      mfapTotal: mfapTemplate.steps.length,
+      mfapSteps: mfapTemplate.steps.map((step, index) => ({ index, complete: isSopStepComplete(step, mfapRecord.steps[index] || {}, mfapTemplate, index, mfapRecord), missing: getMissingSopRequirements(step, mfapRecord.steps[index] || {}, mfapTemplate, index, mfapRecord) }))
+    };
+  });
+  assert(afterFinalSummary.ready === true, `Job should be ready after child devices and final restoration are complete: ${JSON.stringify({ afterFinalSummary, finalStatuses })}`);
 
   console.log(JSON.stringify({
     mcpGate: "blocked by MFAP, then opened",

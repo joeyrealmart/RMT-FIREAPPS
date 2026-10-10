@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RMT Offline V2 POC</title><link rel="stylesheet" href="offline-poc.css"></head><body>
+<main><header><div><p class="eyebrow">DEVELOPER-ONLY, NOT PRODUCTION NAVIGATION</p><h1>RMT Offline V2 POC</h1><p id="flagState"></p></div><a href="../../index.html">Return to application</a></header>
+<section class="notice">This isolated screen uses test-only `OFFLINE-POC-*` records. It does not modify Wetex, normal schedules, localStorage workflows, or production Technician screens.</section>
+<section id="syncBanner" class="sync-banner sync-synced" role="status" aria-live="polite">
+  <div class="sync-state-icon" id="syncStateIcon" aria-hidden="true">&#10003;</div>
+  <div class="sync-state-copy">
+    <strong id="syncStateTitle">SYNCED</strong>
+    <span id="syncStateSummary">No work waiting to sync</span>
+    <span id="syncStateProgress" hidden></span>
+    <span id="syncCompletionState">Inspection still in progress</span>
+  </div>
+  <time id="syncElapsed" hidden>00:00</time>
+  <div class="sync-state-actions">
+    <button id="syncRetry" class="sync-action" hidden>Retry</button>
+    <button id="syncDetails" class="sync-action secondary">View details</button>
+  </div>
+</section>
+<section class="setup"><label>Job ID <input id="jobId" value="OFFLINE-POC-ANDROID-V1"></label><label>Technician <select id="technician"><option value="tech@rmtfire.local">Tech A - Pump Room</option><option value="tech2@rmtfire.local">Tech B - MFAP</option></select></label><label>Test device <select id="device"><option value="POC-DEVICE-A">POC Device A - Tech A</option><option value="POC-DEVICE-B">POC Device B - Tech B</option><option value="POC-DEVICE-A">POC Device A ownership rejection</option></select></label></section>
+<section class="metrics"><article><span>IndexedDB</span><strong id="dbStatus">Checking</strong></article><article><span>Drafts</span><strong id="draftCount">0</strong></article><article><span>Pending</span><strong id="pendingCount">0</strong></article><article><span>Synced</span><strong id="syncedCount">0</strong></article><article><span>Failed</span><strong id="failedCount">0</strong></article></section>
+<section class="actions"><button id="saveDraft">Save Test Draft</button><button id="loadDraft">Load Draft</button><button id="offline">Simulate Offline: Off</button><button id="queue">Queue Save</button><button id="retry">Retry Sync</button><button id="localComplete">Mark Inspection Locally Complete</button><button id="conflict">Simulate Revision Conflict</button><button class="danger" id="clear">Clear POC Data</button></section>
+<section id="statusDetailsPanel" class="status"><div><h2>Current Context</h2><dl><dt>Job</dt><dd id="currentJob"></dd><dt>Technician</dt><dd id="currentTechnician"></dd><dt>Last sync attempt</dt><dd id="lastSync">Never</dd><dt>Last successful sync</dt><dd id="lastSuccessfulSync">Never</dd><dt>Last error</dt><dd id="lastError">None</dd></dl></div><div><h2>Evidence Metadata</h2><pre id="evidence">No POC evidence metadata</pre></div></section>
+<section><h2>Queue</h2><pre id="queueState">No POC queue items</pre></section><p id="message" role="status"></p>
+</main><script src="../../vendor/dexie.min.js"></script><script src="../../offline/rmt-offline-store.js"></script><script src="offline-poc.js"></script></body></html>

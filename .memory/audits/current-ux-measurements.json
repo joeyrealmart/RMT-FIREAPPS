@@ -1,0 +1,3143 @@
+{
+  "capturedAt": "2026-10-04T14:44:41.217Z",
+  "appUrl": "http://127.0.0.1:8026/?overnight-audit=1",
+  "scheduleId": "DEMO-WETEX-RETEST-20260924",
+  "writeRequestsBlocked": true,
+  "results": [
+    {
+      "name": "small-phone",
+      "loginReadyMs": 662,
+      "openJobMs": 705,
+      "loginScreen": {
+        "viewport": {
+          "width": 413,
+          "height": 918
+        },
+        "document": {
+          "width": 413,
+          "height": 1072
+        },
+        "overflowX": false,
+        "visibleControls": 7,
+        "undersizedCount": 2,
+        "undersized": [
+          {
+            "tag": "INPUT",
+            "text": "",
+            "width": 307,
+            "height": 40
+          },
+          {
+            "tag": "INPUT",
+            "text": "",
+            "width": 307,
+            "height": 40
+          }
+        ],
+        "fixedOrSticky": 0,
+        "domNodes": 1138,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "jobs": {
+        "viewport": {
+          "width": 360,
+          "height": 800
+        },
+        "document": {
+          "width": 360,
+          "height": 800
+        },
+        "overflowX": false,
+        "visibleControls": 10,
+        "undersizedCount": 1,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 38,
+            "height": 38
+          }
+        ],
+        "fixedOrSticky": 2,
+        "domNodes": 1138,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "jobHome": {
+        "viewport": {
+          "width": 360,
+          "height": 800
+        },
+        "document": {
+          "width": 360,
+          "height": 4304
+        },
+        "overflowX": false,
+        "visibleControls": 30,
+        "undersizedCount": 1,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 38,
+            "height": 38
+          }
+        ],
+        "fixedOrSticky": 3,
+        "domNodes": 2060,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "systems": [
+        {
+          "id": "fire-alarm",
+          "label": "Fire Alarm Panel",
+          "openMs": 586,
+          "viewport": {
+            "width": 360,
+            "height": 800
+          },
+          "document": {
+            "width": 360,
+            "height": 6726
+          },
+          "overflowX": false,
+          "visibleControls": 53,
+          "undersizedCount": 25,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-0",
+              "width": 127,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-1",
+              "width": 127,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-1",
+              "width": 127,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-2",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 127,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 95,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 87,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 89,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-4",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 127,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-5",
+              "width": 91,
+              "height": 39
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Pass Fail N/A",
+              "width": 127,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-6",
+              "width": 127,
+              "height": 41
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-8",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Confirmed and Tested Not Allowed N/A",
+              "width": 127,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-8",
+              "width": 127,
+              "height": 41
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-supervisor-8",
+              "width": 127,
+              "height": 40
+            }
+          ],
+          "fixedOrSticky": 5,
+          "domNodes": 2146,
+          "markerCount": 1,
+          "assignedMarkerCount": 1,
+          "techScreen": "inspection",
+          "systemKey": "fire-alarm"
+        },
+        {
+          "id": "pump-system",
+          "label": "SPP / Sprinkler",
+          "openMs": 558,
+          "viewport": {
+            "width": 360,
+            "height": 800
+          },
+          "document": {
+            "width": 360,
+            "height": 10834
+          },
+          "overflowX": false,
+          "visibleControls": 77,
+          "undersizedCount": 43,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-0",
+              "width": 127,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 18,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 127,
+              "height": 31
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select RCC / Concrete TankFRP TankSteel TankHDPE TankOther",
+              "width": 127,
+              "height": 42
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select Calculate from dimensionsUse known capacity",
+              "width": 127,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankLengthFt",
+              "width": 91,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankWidthFt",
+              "width": 91,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankHeightFt",
+              "width": 91,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-2",
+              "width": 127,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-3",
+              "width": 18,
+              "height": 20
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Fully Open Partially Open Closed",
+              "width": 127,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-3",
+              "width": 127,
+              "height": 41
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 127,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseRy",
+              "width": 91,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseYb",
+              "width": 91,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseBr",
+              "width": 91,
+              "height": 39
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Pass Fail",
+              "width": 127,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-6",
+              "width": 127,
+              "height": 40
+            }
+          ],
+          "fixedOrSticky": 4,
+          "domNodes": 2253,
+          "markerCount": 2,
+          "assignedMarkerCount": 2,
+          "techScreen": "inspection",
+          "systemKey": "pump-system"
+        },
+        {
+          "id": "gas-release",
+          "label": "CO2 / Gas Release",
+          "openMs": 532,
+          "viewport": {
+            "width": 360,
+            "height": 800
+          },
+          "document": {
+            "width": 360,
+            "height": 6976
+          },
+          "overflowX": false,
+          "visibleControls": 45,
+          "undersizedCount": 22,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Before Photo",
+              "width": 242,
+              "height": 31
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo After Photo",
+              "width": 242,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-2",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-3",
+              "width": 15,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-3",
+              "width": 127,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-4",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-5",
+              "width": 19,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-6",
+              "width": 17,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-7",
+              "width": 19,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-8",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-9",
+              "width": 19,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-10",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-10",
+              "width": 127,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-11",
+              "width": 19,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-12",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-13",
+              "width": 19,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-14",
+              "width": 20,
+              "height": 20
+            }
+          ],
+          "fixedOrSticky": 4,
+          "domNodes": 2042,
+          "markerCount": 0,
+          "assignedMarkerCount": 0,
+          "techScreen": "inspection",
+          "systemKey": "gas-release"
+        },
+        {
+          "id": "emergency-light",
+          "label": "Emergency Light",
+          "openMs": 415,
+          "viewport": {
+            "width": 360,
+            "height": 800
+          },
+          "document": {
+            "width": 360,
+            "height": 1830
+          },
+          "overflowX": false,
+          "visibleControls": 29,
+          "undersizedCount": 4,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "SELECT",
+              "text": "WETEX-01 / LGWETEX-02 / GroundWETEX-03 / L1WETEX-04 / L2WETEX-05 / L3WETEX-06 / ",
+              "width": 302,
+              "height": 42
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Original",
+              "width": 143,
+              "height": 32
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Clean",
+              "width": 143,
+              "height": 32
+            }
+          ],
+          "fixedOrSticky": 3,
+          "domNodes": 2062,
+          "markerCount": 1,
+          "assignedMarkerCount": 1,
+          "techScreen": "mimic",
+          "systemKey": "emergency-light"
+        }
+      ],
+      "mimic": {
+        "viewport": {
+          "width": 360,
+          "height": 800
+        },
+        "document": {
+          "width": 360,
+          "height": 1849
+        },
+        "overflowX": false,
+        "visibleControls": 30,
+        "undersizedCount": 4,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 38,
+            "height": 38
+          },
+          {
+            "tag": "SELECT",
+            "text": "WETEX-01 / LGWETEX-02 / GroundWETEX-03 / L1WETEX-04 / L2WETEX-05 / L3WETEX-06 / ",
+            "width": 302,
+            "height": 42
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Original",
+            "width": 143,
+            "height": 32
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Clean",
+            "width": 143,
+            "height": 32
+          }
+        ],
+        "fixedOrSticky": 3,
+        "domNodes": 2147,
+        "markerCount": 2,
+        "assignedMarkerCount": 2,
+        "techScreen": "mimic",
+        "systemKey": "fire-alarm"
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "name": "normal-phone",
+      "loginReadyMs": 295,
+      "openJobMs": 364,
+      "loginScreen": {
+        "viewport": {
+          "width": 413,
+          "height": 894
+        },
+        "document": {
+          "width": 413,
+          "height": 1072
+        },
+        "overflowX": false,
+        "visibleControls": 7,
+        "undersizedCount": 2,
+        "undersized": [
+          {
+            "tag": "INPUT",
+            "text": "",
+            "width": 307,
+            "height": 40
+          },
+          {
+            "tag": "INPUT",
+            "text": "",
+            "width": 307,
+            "height": 40
+          }
+        ],
+        "fixedOrSticky": 0,
+        "domNodes": 1138,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "jobs": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 844
+        },
+        "overflowX": false,
+        "visibleControls": 10,
+        "undersizedCount": 1,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 38,
+            "height": 38
+          }
+        ],
+        "fixedOrSticky": 2,
+        "domNodes": 1138,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "jobHome": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 4213
+        },
+        "overflowX": false,
+        "visibleControls": 30,
+        "undersizedCount": 1,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 38,
+            "height": 38
+          }
+        ],
+        "fixedOrSticky": 3,
+        "domNodes": 2060,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "systems": [
+        {
+          "id": "fire-alarm",
+          "label": "Fire Alarm Panel",
+          "openMs": 511,
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "document": {
+            "width": 390,
+            "height": 6443
+          },
+          "overflowX": false,
+          "visibleControls": 53,
+          "undersizedCount": 25,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-0",
+              "width": 142,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-1",
+              "width": 142,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-1",
+              "width": 142,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-2",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 142,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 95,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 87,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 89,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-4",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 142,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-5",
+              "width": 106,
+              "height": 39
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Pass Fail N/A",
+              "width": 142,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-6",
+              "width": 142,
+              "height": 41
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-8",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Confirmed and Tested Not Allowed N/A",
+              "width": 142,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-8",
+              "width": 142,
+              "height": 41
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-supervisor-8",
+              "width": 142,
+              "height": 40
+            }
+          ],
+          "fixedOrSticky": 5,
+          "domNodes": 2146,
+          "markerCount": 1,
+          "assignedMarkerCount": 1,
+          "techScreen": "inspection",
+          "systemKey": "fire-alarm"
+        },
+        {
+          "id": "pump-system",
+          "label": "SPP / Sprinkler",
+          "openMs": 452,
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "document": {
+            "width": 390,
+            "height": 10362
+          },
+          "overflowX": false,
+          "visibleControls": 77,
+          "undersizedCount": 44,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-0",
+              "width": 142,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 142,
+              "height": 31
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select RCC / Concrete TankFRP TankSteel TankHDPE TankOther",
+              "width": 142,
+              "height": 42
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select Calculate from dimensionsUse known capacity",
+              "width": 142,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankLengthFt",
+              "width": 106,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankWidthFt",
+              "width": 106,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankHeightFt",
+              "width": 106,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-2",
+              "width": 142,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-3",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Fully Open Partially Open Closed",
+              "width": 142,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-3",
+              "width": 142,
+              "height": 41
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 142,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseRy",
+              "width": 106,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseYb",
+              "width": 106,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseBr",
+              "width": 106,
+              "height": 39
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Pass Fail",
+              "width": 142,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-6",
+              "width": 142,
+              "height": 40
+            }
+          ],
+          "fixedOrSticky": 4,
+          "domNodes": 2253,
+          "markerCount": 2,
+          "assignedMarkerCount": 2,
+          "techScreen": "inspection",
+          "systemKey": "pump-system"
+        },
+        {
+          "id": "gas-release",
+          "label": "CO2 / Gas Release",
+          "openMs": 457,
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "document": {
+            "width": 390,
+            "height": 6732
+          },
+          "overflowX": false,
+          "visibleControls": 45,
+          "undersizedCount": 22,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Before Photo",
+              "width": 272,
+              "height": 31
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo After Photo",
+              "width": 272,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-2",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-3",
+              "width": 17,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-3",
+              "width": 142,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-4",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-5",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-6",
+              "width": 19,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-7",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-8",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-9",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-10",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-10",
+              "width": 142,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-11",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-12",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-13",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-14",
+              "width": 20,
+              "height": 20
+            }
+          ],
+          "fixedOrSticky": 4,
+          "domNodes": 2042,
+          "markerCount": 0,
+          "assignedMarkerCount": 0,
+          "techScreen": "inspection",
+          "systemKey": "gas-release"
+        },
+        {
+          "id": "emergency-light",
+          "label": "Emergency Light",
+          "openMs": 419,
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "document": {
+            "width": 390,
+            "height": 1830
+          },
+          "overflowX": false,
+          "visibleControls": 29,
+          "undersizedCount": 4,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "SELECT",
+              "text": "WETEX-01 / LGWETEX-02 / GroundWETEX-03 / L1WETEX-04 / L2WETEX-05 / L3WETEX-06 / ",
+              "width": 332,
+              "height": 42
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Original",
+              "width": 158,
+              "height": 32
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Clean",
+              "width": 158,
+              "height": 32
+            }
+          ],
+          "fixedOrSticky": 3,
+          "domNodes": 2062,
+          "markerCount": 1,
+          "assignedMarkerCount": 1,
+          "techScreen": "mimic",
+          "systemKey": "emergency-light"
+        }
+      ],
+      "mimic": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "document": {
+          "width": 390,
+          "height": 1830
+        },
+        "overflowX": false,
+        "visibleControls": 30,
+        "undersizedCount": 4,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 38,
+            "height": 38
+          },
+          {
+            "tag": "SELECT",
+            "text": "WETEX-01 / LGWETEX-02 / GroundWETEX-03 / L1WETEX-04 / L2WETEX-05 / L3WETEX-06 / ",
+            "width": 332,
+            "height": 42
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Original",
+            "width": 158,
+            "height": 32
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Clean",
+            "width": 158,
+            "height": 32
+          }
+        ],
+        "fixedOrSticky": 3,
+        "domNodes": 2147,
+        "markerCount": 2,
+        "assignedMarkerCount": 2,
+        "techScreen": "mimic",
+        "systemKey": "fire-alarm"
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "name": "large-phone",
+      "loginReadyMs": 320,
+      "openJobMs": 475,
+      "loginScreen": {
+        "viewport": {
+          "width": 430,
+          "height": 932
+        },
+        "document": {
+          "width": 430,
+          "height": 1024
+        },
+        "overflowX": false,
+        "visibleControls": 7,
+        "undersizedCount": 2,
+        "undersized": [
+          {
+            "tag": "INPUT",
+            "text": "",
+            "width": 324,
+            "height": 40
+          },
+          {
+            "tag": "INPUT",
+            "text": "",
+            "width": 324,
+            "height": 40
+          }
+        ],
+        "fixedOrSticky": 0,
+        "domNodes": 1138,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "jobs": {
+        "viewport": {
+          "width": 430,
+          "height": 932
+        },
+        "document": {
+          "width": 430,
+          "height": 932
+        },
+        "overflowX": false,
+        "visibleControls": 10,
+        "undersizedCount": 1,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 38,
+            "height": 38
+          }
+        ],
+        "fixedOrSticky": 2,
+        "domNodes": 1138,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "jobHome": {
+        "viewport": {
+          "width": 430,
+          "height": 932
+        },
+        "document": {
+          "width": 430,
+          "height": 4175
+        },
+        "overflowX": false,
+        "visibleControls": 30,
+        "undersizedCount": 1,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 38,
+            "height": 38
+          }
+        ],
+        "fixedOrSticky": 3,
+        "domNodes": 2060,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "systems": [
+        {
+          "id": "fire-alarm",
+          "label": "Fire Alarm Panel",
+          "openMs": 545,
+          "viewport": {
+            "width": 430,
+            "height": 932
+          },
+          "document": {
+            "width": 430,
+            "height": 6328
+          },
+          "overflowX": false,
+          "visibleControls": 53,
+          "undersizedCount": 25,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-0",
+              "width": 162,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-1",
+              "width": 162,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-1",
+              "width": 162,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-2",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 162,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 95,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 87,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 89,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-4",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 162,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-5",
+              "width": 126,
+              "height": 39
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Pass Fail N/A",
+              "width": 162,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-6",
+              "width": 162,
+              "height": 41
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-8",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Confirmed and Tested Not Allowed N/A",
+              "width": 162,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-8",
+              "width": 162,
+              "height": 41
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-supervisor-8",
+              "width": 162,
+              "height": 40
+            }
+          ],
+          "fixedOrSticky": 5,
+          "domNodes": 2146,
+          "markerCount": 1,
+          "assignedMarkerCount": 1,
+          "techScreen": "inspection",
+          "systemKey": "fire-alarm"
+        },
+        {
+          "id": "pump-system",
+          "label": "SPP / Sprinkler",
+          "openMs": 464,
+          "viewport": {
+            "width": 430,
+            "height": 932
+          },
+          "document": {
+            "width": 430,
+            "height": 10012
+          },
+          "overflowX": false,
+          "visibleControls": 77,
+          "undersizedCount": 44,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-0",
+              "width": 162,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 162,
+              "height": 31
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select RCC / Concrete TankFRP TankSteel TankHDPE TankOther",
+              "width": 162,
+              "height": 42
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select Calculate from dimensionsUse known capacity",
+              "width": 162,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankLengthFt",
+              "width": 126,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankWidthFt",
+              "width": 126,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankHeightFt",
+              "width": 126,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-2",
+              "width": 162,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-3",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Fully Open Partially Open Closed",
+              "width": 162,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-3",
+              "width": 162,
+              "height": 41
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 162,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseRy",
+              "width": 126,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseYb",
+              "width": 126,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseBr",
+              "width": 126,
+              "height": 39
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Pass Fail",
+              "width": 162,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-6",
+              "width": 162,
+              "height": 40
+            }
+          ],
+          "fixedOrSticky": 4,
+          "domNodes": 2253,
+          "markerCount": 2,
+          "assignedMarkerCount": 2,
+          "techScreen": "inspection",
+          "systemKey": "pump-system"
+        },
+        {
+          "id": "gas-release",
+          "label": "CO2 / Gas Release",
+          "openMs": 451,
+          "viewport": {
+            "width": 430,
+            "height": 932
+          },
+          "document": {
+            "width": 430,
+            "height": 6610
+          },
+          "overflowX": false,
+          "visibleControls": 45,
+          "undersizedCount": 22,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Before Photo",
+              "width": 312,
+              "height": 31
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo After Photo",
+              "width": 312,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-2",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-3",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-3",
+              "width": 162,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-4",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-5",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-6",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-7",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-8",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-9",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-10",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-10",
+              "width": 162,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-11",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-12",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-13",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-14",
+              "width": 20,
+              "height": 20
+            }
+          ],
+          "fixedOrSticky": 4,
+          "domNodes": 2042,
+          "markerCount": 0,
+          "assignedMarkerCount": 0,
+          "techScreen": "inspection",
+          "systemKey": "gas-release"
+        },
+        {
+          "id": "emergency-light",
+          "label": "Emergency Light",
+          "openMs": 390,
+          "viewport": {
+            "width": 430,
+            "height": 932
+          },
+          "document": {
+            "width": 430,
+            "height": 1795
+          },
+          "overflowX": false,
+          "visibleControls": 29,
+          "undersizedCount": 4,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "SELECT",
+              "text": "WETEX-01 / LGWETEX-02 / GroundWETEX-03 / L1WETEX-04 / L2WETEX-05 / L3WETEX-06 / ",
+              "width": 372,
+              "height": 42
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Original",
+              "width": 178,
+              "height": 32
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Clean",
+              "width": 178,
+              "height": 32
+            }
+          ],
+          "fixedOrSticky": 3,
+          "domNodes": 2062,
+          "markerCount": 1,
+          "assignedMarkerCount": 1,
+          "techScreen": "mimic",
+          "systemKey": "emergency-light"
+        }
+      ],
+      "mimic": {
+        "viewport": {
+          "width": 430,
+          "height": 932
+        },
+        "document": {
+          "width": 430,
+          "height": 1799
+        },
+        "overflowX": false,
+        "visibleControls": 30,
+        "undersizedCount": 4,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 38,
+            "height": 38
+          },
+          {
+            "tag": "SELECT",
+            "text": "WETEX-01 / LGWETEX-02 / GroundWETEX-03 / L1WETEX-04 / L2WETEX-05 / L3WETEX-06 / ",
+            "width": 372,
+            "height": 42
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Original",
+            "width": 178,
+            "height": 32
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Clean",
+            "width": 178,
+            "height": 32
+          }
+        ],
+        "fixedOrSticky": 3,
+        "domNodes": 2147,
+        "markerCount": 2,
+        "assignedMarkerCount": 2,
+        "techScreen": "mimic",
+        "systemKey": "fire-alarm"
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "name": "tablet-portrait",
+      "loginReadyMs": 296,
+      "openJobMs": 471,
+      "loginScreen": {
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "document": {
+          "width": 768,
+          "height": 1024
+        },
+        "overflowX": false,
+        "visibleControls": 7,
+        "undersizedCount": 2,
+        "undersized": [
+          {
+            "tag": "INPUT",
+            "text": "",
+            "width": 362,
+            "height": 40
+          },
+          {
+            "tag": "INPUT",
+            "text": "",
+            "width": 362,
+            "height": 40
+          }
+        ],
+        "fixedOrSticky": 0,
+        "domNodes": 1138,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "jobs": {
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "document": {
+          "width": 768,
+          "height": 1024
+        },
+        "overflowX": false,
+        "visibleControls": 10,
+        "undersizedCount": 1,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 38,
+            "height": 38
+          }
+        ],
+        "fixedOrSticky": 2,
+        "domNodes": 1138,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "jobHome": {
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "document": {
+          "width": 768,
+          "height": 3584
+        },
+        "overflowX": false,
+        "visibleControls": 30,
+        "undersizedCount": 1,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 38,
+            "height": 38
+          }
+        ],
+        "fixedOrSticky": 3,
+        "domNodes": 2060,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "systems": [
+        {
+          "id": "fire-alarm",
+          "label": "Fire Alarm Panel",
+          "openMs": 551,
+          "viewport": {
+            "width": 768,
+            "height": 1024
+          },
+          "document": {
+            "width": 768,
+            "height": 5361
+          },
+          "overflowX": false,
+          "visibleControls": 53,
+          "undersizedCount": 25,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-0",
+              "width": 331,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-1",
+              "width": 331,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-1",
+              "width": 331,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-2",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 331,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 95,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 87,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 89,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-4",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 331,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-5",
+              "width": 295,
+              "height": 39
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Pass Fail N/A",
+              "width": 331,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-6",
+              "width": 331,
+              "height": 41
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-8",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Confirmed and Tested Not Allowed N/A",
+              "width": 331,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-8",
+              "width": 331,
+              "height": 41
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-supervisor-8",
+              "width": 331,
+              "height": 40
+            }
+          ],
+          "fixedOrSticky": 5,
+          "domNodes": 2146,
+          "markerCount": 1,
+          "assignedMarkerCount": 1,
+          "techScreen": "inspection",
+          "systemKey": "fire-alarm"
+        },
+        {
+          "id": "pump-system",
+          "label": "SPP / Sprinkler",
+          "openMs": 514,
+          "viewport": {
+            "width": 768,
+            "height": 1024
+          },
+          "document": {
+            "width": 768,
+            "height": 8955
+          },
+          "overflowX": false,
+          "visibleControls": 77,
+          "undersizedCount": 45,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-0",
+              "width": 331,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 331,
+              "height": 31
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select RCC / Concrete TankFRP TankSteel TankHDPE TankOther",
+              "width": 331,
+              "height": 42
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select Calculate from dimensionsUse known capacity",
+              "width": 331,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankLengthFt",
+              "width": 295,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankWidthFt",
+              "width": 295,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankHeightFt",
+              "width": 295,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-2",
+              "width": 331,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-3",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Fully Open Partially Open Closed",
+              "width": 331,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-3",
+              "width": 331,
+              "height": 41
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 331,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseRy",
+              "width": 295,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseYb",
+              "width": 295,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseBr",
+              "width": 295,
+              "height": 39
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Pass Fail",
+              "width": 331,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-6",
+              "width": 331,
+              "height": 40
+            }
+          ],
+          "fixedOrSticky": 4,
+          "domNodes": 2253,
+          "markerCount": 2,
+          "assignedMarkerCount": 2,
+          "techScreen": "inspection",
+          "systemKey": "pump-system"
+        },
+        {
+          "id": "gas-release",
+          "label": "CO2 / Gas Release",
+          "openMs": 462,
+          "viewport": {
+            "width": 768,
+            "height": 1024
+          },
+          "document": {
+            "width": 768,
+            "height": 5906
+          },
+          "overflowX": false,
+          "visibleControls": 45,
+          "undersizedCount": 22,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Before Photo",
+              "width": 650,
+              "height": 31
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo After Photo",
+              "width": 650,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-2",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-3",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-3",
+              "width": 331,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-4",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-5",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-6",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-7",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-8",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-9",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-10",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-10",
+              "width": 331,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-11",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-12",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-13",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-14",
+              "width": 20,
+              "height": 20
+            }
+          ],
+          "fixedOrSticky": 4,
+          "domNodes": 2042,
+          "markerCount": 0,
+          "assignedMarkerCount": 0,
+          "techScreen": "inspection",
+          "systemKey": "gas-release"
+        },
+        {
+          "id": "emergency-light",
+          "label": "Emergency Light",
+          "openMs": 384,
+          "viewport": {
+            "width": 768,
+            "height": 1024
+          },
+          "document": {
+            "width": 768,
+            "height": 1790
+          },
+          "overflowX": false,
+          "visibleControls": 29,
+          "undersizedCount": 4,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 38,
+              "height": 38
+            },
+            {
+              "tag": "SELECT",
+              "text": "WETEX-01 / LGWETEX-02 / GroundWETEX-03 / L1WETEX-04 / L2WETEX-05 / L3WETEX-06 / ",
+              "width": 710,
+              "height": 42
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Original",
+              "width": 347,
+              "height": 32
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Clean",
+              "width": 347,
+              "height": 32
+            }
+          ],
+          "fixedOrSticky": 3,
+          "domNodes": 2062,
+          "markerCount": 1,
+          "assignedMarkerCount": 1,
+          "techScreen": "mimic",
+          "systemKey": "emergency-light"
+        }
+      ],
+      "mimic": {
+        "viewport": {
+          "width": 768,
+          "height": 1024
+        },
+        "document": {
+          "width": 768,
+          "height": 1790
+        },
+        "overflowX": false,
+        "visibleControls": 30,
+        "undersizedCount": 4,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 38,
+            "height": 38
+          },
+          {
+            "tag": "SELECT",
+            "text": "WETEX-01 / LGWETEX-02 / GroundWETEX-03 / L1WETEX-04 / L2WETEX-05 / L3WETEX-06 / ",
+            "width": 710,
+            "height": 42
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Original",
+            "width": 347,
+            "height": 32
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Clean",
+            "width": 347,
+            "height": 32
+          }
+        ],
+        "fixedOrSticky": 3,
+        "domNodes": 2147,
+        "markerCount": 2,
+        "assignedMarkerCount": 2,
+        "techScreen": "mimic",
+        "systemKey": "fire-alarm"
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "name": "tablet-landscape",
+      "loginReadyMs": 313,
+      "openJobMs": 408,
+      "loginScreen": {
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "document": {
+          "width": 1024,
+          "height": 768
+        },
+        "overflowX": false,
+        "visibleControls": 7,
+        "undersizedCount": 2,
+        "undersized": [
+          {
+            "tag": "INPUT",
+            "text": "",
+            "width": 304,
+            "height": 40
+          },
+          {
+            "tag": "INPUT",
+            "text": "",
+            "width": 304,
+            "height": 40
+          }
+        ],
+        "fixedOrSticky": 0,
+        "domNodes": 1138,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "jobs": {
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "document": {
+          "width": 1024,
+          "height": 768
+        },
+        "overflowX": false,
+        "visibleControls": 5,
+        "undersizedCount": 3,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 34,
+            "height": 34
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Back to system list",
+            "width": 212,
+            "height": 42
+          },
+          {
+            "tag": "BUTTON",
+            "text": "View mimic",
+            "width": 212,
+            "height": 42
+          }
+        ],
+        "fixedOrSticky": 1,
+        "domNodes": 1138,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "jobHome": {
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "document": {
+          "width": 1024,
+          "height": 2040
+        },
+        "overflowX": false,
+        "visibleControls": 24,
+        "undersizedCount": 3,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 34,
+            "height": 34
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Back to system list",
+            "width": 212,
+            "height": 42
+          },
+          {
+            "tag": "BUTTON",
+            "text": "View mimic",
+            "width": 212,
+            "height": 42
+          }
+        ],
+        "fixedOrSticky": 1,
+        "domNodes": 2060,
+        "markerCount": 0,
+        "assignedMarkerCount": 0,
+        "techScreen": "jobs",
+        "systemKey": ""
+      },
+      "systems": [
+        {
+          "id": "fire-alarm",
+          "label": "Fire Alarm Panel",
+          "openMs": 532,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "document": {
+            "width": 1024,
+            "height": 5021
+          },
+          "overflowX": false,
+          "visibleControls": 47,
+          "undersizedCount": 27,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 34,
+              "height": 34
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Back to system list",
+              "width": 212,
+              "height": 42
+            },
+            {
+              "tag": "BUTTON",
+              "text": "View mimic",
+              "width": 212,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-0",
+              "width": 322,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-1",
+              "width": 322,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-1",
+              "width": 322,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-2",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 322,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 95,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 87,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-3-testMode",
+              "width": 89,
+              "height": 13
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-4",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 322,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-5",
+              "width": 286,
+              "height": 39
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Pass Fail N/A",
+              "width": 322,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-6",
+              "width": 322,
+              "height": 41
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-8",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Confirmed and Tested Not Allowed N/A",
+              "width": 322,
+              "height": 42
+            }
+          ],
+          "fixedOrSticky": 3,
+          "domNodes": 2146,
+          "markerCount": 1,
+          "assignedMarkerCount": 1,
+          "techScreen": "inspection",
+          "systemKey": "fire-alarm"
+        },
+        {
+          "id": "pump-system",
+          "label": "SPP / Sprinkler",
+          "openMs": 491,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "document": {
+            "width": 1024,
+            "height": 8611
+          },
+          "overflowX": false,
+          "visibleControls": 71,
+          "undersizedCount": 47,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 34,
+              "height": 34
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Back to system list",
+              "width": 212,
+              "height": 42
+            },
+            {
+              "tag": "BUTTON",
+              "text": "View mimic",
+              "width": 212,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-0",
+              "width": 322,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 322,
+              "height": 31
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select RCC / Concrete TankFRP TankSteel TankHDPE TankOther",
+              "width": 322,
+              "height": 42
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select Calculate from dimensionsUse known capacity",
+              "width": 322,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankLengthFt",
+              "width": 286,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankWidthFt",
+              "width": 286,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-2-tankHeightFt",
+              "width": 286,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-2",
+              "width": 322,
+              "height": 40
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-3",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "SELECT",
+              "text": "Select before confirming Fully Open Partially Open Closed",
+              "width": 322,
+              "height": 42
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-remark-3",
+              "width": 322,
+              "height": 41
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Photo",
+              "width": 322,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseRy",
+              "width": 286,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseYb",
+              "width": 286,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-field-4-phaseBr",
+              "width": 286,
+              "height": 39
+            }
+          ],
+          "fixedOrSticky": 2,
+          "domNodes": 2253,
+          "markerCount": 2,
+          "assignedMarkerCount": 2,
+          "techScreen": "inspection",
+          "systemKey": "pump-system"
+        },
+        {
+          "id": "gas-release",
+          "label": "CO2 / Gas Release",
+          "openMs": 434,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "document": {
+            "width": 1024,
+            "height": 5397
+          },
+          "overflowX": false,
+          "visibleControls": 39,
+          "undersizedCount": 24,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 34,
+              "height": 34
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Back to system list",
+              "width": 212,
+              "height": 42
+            },
+            {
+              "tag": "BUTTON",
+              "text": "View mimic",
+              "width": 212,
+              "height": 42
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo Before Photo",
+              "width": 300,
+              "height": 31
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Use Demo After Photo",
+              "width": 300,
+              "height": 31
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-0",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-1",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-2",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-3",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-3",
+              "width": 322,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-4",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-5",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-6",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-7",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-8",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-9",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-10",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-reading-10",
+              "width": 322,
+              "height": 39
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-11",
+              "width": 20,
+              "height": 20
+            },
+            {
+              "tag": "INPUT",
+              "text": "sop-confirm-12",
+              "width": 20,
+              "height": 20
+            }
+          ],
+          "fixedOrSticky": 2,
+          "domNodes": 2042,
+          "markerCount": 0,
+          "assignedMarkerCount": 0,
+          "techScreen": "inspection",
+          "systemKey": "gas-release"
+        },
+        {
+          "id": "emergency-light",
+          "label": "Emergency Light",
+          "openMs": 431,
+          "viewport": {
+            "width": 1024,
+            "height": 768
+          },
+          "document": {
+            "width": 1218,
+            "height": 1095
+          },
+          "overflowX": true,
+          "visibleControls": 17,
+          "undersizedCount": 4,
+          "undersized": [
+            {
+              "tag": "BUTTON",
+              "text": "Collapse systems",
+              "width": 34,
+              "height": 34
+            },
+            {
+              "tag": "BUTTON",
+              "text": "Back to system list",
+              "width": 212,
+              "height": 42
+            },
+            {
+              "tag": "BUTTON",
+              "text": "View mimic",
+              "width": 212,
+              "height": 42
+            },
+            {
+              "tag": "BUTTON",
+              "text": "EL",
+              "width": 38,
+              "height": 38
+            }
+          ],
+          "fixedOrSticky": 1,
+          "domNodes": 2062,
+          "markerCount": 1,
+          "assignedMarkerCount": 1,
+          "techScreen": "mimic",
+          "systemKey": "emergency-light"
+        }
+      ],
+      "mimic": {
+        "viewport": {
+          "width": 1024,
+          "height": 768
+        },
+        "document": {
+          "width": 1195,
+          "height": 1194
+        },
+        "overflowX": true,
+        "visibleControls": 18,
+        "undersizedCount": 5,
+        "undersized": [
+          {
+            "tag": "BUTTON",
+            "text": "Collapse systems",
+            "width": 34,
+            "height": 34
+          },
+          {
+            "tag": "BUTTON",
+            "text": "Back to system list",
+            "width": 212,
+            "height": 42
+          },
+          {
+            "tag": "BUTTON",
+            "text": "View mimic",
+            "width": 212,
+            "height": 42
+          },
+          {
+            "tag": "BUTTON",
+            "text": "MCP",
+            "width": 38,
+            "height": 38
+          },
+          {
+            "tag": "BUTTON",
+            "text": "MCP",
+            "width": 38,
+            "height": 38
+          }
+        ],
+        "fixedOrSticky": 1,
+        "domNodes": 2147,
+        "markerCount": 2,
+        "assignedMarkerCount": 2,
+        "techScreen": "mimic",
+        "systemKey": "fire-alarm"
+      },
+      "consoleErrors": [],
+      "failedRequests": []
+    }
+  ]
+}

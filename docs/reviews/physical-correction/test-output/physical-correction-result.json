@@ -1,0 +1,41 @@
+{
+  "pass": true,
+  "scheduleId": "DEMO-WETEX-RETEST-20260924",
+  "activeWetexCount": 1,
+  "configuredSystemCount": 4,
+  "drawerSystemCount": 4,
+  "fapStep4Checked": 1,
+  "pumpWrites": [
+    {
+      "ok": true,
+      "id": "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::JOCKEY_MANUAL",
+      "status": "VERIFIED"
+    },
+    {
+      "ok": true,
+      "id": "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::DUTY_MANUAL",
+      "status": "VERIFIED"
+    },
+    {
+      "ok": true,
+      "id": "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::STANDBY_MANUAL",
+      "status": "VERIFIED"
+    }
+  ],
+  "gasWrites": [
+    {
+      "ok": true,
+      "id": "DEMO-WETEX-RETEST-20260924::CO2_MFAP::GRD.CO2.1::INDICATION",
+      "status": "AWAITING_COUNTERPART"
+    }
+  ],
+  "linkedStates": {
+    "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::JOCKEY_MANUAL": "VERIFIED",
+    "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::DUTY_MANUAL": "VERIFIED",
+    "DEMO-WETEX-RETEST-20260924::PUMP_MFAP::LG.SPP.1::STANDBY_MANUAL": "MISMATCH_REVIEW_REQUIRED",
+    "DEMO-WETEX-RETEST-20260924::CO2_MFAP::GRD.CO2.1::INDICATION": "VERIFIED",
+    "DEMO-WETEX-RETEST-20260924::CO2_MFAP::GRD.CO2.2::INDICATION": "NOT_STARTED",
+    "DEMO-WETEX-RETEST-20260924::CO2_MFAP::R.CO2.1::INDICATION": "NOT_STARTED"
+  },
+  "consoleErrors": []
+}

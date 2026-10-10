@@ -1,0 +1,25 @@
+{
+  "status": "BLOCKED",
+  "test": "work/qa-physical-correction-batch.cjs",
+  "failureStage": "JOCKEY_MFAP_INLINE_RESPONSE",
+  "error": "Timed out waiting 30000 ms for POST /linked-verification-sides after clicking the inline MFAP quick-response button.",
+  "completedEvidence": [
+    "FAP_STEP4_SINGLE_SELECT",
+    "DRAWER_DATA_DRIVEN",
+    "DRAWER_COLLAPSE_REOPEN",
+    "OFFICIAL_LOGO_LOADED",
+    "ACTIVE_WETEX_COUNT_1",
+    "PUMP_SIDE_THREE_RECORDS",
+    "PUMP_INLINE_THREE_STEPS",
+    "MFAP_INLINE_JOCKEY_PROMPT_VISIBLE"
+  ],
+  "sharedFixtureRestored": true,
+  "remainingSharedRecords": {
+    "inspectionRecords": 0,
+    "criticalSopRecords": 0,
+    "linkedVerificationSideRecords": 0,
+    "linkedVerificationConflicts": 0,
+    "signOff": null,
+    "reportSubmission": null
+  }
+}

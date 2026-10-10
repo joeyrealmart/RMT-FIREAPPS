@@ -1,10 +1,11 @@
-const { existsSync, writeFileSync } = require("node:fs");
+const { existsSync, readFileSync, writeFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { tmpdir } = require("node:os");
 const { chromium } = require("C:/Users/Joey/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright");
 
 const APP_URL = process.env.APP_URL || "http://127.0.0.1:8026/?fresh=20260906-extinguisher-assets-v1";
 const BASE_URL = APP_URL.replace(/\?.*$/, "").replace(/\/$/, "");
+const SCHEDULE_PATH = join(__dirname, "..", "outputs", "rmt-fire-local-data", "schedules", "service-schedules.json");
 const EDGE_PATHS = [
   "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
   "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
@@ -407,16 +408,22 @@ async function runAdminBrowserQa(browser, serverFixture) {
 }
 
 (async () => {
-  const server = await runServerQa();
-  const executablePath = EDGE_PATHS.find(existsSync);
-  assert(executablePath, "No Edge/Chrome executable found.");
-  const browser = await chromium.launch({ headless: true, executablePath });
-  const ui = await runBrowserQa(browser, server);
-  await runAdminBrowserQa(browser, server);
-  await browser.close();
-  console.log("PASS qa-extinguisher-assets-v1");
-  console.log(JSON.stringify({ server: { scheduleId: server.schedule.scheduleId, frozenCount: server.frozenCount, reconciliation: server.reconciliation }, mobile: ui }, null, 2));
-})().catch((error) => {
-  console.error(`FAIL qa-extinguisher-assets-v1: ${error.stack || error.message}`);
-  process.exit(1);
-});
+  const scheduleSnapshot = readFileSync(SCHEDULE_PATH, "utf8");
+  let browser = null;
+  try {
+    const server = await runServerQa();
+    const executablePath = EDGE_PATHS.find(existsSync);
+    assert(executablePath, "No Edge/Chrome executable found.");
+    browser = await chromium.launch({ headless: true, executablePath });
+    const ui = await runBrowserQa(browser, server);
+    await runAdminBrowserQa(browser, server);
+    console.log("PASS qa-extinguisher-assets-v1");
+    console.log(JSON.stringify({ server: { scheduleId: server.schedule.scheduleId, frozenCount: server.frozenCount, reconciliation: server.reconciliation }, mobile: ui }, null, 2));
+  } catch (error) {
+    console.error(`FAIL qa-extinguisher-assets-v1: ${error.stack || error.message}`);
+    process.exitCode = 1;
+  } finally {
+    if (browser) await browser.close();
+    writeFileSync(SCHEDULE_PATH, scheduleSnapshot, "utf8");
+  }
+})();

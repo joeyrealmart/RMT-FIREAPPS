@@ -462,10 +462,15 @@ async function runBrowserSharedRegression() {
         title: step.title,
         critical: Boolean(step.critical),
         choice: step.requiresChoice ? (step.choices?.[0] || "Pass") : "",
-        reading: step.requiresReading ? "QA normal" : "",
+        reading: step.requiresReading ? (step.readingType === "number" ? "26.7" : "QA normal") : "",
         remark: sopStepNeedsRemark(step) ? "QA remark" : "",
         photo: step.requiresPhoto ? "QA photo" : "",
-        supervisor: step.requiresSupervisor ? "QA Supervisor" : ""
+        supervisor: step.requiresSupervisor ? "QA Supervisor" : "",
+        fieldValues: Object.fromEntries((step.fields || []).map((field) => [
+          field.id,
+          field.kind === "number" ? "1" : field.choices?.[0] || "QA value"
+        ])),
+        fieldRemarks: {}
       };
     });
     return {
@@ -612,9 +617,23 @@ async function runBrowserSharedRegression() {
 }
 
 (async () => {
-  const server = await runServerRegression();
-  const browser = await runBrowserSharedRegression();
-  console.log(JSON.stringify({ server, browser }, null, 2));
+  const originalSchedules = await api("/api/schedules", { expect: 200 });
+  const originalScheduleList = Array.isArray(originalSchedules.payload.schedules)
+    ? originalSchedules.payload.schedules
+    : [];
+  let result = null;
+  try {
+    const server = await runServerRegression();
+    const browser = await runBrowserSharedRegression();
+    result = { server, browser };
+  } finally {
+    await api("/api/save-schedules", {
+      method: "POST",
+      expect: 200,
+      body: { schedules: originalScheduleList }
+    });
+  }
+  console.log(JSON.stringify(result, null, 2));
 })().catch((error) => {
   console.error(error.stack || error.message);
   process.exit(1);

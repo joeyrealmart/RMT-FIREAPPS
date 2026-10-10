@@ -6,6 +6,7 @@ const APP_URL = process.env.APP_URL || "http://127.0.0.1:8026/?fresh=20260831-te
 const ROOT = join(__dirname, "..");
 const UOB_MASTER = join(ROOT, "outputs", "rmt-fire-local-data", "device-master", "uob-uob-device-master.json");
 const MIMIC_MANIFEST = join(ROOT, "outputs", "rmt-fire-local-data", "mimic-library", "mimic-library-app-data.json");
+const TINY_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZJ6sAAAAASUVORK5CYII=", "base64");
 const EDGE_PATHS = [
   "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
   "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
@@ -371,6 +372,9 @@ async function runServiceScopeMarkerDomRegression(page, fixture) {
     tags: { mfap: fixture.tags.mfap }
   });
   assert(mfapResult.ok, `Service-scope MFAP prerequisite seed failed: ${mfapResult.reason || ""}`);
+  assert(mfapResult.stage?.prerequisiteComplete, `Service-scope MFAP prerequisite did not become complete: ${JSON.stringify(mfapResult.stage)}`);
+  const unlockProbe = await getRenderedMarkerSnapshot(page);
+  assert(!unlockProbe.lockedIds.includes(fixture.tags.assigned), `Assigned marker remained locked after completed MFAP prerequisite. Marker state: ${JSON.stringify(unlockProbe)}`);
   await page.waitForFunction((assignedTag) => {
     const marker = [...document.querySelectorAll(".marker.setup-marker")]
       .find((item) => (item.dataset.setupTag || item.dataset.label) === assignedTag);
@@ -428,10 +432,15 @@ async function completeMfapPrerequisite(page, fixture) {
         title: step.title || `Step ${index + 1}`,
         critical: Boolean(step.critical),
         choice: step.requiresChoice ? (step.choices?.[0] || "Pass") : "",
-        reading: step.requiresReading ? "QA reading normal" : "",
+        reading: step.requiresReading ? (step.readingType === "number" ? "26.7" : "QA reading normal") : "",
         remark: sopStepNeedsRemark(step) ? "QA prerequisite completed." : "",
         photo: step.requiresPhoto ? "qa-prerequisite-photo.jpg" : "",
-        supervisor: step.requiresSupervisor ? "QA Supervisor" : ""
+        supervisor: step.requiresSupervisor ? "QA Supervisor" : "",
+        fieldValues: Object.fromEntries((step.fields || []).map((field) => [
+          field.id,
+          field.kind === "number" ? "1" : field.choices?.[0] || "QA value"
+        ])),
+        fieldRemarks: {}
       };
     });
     state.criticalSops[`${template.id}::${mfapTag}`] = {
@@ -544,7 +553,7 @@ async function savePassFromMarker(page, tag) {
   }, tag, { timeout: 20000 });
 }
 
-async function savePassWithPhotoFromMarker(page, tag, photoName = "qa-pass-photo.jpg") {
+async function savePassWithPhotoFromMarker(page, tag, photoName = "qa-pass-photo.png") {
   await tapMarker(page, tag);
   await page.waitForFunction((deviceTag) => {
     return document.querySelector("#workspace")?.classList.contains("tech-screen-inspection")
@@ -554,8 +563,8 @@ async function savePassWithPhotoFromMarker(page, tag, photoName = "qa-pass-photo
   assert(await page.locator("#viewInspectionPhotoBtn").isVisible(), "View Photo action must be visible before PASS/FAULT selection.");
   await page.locator("#beforePhoto").setInputFiles({
     name: photoName,
-    mimeType: "image/jpeg",
-    buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9])
+    mimeType: "image/png",
+    buffer: TINY_PNG
   });
   await page.waitForFunction((expectedName) => {
     return document.querySelector("#photoEvidenceStatus")?.textContent.includes(expectedName);
@@ -578,7 +587,7 @@ async function savePassWithPhotoFromMarker(page, tag, photoName = "qa-pass-photo
   }), tag);
 }
 
-async function savePassWithPhotoAndNextFromMarker(page, tag, photoName = "qa-save-next-pass-photo.jpg") {
+async function savePassWithPhotoAndNextFromMarker(page, tag, photoName = "qa-save-next-pass-photo.png") {
   await tapMarker(page, tag);
   await page.waitForFunction((deviceTag) => {
     return document.querySelector("#workspace")?.classList.contains("tech-screen-inspection")
@@ -587,8 +596,8 @@ async function savePassWithPhotoAndNextFromMarker(page, tag, photoName = "qa-sav
   assert(await page.locator("#beforePhoto").isVisible(), "Photo input must be visible before Save & Next.");
   await page.locator("#beforePhoto").setInputFiles({
     name: photoName,
-    mimeType: "image/jpeg",
-    buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9])
+    mimeType: "image/png",
+    buffer: TINY_PNG
   });
   await page.locator("#saveNextInspectionBtn").click();
   await page.waitForFunction((deviceTag) => {
@@ -619,15 +628,15 @@ async function saveFaultFromMarker(page, tag) {
     return document.querySelector("#workspace")?.classList.contains("tech-screen-inspection")
       && document.querySelector("#checklistForm:not(.hidden) #deviceName")?.textContent.trim() === deviceTag;
   }, tag, { timeout: 15000 });
-  await page.locator("#markFailBtn").click();
+  await page.locator('#questionList input[value="Fail"]').first().check();
   await page.waitForFunction(() => document.querySelector("#workspace")?.classList.contains("tech-fault-entry-active"), null, { timeout: 15000 });
   await page.fill("#notes", "QA fault requiring evidence.");
   await page.locator("#beforePhoto").setInputFiles({
-    name: "qa-before.jpg",
-    mimeType: "image/jpeg",
-    buffer: Buffer.from([0xff, 0xd8, 0xff, 0xd9])
+    name: "qa-before.png",
+    mimeType: "image/png",
+    buffer: TINY_PNG
   });
-  await page.locator("#markFailBtn").click();
+  await page.locator("#checklistForm button[type='submit']").click();
   await page.waitForFunction((deviceTag) => {
     const marker = [...document.querySelectorAll(".marker.assigned-scope")]
       .find((item) => item.dataset.setupTag === deviceTag || item.dataset.deviceId === deviceTag || item.dataset.label === deviceTag);
@@ -685,7 +694,7 @@ async function markRemainingFireAlarmFieldDevicesComplete(page, fixture) {
 async function measureStageTabSwitching(page) {
   const systems = await page.$$eval("#techSystemStagePanel [data-tech-stage-system]", (buttons) => buttons.map((button) => button.dataset.techStageSystem).filter(Boolean));
   assert(systems.includes("fire-alarm"), "Fire Alarm system tab is missing.");
-  assert(systems.includes("emergency-exit"), "Emergency/Exit system tab is missing from the QA fixture.");
+  assert(systems.some((id) => id === "emergency-light" || id === "keluar-sign"), "Emergency Light or Keluar Sign system tab is missing from the QA fixture.");
   const started = await page.evaluate(() => performance.now());
   for (let round = 0; round < 2; round += 1) {
     for (const systemId of systems) {

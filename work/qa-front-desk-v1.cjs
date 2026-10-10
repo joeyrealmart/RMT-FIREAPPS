@@ -218,7 +218,9 @@ async function runTechnicianFrontDeskQa(browser) {
   await assertHidden(page, "#frontDeskPanel", "Admin front desk must be hidden from Technician.");
   await assertHidden(page, "#schedulePanel", "Technician must not see Admin schedule setup.");
   await assertHidden(page, "#diagnosticsPanel", "Technician normal flow must hide diagnostics.");
-  await assertHidden(page, "#techWorkflowNav", "Old technician navigation tabs should stay hidden.");
+  await assertVisible(page, "#techWorkflowNav", "Technician mobile bottom navigation should be visible.");
+  const mobileNavLabels = await page.locator("#techWorkflowNav button strong").allTextContents();
+  assert(JSON.stringify(mobileNavLabels.map((label) => label.trim())) === JSON.stringify(["Home", "Tasks", "Mimic", "Reports", "More"]), "Technician mobile navigation must match the approved V1 flow.");
 
   const statsText = await page.locator("#techFrontDeskStats").textContent();
   ["My Jobs Today", "Resume Current Job", "Progress", "Correction Required", "Linked Verification", "Submitted Reports"].forEach((label) => {

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Realmart Fire Inspection App</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23d40000'/%3E%3Ctext x='32' y='43' text-anchor='middle' font-family='Arial,sans-serif' font-size='36' font-weight='700' fill='white'%3ER%3C/text%3E%3C/svg%3E">
-    <link rel="stylesheet" href="styles.css?v=20260907-report-generator-v1">
+    <link rel="stylesheet" href="styles.css?v=20261005-parallel-field-workflow-v1">
   </head>
   <body>
     <main class="app-shell">
@@ -256,26 +256,50 @@
           </div>
         </section>
 
-        <nav class="tech-workflow-nav technician-only" id="techWorkflowNav" aria-label="Technician workflow">
+        <aside class="tech-system-sidebar technician-only" id="techSystemSidebar" aria-label="Assigned fire systems">
+          <div class="tech-sidebar-brand">
+            <img src="assets/realmart-logo.png" alt="Realmart">
+            <span><b>RMT FIREAPPS</b><strong>Technician</strong></span>
+            <button id="techSystemDrawerCloseBtn" type="button" class="secondary" aria-label="Collapse systems">&lsaquo;</button>
+          </div>
+          <button type="button" class="tech-sidebar-home active" data-tech-dashboard>
+            <strong>Dashboard</strong>
+            <span>Assigned jobs</span>
+          </button>
+          <div class="tech-sidebar-job" id="techSidebarJobContext">
+            <span>No active job</span>
+          </div>
+          <nav class="tech-sidebar-systems" id="techDesktopSystemList" aria-label="Job systems"></nav>
+          <div class="tech-drawer-pump-stages hidden" id="techDrawerPumpStages" aria-label="Pump checklist stages"></div>
+          <div class="tech-sidebar-actions">
+            <button type="button" class="secondary" data-tech-system-list>Back to system list</button>
+            <button type="button" class="secondary" data-tech-screen="mimic">View mimic</button>
+          </div>
+        </aside>
+        <button id="techSystemDrawerOpenBtn" type="button" class="tech-system-drawer-toggle technician-only hidden" aria-label="Open assigned systems" aria-expanded="false">
+          <img src="assets/realmart-logo.png" alt=""><span>Systems</span>
+        </button>
+
+        <nav class="tech-workflow-nav technician-only" id="techWorkflowNav" aria-label="Technician mobile navigation">
           <button type="button" data-tech-screen="jobs" class="active">
-            <strong>Jobs</strong>
-            <span>Today</span>
+            <strong>Home</strong>
+            <span>Jobs</span>
           </button>
           <button type="button" data-tech-screen="inspection">
-            <strong>Inspection</strong>
-            <span>Checklist</span>
+            <strong>Tasks</strong>
+            <span>Assigned</span>
           </button>
           <button type="button" data-tech-screen="mimic">
             <strong>Mimic</strong>
             <span>Map</span>
           </button>
-          <button type="button" data-tech-screen="faults">
-            <strong>Faults</strong>
-            <span>Review</span>
-          </button>
           <button type="button" data-tech-screen="complete">
-            <strong>Complete</strong>
-            <span>Sign off</span>
+            <strong>Reports</strong>
+            <span>Submit</span>
+          </button>
+          <button type="button" data-tech-screen="faults">
+            <strong>More</strong>
+            <span>Faults</span>
           </button>
         </nav>
 
@@ -935,6 +959,7 @@
               </div>
               <button id="techSuggestMissingBtn" type="button" class="secondary technician-only">+ Missing Device / Suggest Pin</button>
               <button id="techBackToInspectionBtn" type="button" class="secondary technician-only">Back to Inspection</button>
+              <button id="techMimicSystemListBtn" type="button" class="secondary technician-only">Back to System List</button>
               <div class="legend">
                 <span><i class="dot pending"></i> Pending</span>
                 <span><i class="dot pass"></i> Pass</span>
@@ -999,9 +1024,16 @@
               </div>
               <p class="hint">Open each assigned item from this list. Use Map only when you need help finding the device.</p>
               <div id="techInspectionActions" class="tech-screen-actions">
-                <button id="techViewMimicBtn" type="button" class="secondary">View Mimic</button>
-                <button id="techViewFaultsBtn" type="button" class="secondary">View Faults</button>
-                <button id="techGoCompleteBtn" type="button" class="secondary">Complete Job</button>
+                <button id="techBackSystemListBtn" type="button" class="secondary">Back</button>
+                <button id="techViewMimicBtn" type="button" class="secondary">Mimic</button>
+                <details class="tech-more-actions">
+                  <summary>More</summary>
+                  <div>
+                    <button id="techBackDashboardBtn" type="button" class="secondary">Dashboard</button>
+                    <button id="techViewFaultsBtn" type="button" class="secondary">Outstanding Faults</button>
+                    <button id="techGoCompleteBtn" type="button" class="secondary">Complete Job</button>
+                  </div>
+                </details>
               </div>
               <div id="techActiveChecklistMount" class="tech-active-checklist-mount"></div>
               <div id="techAssignedItemList" class="tech-assigned-item-list"></div>
@@ -1018,6 +1050,7 @@
             </div>
 
             <form class="hidden" id="checklistForm">
+              <div id="techInspectionContext" class="tech-inspection-context technician-only"></div>
               <p class="eyebrow" id="deviceType"></p>
               <h2 id="deviceName"></h2>
               <p id="deviceLocation"></p>
@@ -1056,6 +1089,8 @@
                 <p id="photoEvidenceStatus" class="photo-evidence-status">No photo evidence yet.</p>
               </div>
 
+              <button id="toggleInspectionRemarksBtn" type="button" class="secondary inspection-remarks-toggle technician-only" aria-expanded="false">Add Remarks</button>
+
               <label class="inspection-notes-field">
                 Notes / Defect
                 <textarea id="notes" rows="4" placeholder="Example: Hose reel cabinet door hard to open."></textarea>
@@ -1068,7 +1103,7 @@
 
               <div class="panel-actions">
                 <button type="button" id="markFailBtn" class="secondary danger">FAULT</button>
-                <button type="submit">PASS / Save</button>
+                <button type="submit" class="secondary tech-pass-save">PASS / Save</button>
                 <button type="button" id="saveNextInspectionBtn">Save & Next Item</button>
               </div>
             </form>
@@ -1501,6 +1536,6 @@
         </div>
       </section>
     </main>
-    <script src="app.js?v=20260907-report-generator-v1"></script>
+    <script src="app.js?v=20261005-parallel-field-workflow-v1"></script>
   </body>
 </html>

@@ -437,11 +437,20 @@ const criticalSopTemplates = [
       { title: "Client / FM informed", detail: "Confirm testing permission, affected area, alarm sounder allowance, and who approved the test.", requiresRemark: true },
       { title: "Record panel type and status", detail: "Record panel type, brand/model, zones used/spare zones, current fault/isolate/alarm status. This should normally be filled once; use remarks only if the panel has changed.", requiresReading: true, readingLabel: "Panel Details", readingPlaceholder: "Example: Addressable / 12 used zones / 4 spare / normal", optionalRemark: true },
       { title: "Panel photo before test", detail: "Take a before photo showing panel normal/fault/isolate status before touching settings.", requiresPhoto: true },
-      { title: "Set Silence / Alarm Test mode", detail: "Before checking devices, make sure the panel is in the correct test mode where applicable.", noConfirm: true, requiresChoice: true, choiceLabel: "Test Mode", choices: ["Silence/Test Mode Set", "Not Applicable", "Not Allowed"] },
+      {
+        title: "Silence, alarm and actual operation tests",
+        detail: "Select the one test mode performed, then record its result. Additional details are only required when the selected test fails.",
+        noConfirm: true,
+        requiresPhotoOnFieldFailure: true,
+        fields: [
+          { id: "testMode", label: "Test Mode", kind: "single-choice", choices: ["Silence Test", "Alarm Test", "Actual Test"], required: true },
+          { id: "testResult", label: "Selected Test Result", kind: "choice", choices: ["Pass", "Fail"], required: true, requiresRemarkOn: ["Fail"] }
+        ]
+      },
       { title: "Switch off all tripping outputs", detail: "Isolate all tripping before device tests, including lift, air-con, roller shutter, smoke spill, pressurizing fan, gas release and pump interfaces where applicable.", critical: true, requiresPhoto: true, noRemark: true },
-      { title: "Check power supply, battery and charger", detail: "Check master panel power supply, standby battery and charger condition. Select the charging voltage range instead of typing where possible.", noConfirm: true, requiresChoice: true, choiceLabel: "Charging Voltage", choices: ["25V", "26V", "27V", "28V", "29V", "30V", "Below 25V", "Above 30V", "N/A"] },
-      { title: "Panel setting, mimic and bulb test", detail: "Check panel settings, mimic panel indication and lamp/LED/bulb test.", noConfirm: true, requiresChoice: true, choiceLabel: "Result", choices: ["Pass", "Fail", "N/A"] },
-      { title: "Test pump / gas release indication", detail: "Check fire fighting pump and gas release indication at main fire control panel where applicable.", noConfirm: true, requiresChoice: true, choiceLabel: "Indication Result", choices: ["Pass", "Fail", "N/A"] },
+      { title: "Check power supply, battery and charger", detail: "Check master panel power supply, standby battery and charger condition, then enter the measured charging voltage.", noConfirm: true, requiresReading: true, readingLabel: "Charging Voltage", readingPlaceholder: "Example: 26.7", readingType: "number", readingStep: "0.1", readingUnit: "V" },
+      { title: "Panel setting, mimic and bulb test", detail: "Check panel settings, mimic panel indication and lamp/LED/bulb test.", noConfirm: true, requiresChoice: true, choiceLabel: "Result", choices: ["Pass", "Fail", "N/A"], requiresRemark: true },
+      { title: "Pump / gas release linked indication", detail: "Read-only result from authoritative Pump and CO2/Gas linked-verification records. Assigned Flow Switch points remain part of the frozen job scope.", noConfirm: true, requiresChoice: true, choiceLabel: "Overall", choices: ["Pass", "Fail"], autoResultFromLinkedVerifications: ["FIRE_PUMP_INDICATION", "CO2_GAS_RELEASE_INDICATION"], readOnlyLinkedSummary: true },
       { title: "Interface alarm mode test", detail: "Air-con, lift, roller shutter, smoke spill and pressurizing fan alarm mode must be double-confirmed with Facilities Manager before testing.", critical: true, requiresChoice: true, choiceLabel: "FM Confirmation", choices: ["Confirmed and Tested", "Not Allowed", "N/A"], requiresSupervisor: true, requiresRemark: true },
       { title: "Reset and restore all isolations", detail: "Reset panel and reinstate all tripping outputs / isolations. Confirm no active alarm/fault/isolate remains.", critical: true, requiresPhoto: true, requiresSupervisor: true },
       { title: "Inform client testing completed", detail: "Confirm final normal condition with client/FM before leaving the panel.", requiresRemark: true }
@@ -465,7 +474,7 @@ const criticalSopTemplates = [
       { title: "Trigger first-zone alarm test", detail: "Activate first detection zone and confirm panel indication / first stage alarm.", tickOnly: true },
       { title: "Trigger second-zone alarm test", detail: "Activate second detection zone and confirm pre-discharge sequence.", tickOnly: true },
       { title: "Observe discharge delay", detail: "Observe the delay timer / countdown according to site design. Do not allow actual discharge.", requiresReading: true, readingLabel: "Discharge Delay", readingPlaceholder: "Example: 28 seconds" },
-      { title: "Confirm alarms and indications", detail: "Confirm bell, strobe / flashing light, warning sign and panel indication operate.", critical: true, tickOnly: true },
+      { title: "Confirm alarms and indications", detail: "Confirm bell, strobe / flashing light, warning sign and panel indication operate.", critical: true, tickOnly: true, linkedGasTestKey: "INDICATION" },
       { title: "Confirm trip outputs only", detail: "Confirm fan, fire curtain, shutdown or other tripping output operates only under safe test condition.", critical: true, tickOnly: true },
       { title: "Reset panel and wait safe delay", detail: "Reset panel to normal and wait at least 10 seconds before reconnection.", tickOnly: true },
       { title: "Reconnect and restore normal", detail: "Reconnect discharge cable / actuator and remove isolation only after the panel is normal and discharge risk is clear.", critical: true, tickOnly: true },
@@ -528,21 +537,112 @@ const criticalSopTemplates = [
     steps: [
       { title: "Client / FM informed", detail: "Confirm permission, affected area, drain/discharge arrangement and who is witnessing the test.", requiresRemark: true },
       { title: "Panel condition photo before test", detail: "Take photo of pump starter panel, selector positions and indicators before testing.", requiresPhoto: true },
-      { title: "Check water storage tank and supply", detail: "Confirm sprinkler/hydrant/wet riser tank and incoming supply are available.", critical: true, requiresChoice: true, choiceLabel: "Water Supply", choices: ["Sufficient", "Low", "No Water"], requiresPhoto: true, requiresRemark: true },
-      { title: "Check suction and delivery valves", detail: "Confirm suction and delivery gate valves are open before running pumps.", critical: true, requiresChoice: true, choiceLabel: "Valve Position", choices: ["Fully Open", "Partially Open", "Closed"], requiresPhoto: true, requiresSupervisor: true },
-      { title: "Check incoming 3-phase power supply", detail: "Measure/check all phases of the pump starter panel before testing.", requiresReading: true, readingLabel: "R/Y/B Phase Reading", readingPlaceholder: "Example: R-Y 415V, Y-B 414V, B-R 416V" },
-      { title: "Check general pump panel setting", detail: "Confirm selector, auto/manual availability and no active fault before run.", requiresChoice: true, choiceLabel: "Panel Setting", choices: ["Normal", "Fault", "Need Attention"], requiresRemark: true },
-      { title: "Test duty pump manual mode", detail: "Run duty pump manually and record running condition.", requiresChoice: true, choiceLabel: "Duty Manual", choices: ["Pass", "Fail", "N/A"], requiresReading: true, readingLabel: "Running Condition", readingPlaceholder: "Example: Started normal / no abnormal sound" },
-      { title: "Test duty pump auto mode", detail: "Run duty pump on auto and record cut-in pressure.", requiresReading: true, readingLabel: "Duty Cut In", readingPlaceholder: "Example: Cut in 80 PSI" },
-      { title: "Check standby battery, charger, fuel and oil", detail: "Check standby pump engine starting battery, charger, diesel fuel and lubrication oil.", critical: true, requiresChoice: true, choiceLabel: "Standby Readiness", choices: ["Normal", "Low / Weak", "N/A"], requiresPhoto: true, requiresRemark: true },
-      { title: "Test standby pump manual mode", detail: "Run standby pump manually and record running condition.", requiresChoice: true, choiceLabel: "Standby Manual", choices: ["Pass", "Fail", "N/A"], requiresReading: true, readingLabel: "Running Condition", readingPlaceholder: "Example: Started normal / no leakage" },
-      { title: "Test standby pump auto mode", detail: "Run standby pump on auto and record cut-in pressure.", requiresReading: true, readingLabel: "Standby Cut In", readingPlaceholder: "Example: Cut in 70 PSI" },
-      { title: "Test jockey pump manual / auto", detail: "Run jockey pump manual and auto, then record cut-in/cut-out pressure.", requiresReading: true, readingLabel: "Jockey Cut In / Cut Out", readingPlaceholder: "Example: Cut in 100 PSI / cut out 120 PSI" },
-      { title: "Check breeching inlet and alarm valve", detail: "Check breeching inlet, sprinkler alarm valve and main isolating valve where applicable.", requiresChoice: true, choiceLabel: "Valve / Inlet Condition", choices: ["Pass", "Fail", "N/A"], requiresRemark: true },
-      { title: "Flow proving / flow switch test", detail: "Perform flow proving at alarm valve or flow switch location where applicable and record pressure/result.", requiresReading: true, readingLabel: "Flow Test Result", readingPlaceholder: "Example: Flow switch FS-1 activated / pressure 90 PSI" },
-      { title: "Check zone isolating butterfly valves", detail: "Confirm all zone isolating butterfly valves are open after testing.", critical: true, requiresChoice: true, choiceLabel: "Zone Valve Position", choices: ["All Open", "Some Closed", "N/A"], requiresPhoto: true, requiresSupervisor: true },
-      { title: "Selector returned to AUTO", detail: "Confirm all pump selectors are returned to AUTO after testing.", critical: true, requiresPhoto: true, requiresSupervisor: true },
-      { title: "Final pressure and panel normal", detail: "Record final pressure and confirm panel normal, no trip/fault left active.", critical: true, requiresReading: true, readingLabel: "Final Pressure", readingPlaceholder: "Example: 120 PSI / panel normal", requiresPhoto: true, requiresSupervisor: true }
+      {
+        title: "Water Storage Condition",
+        detail: "Confirm available water storage. Tank details are captured once for this site/pump and reused on future service visits.",
+        critical: true,
+        noConfirm: true,
+        requiresChoice: true,
+        choiceLabel: "Water Storage Condition",
+        choices: ["Sufficient", "Insufficient"],
+        optionalRemark: true,
+        noRemark: true,
+        configurationKey: "waterStorage",
+        changeableConfiguration: true,
+        tankCapacityCalculation: true,
+        fields: [
+          { id: "tankType", label: "Tank Type", kind: "choice", choices: ["RCC / Concrete Tank", "FRP Tank", "Steel Tank", "HDPE Tank", "Other"], required: true, configuration: true },
+          { id: "tankTypeOther", label: "Other Tank Type", kind: "text", required: true, configuration: true, when: { fieldId: "tankType", values: ["Other"] } },
+          { id: "capacityMethod", label: "Capacity Source", kind: "choice", choices: ["Calculate from dimensions", "Use known capacity"], required: true, configuration: true },
+          { id: "tankLengthFt", label: "Tank Length", kind: "number", step: "0.01", unit: "ft", required: true, configuration: true, when: { fieldId: "capacityMethod", values: ["Calculate from dimensions"] } },
+          { id: "tankWidthFt", label: "Tank Width", kind: "number", step: "0.01", unit: "ft", required: true, configuration: true, when: { fieldId: "capacityMethod", values: ["Calculate from dimensions"] } },
+          { id: "tankHeightFt", label: "Tank Height", kind: "number", step: "0.01", unit: "ft", required: true, configuration: true, when: { fieldId: "capacityMethod", values: ["Calculate from dimensions"] } },
+          { id: "capacity", label: "Known Water Storage Capacity", kind: "number", step: "0.1", required: true, configuration: true, when: { fieldId: "capacityMethod", values: ["Use known capacity"] } },
+          { id: "capacityUnit", label: "Capacity Unit", kind: "choice", choices: ["L", "m³"], required: true, configuration: true, when: { fieldId: "capacityMethod", values: ["Use known capacity"] } }
+        ]
+      },
+      { title: "Check suction and delivery valves", detail: "Confirm suction and delivery gate valves are open before running pumps.", critical: true, requiresChoice: true, choiceLabel: "Valve Position", choices: ["Fully Open", "Partially Open", "Closed"], requiresPhoto: true, captureTechnician: true },
+      {
+        title: "Check Incoming 3-Phase Power Supply",
+        detail: "Record all three phase-to-phase voltage readings. Any reading outside 376-440 V creates a same-job alert, requires acknowledgement remarks, and blocks later pump tests.",
+        noConfirm: true,
+        phaseSupplyValidation: true,
+        fields: [
+          { id: "phaseRy", label: "R-Y", kind: "number", step: "0.1", unit: "V", required: true },
+          { id: "phaseYb", label: "Y-B", kind: "number", step: "0.1", unit: "V", required: true },
+          { id: "phaseBr", label: "B-R", kind: "number", step: "0.1", unit: "V", required: true }
+        ]
+      },
+      { title: "Starter Panel Pilot Lamp Check", detail: "Confirm the starter-panel pilot lamps and indications operate.", noConfirm: true, requiresChoice: true, choiceLabel: "Pilot Lamp Result", choices: ["Pass", "Fail"], remarkOnChoices: ["Fail"], photoOnChoices: ["Fail"] },
+      { title: "Optional Review", detail: "Any additional remarks regarding the starter panel.", noConfirm: true, optionalRemark: true },
+      { title: "Standby Pump Type", detail: "Use the saved site/pump configuration. Choose Change only when correcting a genuine configuration error.", noConfirm: true, requiresChoice: true, choiceLabel: "Standby Type", choices: ["Electrical", "Diesel Engine"], configurationKey: "standbyPump", changeableConfiguration: true },
+      { title: "Test Jockey Pump on Manual", detail: "Record the local jockey-pump manual test result. The linked MFAP side remains independently assigned.", noConfirm: true, requiresChoice: true, choiceLabel: "Jockey Manual", choices: ["Pass", "Fail"], remarkOnChoices: ["Fail"], linkedPumpTestKey: "JOCKEY_MANUAL" },
+      { title: "Test Duty Pump on Manual", detail: "Record the local duty-pump manual test result. The linked MFAP side remains independently assigned.", noConfirm: true, requiresChoice: true, choiceLabel: "Duty Manual", choices: ["Pass", "Fail"], remarkOnChoices: ["Fail"], linkedPumpTestKey: "DUTY_MANUAL" },
+      {
+        title: "Test Standby Pump on Manual",
+        detail: "The fields shown follow the saved standby configuration.",
+        noConfirm: true,
+        usesStandbyConfiguration: true,
+        linkedPumpTestKey: "STANDBY_MANUAL",
+        variants: {
+          "Electrical": [
+            { id: "manualResult", label: "Standby Manual", kind: "choice", choices: ["Pass", "Fail"], required: true, requiresRemarkOn: ["Fail"] }
+          ],
+          "Diesel Engine": [
+            { id: "batteryCharging", label: "Battery Charging Reading", kind: "number", step: "0.1", unit: "V", required: true },
+            { id: "engineOil", label: "Engine Oil", kind: "choice", choices: ["Pass", "Fail"], required: true, requiresRemarkOn: ["Fail"] },
+            { id: "coolingType", label: "Cooling Type", kind: "choice", choices: ["Radiator / Water Cooled", "Air Cooled"], required: true, configuration: true },
+            { id: "coolantCondition", label: "Radiator Water / Coolant Condition", kind: "choice", choices: ["Pass", "Fail"], required: true, requiresRemarkOn: ["Fail"], when: { fieldId: "coolingType", values: ["Radiator / Water Cooled"] } },
+            { id: "fanBeltCondition", label: "Fan Belt Condition", kind: "choice", choices: ["Pass", "Fail"], required: true, requiresRemarkOn: ["Fail"], when: { fieldId: "coolingType", values: ["Air Cooled"] } },
+            { id: "manualResult", label: "Diesel Pump Manual", kind: "choice", choices: ["Pass", "Fail"], required: true, requiresRemarkOn: ["Fail"] }
+          ]
+        }
+      },
+      {
+        title: "Test Jockey Pump on Auto",
+        detail: "Record the automatic test result and pressure readings.",
+        noConfirm: true,
+        requiresChoice: true,
+        choiceLabel: "Jockey Auto",
+        choices: ["Pass", "Fail"],
+        remarkOnChoices: ["Fail"],
+        fields: [
+          { id: "cutInPsi", label: "Cut-In", kind: "number", step: "0.1", unit: "PSI", required: true },
+          { id: "cutOutPsi", label: "Cut-Out", kind: "number", step: "0.1", unit: "PSI", required: true }
+        ]
+      },
+      {
+        title: "Test Duty Pump on Auto",
+        detail: "Record the automatic test result and configured pressure behaviour.",
+        noConfirm: true,
+        requiresChoice: true,
+        choiceLabel: "Duty Auto",
+        choices: ["Pass", "Fail"],
+        remarkOnChoices: ["Fail"],
+        manualStopForSprinkler: true,
+        fields: [
+          { id: "cutInPsi", label: "Cut-In", kind: "number", step: "0.1", unit: "PSI", required: true },
+          { id: "cutOutPsi", label: "Cut-Out", kind: "number", step: "0.1", unit: "PSI", required: true }
+        ]
+      },
+      {
+        title: "Test Standby Pump on Auto",
+        detail: "Record the automatic standby test result and configured pressure behaviour.",
+        noConfirm: true,
+        requiresChoice: true,
+        choiceLabel: "Standby Auto",
+        choices: ["Pass", "Fail"],
+        remarkOnChoices: ["Fail"],
+        manualStopForSprinkler: true,
+        fields: [
+          { id: "cutInPsi", label: "Cut-In", kind: "number", step: "0.1", unit: "PSI", required: true },
+          { id: "cutOutPsi", label: "Cut-Out", kind: "number", step: "0.1", unit: "PSI", required: true }
+        ]
+      },
+      { title: "Check breeching inlet and alarm valve", detail: "Check breeching inlet, sprinkler alarm valve and main isolating valve where applicable.", requiresChoice: true, choiceLabel: "Valve / Inlet Condition", choices: ["Pass", "Fail", "N/A"], remarkOnChoices: ["Fail", "N/A"] },
+      { title: "Check zone isolating butterfly valves", detail: "Confirm all zone isolating butterfly valves are open after testing.", critical: true, noRemark: true, requiresChoice: true, choiceLabel: "Zone Valve Position", choices: ["All Open", "Some Closed", "N/A"], remarkOnChoices: ["Some Closed", "N/A"], requiresPhoto: true, requiresSupervisor: true },
+      { title: "Selector returned to AUTO", detail: "Confirm all pump selectors are returned to AUTO after testing.", critical: true, noRemark: true, requiresPhoto: true, requiresSupervisor: true },
+      { title: "Final pressure and panel normal", detail: "Record final pressure and confirm panel normal, no trip/fault left active.", critical: true, noRemark: true, requiresReading: true, readingLabel: "Final Pressure", readingPlaceholder: "Example: 120 PSI / panel normal", requiresPhoto: true, requiresSupervisor: true }
     ]
   }
 ];
@@ -553,7 +653,7 @@ const criticalDependencyDefinitions = [
     label: "Fire Alarm",
     templateId: "fire-alarm-tripping-sop",
     parentKeywords: ["mfap", "main fire alarm panel", "fire alarm panel"],
-    prerequisiteStepIndexes: [0, 1, 2, 3, 4, 5, 6],
+    prerequisiteStepIndexes: [0, 1, 2, 3, 4],
     finalStepIndexes: [9, 10],
     childRules: [
       {
@@ -600,16 +700,8 @@ const criticalDependencyDefinitions = [
     templateId: "sprinkler-hydrant-pump-sop",
     parentKeywords: ["sprinkler panel", "wet riser panel", "pressurized hydrant panel", "hydrant panel", "spp", ".spp.", "wrp", ".wrp.", "php", ".php.", "sprinkler pump", "hydrant pump", "wet riser pump"],
     prerequisiteStepIndexes: [0, 1, 2, 3, 4, 5],
-    finalStepIndexes: [14, 15, 16],
+    finalStepIndexes: [15, 16, 17],
     childRules: [
-      {
-        id: "flow-switch-water-function",
-        relation: "primary",
-        label: "Flow switch physical / functional check",
-        keywords: ["flow switch", ".fs.", " fs"],
-        siteConfigKey: "flowSwitchWaterFunction",
-        defaultEnabled: true
-      },
       {
         id: "water-system-outlets",
         relation: "primary",
@@ -760,6 +852,35 @@ const demoAccounts = [
   }
 ];
 
+const PUMP_SOP_STAGE_DEFINITIONS = [
+  { id: "pump-preparation-panel", label: "Preparation & Panel", stepIndexes: [0, 1] },
+  { id: "pump-water-electrical", label: "Water, Suction & Electrical", stepIndexes: [2, 3, 4, 5, 6, 7] },
+  { id: "pump-manual-tests", label: "Manual Pump Tests", stepIndexes: [8, 9, 10] },
+  { id: "pump-jockey-auto", label: "Jockey Auto", stepIndexes: [11] },
+  { id: "pump-duty-auto", label: "Duty Auto", stepIndexes: [12] },
+  { id: "pump-standby-system", label: "Standby & System Test", stepIndexes: [13, 14] },
+  { id: "pump-restore-complete", label: "Restore Normal & Complete", stepIndexes: [15, 16, 17] }
+];
+
+const TECHNICIAN_SOP_STAGE_DEFINITIONS = {
+  "sprinkler-hydrant-pump-sop": PUMP_SOP_STAGE_DEFINITIONS,
+  "fire-alarm-tripping-sop": [
+    { id: "mfap-initial", label: "Initial Panel Status", stepIndexes: [0, 1, 2] },
+    { id: "mfap-test-ready", label: "Test Ready", stepIndexes: [3, 4] },
+    { id: "mfap-power", label: "Power / Battery", stepIndexes: [5] },
+    { id: "mfap-controls", label: "Controls / Indication", stepIndexes: [6, 7] },
+    { id: "mfap-interface", label: "Interface Testing", stepIndexes: [8] },
+    { id: "mfap-restore", label: "Restore / Final", stepIndexes: [9, 10] }
+  ],
+  "gas-discharge-sop": [
+    { id: "gas-preparation", label: "Preparation", stepIndexes: [0, 1, 2, 3] },
+    { id: "gas-isolation", label: "Safe Isolation", stepIndexes: [4, 5, 6, 7] },
+    { id: "gas-detection", label: "Detection Sequence", stepIndexes: [8, 9, 10] },
+    { id: "gas-indication", label: "Indications / Outputs", stepIndexes: [11, 12] },
+    { id: "gas-restore", label: "Restore / Complete", stepIndexes: [13, 14, 15] }
+  ]
+};
+
 const LINKED_VERIFICATION_TYPES = {
   FIRE_PUMP_INDICATION: {
     label: "Fire Pump Indication",
@@ -791,6 +912,13 @@ const state = {
   criticalSops: {},
   activeCriticalSopId: "gas-discharge-sop",
   activeCriticalDevice: null,
+  activeMfapWorkspaceTab: "checklist",
+  mfapPendingContextKey: "",
+  mfapKnownPendingLinkedIds: [],
+  mfapNewPendingLinkedId: "",
+  pumpConfigurations: readStoredJson("rmtPumpConfigurations", {}) || {},
+  pumpConfigurationEditKey: "",
+  pumpConfigurationLoadingKey: "",
   history: seededHistory,
   requests: [],
   scopeHistory: {},
@@ -821,10 +949,12 @@ const state = {
   activeJob: readStoredJson("rmtActiveJob", null),
   jobHistory: [],
   techScreen: "jobs",
+  techSystemDrawerOpen: !window.matchMedia("(max-width: 980px)").matches,
   activeTechPreviewScheduleId: localStorage.getItem("rmtActiveTechPreviewScheduleId") || null,
   activeTechSystemKey: localStorage.getItem("rmtActiveTechSystemKey") || "",
   activeTechFloorId: localStorage.getItem("rmtActiveTechFloorId") || "",
   techSystemOpenRequestId: 0,
+  techInspectionDirty: false,
   adminModule: savedAdminUiState.module || "home",
   adminClientModule: savedAdminUiState.clientModule || "overview",
   adminClientValue: savedAdminUiState.clientValue || "",
@@ -1086,9 +1216,19 @@ const techAssignedItemList = document.querySelector("#techAssignedItemList");
 const techItemProgress = document.querySelector("#techItemProgress");
 const techCompletionPanel = document.querySelector("#techCompletionPanel");
 const techWorkflowNav = document.querySelector("#techWorkflowNav");
+const techSystemSidebar = document.querySelector("#techSystemSidebar");
+const techSystemDrawerOpenBtn = document.querySelector("#techSystemDrawerOpenBtn");
+const techSystemDrawerCloseBtn = document.querySelector("#techSystemDrawerCloseBtn");
+const techDesktopSystemList = document.querySelector("#techDesktopSystemList");
+const techSidebarJobContext = document.querySelector("#techSidebarJobContext");
+const techDrawerPumpStages = document.querySelector("#techDrawerPumpStages");
 const techSystemStagePanel = document.querySelector("#techSystemStagePanel");
+const techInspectionContext = document.querySelector("#techInspectionContext");
 const techFaultPanel = document.querySelector("#techFaultPanel");
 const techBackToInspectionBtn = document.querySelector("#techBackToInspectionBtn");
+const techMimicSystemListBtn = document.querySelector("#techMimicSystemListBtn");
+const techBackDashboardBtn = document.querySelector("#techBackDashboardBtn");
+const techBackSystemListBtn = document.querySelector("#techBackSystemListBtn");
 const techViewMimicBtn = document.querySelector("#techViewMimicBtn");
 const techViewFaultsBtn = document.querySelector("#techViewFaultsBtn");
 const techGoCompleteBtn = document.querySelector("#techGoCompleteBtn");
@@ -1203,6 +1343,8 @@ const calendarDragTime = document.querySelector("#calendarDragTime");
 const annualCoverageSummary = document.querySelector("#annualCoverageSummary");
 
 let diagnosticsTimerId = null;
+let technicianSharedRefreshTimerId = null;
+let technicianSharedRefreshInFlight = false;
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -1295,6 +1437,7 @@ async function startTechnicianSession(options = {}) {
   await loadSavedRequests({ render: false });
   await loadLinkedVerificationIndex();
   await syncLinkedVerificationDrafts();
+  startTechnicianSharedHeartbeat();
   const activeSchedule = getActiveTechnicianMaintenanceSchedule();
   if (activeSchedule) {
     loadStoredRunState();
@@ -1515,6 +1658,188 @@ function getCurrentTechScreen() {
   return TECH_SCREENS.includes(state.techScreen) ? state.techScreen : "jobs";
 }
 
+function markTechnicianInspectionDirty() {
+  if (getCurrentUserRole() === "Technician") state.techInspectionDirty = true;
+}
+
+function clearTechnicianInspectionDirty() {
+  state.techInspectionDirty = false;
+}
+
+function confirmTechnicianNavigation() {
+  if (getCurrentUserRole() !== "Technician" || !state.techInspectionDirty) return true;
+  return window.confirm("This checklist has unsaved changes. Leave without saving them?");
+}
+
+window.addEventListener("beforeunload", (event) => {
+  if (getCurrentUserRole() !== "Technician" || !state.techInspectionDirty) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
+
+function getTechnicianServiceDisplayLabel(schedule) {
+  if (!schedule) return "Maintenance";
+  return String(schedule.serviceType || getScheduleDetailLabel(schedule) || "Maintenance")
+    .replace(/(?:10|20|30|50|100)\s*%/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^\s*[-|+]\s*|\s*[-|+]\s*$/g, "")
+    .trim() || "Maintenance";
+}
+
+function renderTechDesktopNavigation(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  if (!techSystemSidebar || !techDesktopSystemList || !techSidebarJobContext) return;
+  const isTechnician = getCurrentUserRole() === "Technician";
+  techSystemSidebar.classList.toggle("hidden", !isTechnician);
+  if (!isTechnician) return;
+  updateTechSystemDrawerVisibility();
+  const groups = schedule ? getTechnicianFireSystemGroups(schedule) : [];
+  const activeKey = schedule ? getActiveTechnicianSystemKey(schedule) : "";
+  const homeButton = techSystemSidebar.querySelector("[data-tech-dashboard]");
+  homeButton?.classList.toggle("active", getCurrentTechScreen() === "jobs" && !activeKey);
+  techSidebarJobContext.innerHTML = schedule
+    ? `<strong>${escapeHtml(schedule.companyName)} / ${escapeHtml(schedule.siteName)}</strong><span>${escapeHtml(getTechnicianServiceDisplayLabel(schedule))}</span><small>${schedule.plannedDeviceIds?.length || schedule.deviceCount || 0} assigned items</small>`
+    : `<span>No active job</span><small>Open an assigned job from Dashboard.</small>`;
+  techDesktopSystemList.innerHTML = groups.length
+    ? groups.map((group) => {
+      const status = getTechnicianSystemStatus(group.summary);
+      return `
+        <button type="button" class="${activeKey === group.id ? "active" : ""} status-${status.id}" data-tech-sidebar-system="${escapeHtml(group.id)}" data-tech-sidebar-schedule="${escapeHtml(schedule.scheduleId)}">
+          ${getTechnicianSystemIcon(group.id)}
+          <span><strong>${escapeHtml(group.label)}</strong><small>${group.summary.done} / ${group.summary.total} · ${status.label}</small></span>
+        </button>
+      `;
+    }).join("")
+    : `<p>No assigned systems for this job.</p>`;
+  techDesktopSystemList.querySelectorAll("[data-tech-sidebar-system]").forEach((button) => {
+    bindReliableTap(button, async () => {
+      await openTechnicianFireSystem(button.dataset.techSidebarSchedule, button.dataset.techSidebarSystem);
+      if (window.matchMedia("(max-width: 980px)").matches) setTechSystemDrawerOpen(false);
+    });
+  });
+  renderPumpDrawerStages(schedule);
+}
+
+function renderPumpDrawerStages(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  if (!techDrawerPumpStages) return;
+  const template = criticalSopTemplates.find((item) => item.id === state.activeCriticalSopId);
+  const stagedVisible = Boolean(schedule && state.activeCriticalDevice && isTechnicianStagedSop(template) && !criticalSopPanel?.classList.contains("hidden"));
+  const fireAlarmVisible = Boolean(schedule && state.activeTechSystemKey === "fire-alarm");
+  const visible = stagedVisible || fireAlarmVisible;
+  techDrawerPumpStages.classList.toggle("hidden", !visible);
+  if (!visible) {
+    techDrawerPumpStages.innerHTML = "";
+    return;
+  }
+  const fireAlarmGroups = fireAlarmVisible ? renderFireAlarmDrawerGroups(schedule) : "";
+  if (!stagedVisible) {
+    techDrawerPumpStages.innerHTML = fireAlarmGroups;
+    bindFireAlarmDrawerGroups(techDrawerPumpStages);
+    return;
+  }
+  const storageKey = getCriticalSopStorageKey(template.id);
+  const saved = state.criticalSops[storageKey] || state.criticalSops[template.id] || { steps: {} };
+  const stages = getPumpSopStageStates(template, saved, state.activeCriticalDevice);
+  const activeStage = getActivePumpSopStage(storageKey, stages);
+  techDrawerPumpStages.innerHTML = `
+    ${fireAlarmGroups}
+    <div class="tech-drawer-stage-heading"><span>${escapeHtml(template.title)}</span><strong>${activeStage.stageIndex + 1} / ${stages.length}</strong></div>
+    ${stages.map((stage) => {
+      const status = getPumpSopStageStatus(stage, activeStage);
+      return `<button type="button" class="pump-drawer-stage ${status}" data-pump-drawer-stage="${escapeHtml(stage.id)}"><b>${stage.stageIndex + 1}</b><span><strong>${escapeHtml(stage.label)}</strong><small>${status === "locked" ? "Locked" : stage.faultCount ? `${stage.faultCount} fault` : stage.complete ? "Complete" : status === "active" ? "Current" : "Ready"}</small></span></button>`;
+    }).join("")}
+    ${template.id === "fire-alarm-tripping-sop" ? renderMfapLiveEventDrawerSection(schedule) : ""}
+  `;
+  techDrawerPumpStages.querySelectorAll("[data-pump-drawer-stage]").forEach((button) => {
+    bindReliableTap(button, () => openPumpSopStageFromDrawer(button.dataset.pumpDrawerStage));
+  });
+  bindFireAlarmDrawerGroups(techDrawerPumpStages);
+  bindMfapLiveEventControls(techDrawerPumpStages);
+}
+
+function getFireAlarmDrawerDeviceLabel(device) {
+  const type = normalizeScopeText(device?.type || "");
+  if (type.includes("manual call") || type.includes("break glass") || type.includes("mcp")) return "MCP";
+  if (type.includes("smoke")) return "Smoke";
+  if (type.includes("heat")) return "Heat";
+  if (type.includes("beam")) return "Beam";
+  if (type.includes("bell")) return "Bell";
+  if (type.includes("sounder")) return "Sounder";
+  return String(device?.type || "Other").trim() || "Other";
+}
+
+function renderFireAlarmDrawerGroups(schedule) {
+  const devices = getVisibleTechnicianDevicesForSystem(schedule);
+  const mfap = devices.find((device) => isCriticalSopDevice(device));
+  const grouped = new Map();
+  devices.filter((device) => !isCriticalSopDevice(device)).forEach((device) => {
+    const label = getFireAlarmDrawerDeviceLabel(device);
+    const items = grouped.get(label) || [];
+    items.push(device);
+    grouped.set(label, items);
+  });
+  return `
+    <div class="tech-drawer-stage-heading"><span>Fire Alarm</span><strong>Quick access</strong></div>
+    <div class="tech-fire-alarm-groups">
+      ${mfap ? `<button type="button" class="pump-drawer-stage" data-fire-alarm-device="${escapeHtml(mfap.id || mfap.tag)}"><b>1</b><span><strong>MFAP</strong><small>Panel / system check</small></span></button>` : ""}
+      ${[...grouped.entries()].map(([label, items]) => {
+        const next = items.find((device) => !isChildInspectionComplete(device.id || device.tag, schedule)) || items[0];
+        const done = items.filter((device) => isChildInspectionComplete(device.id || device.tag, schedule)).length;
+        return `<button type="button" class="pump-drawer-stage" data-fire-alarm-device="${escapeHtml(next.id || next.tag)}"><b>${items.length}</b><span><strong>${escapeHtml(label)}</strong><small>${done} / ${items.length} complete</small></span></button>`;
+      }).join("")}
+    </div>`;
+}
+
+function bindFireAlarmDrawerGroups(container) {
+  container.querySelectorAll("[data-fire-alarm-device]").forEach((button) => {
+    bindReliableTap(button, async () => {
+      await focusTechnicianAssignedDevice(button.dataset.fireAlarmDevice, { openChecklist: true });
+      if (window.matchMedia("(max-width: 980px)").matches) setTechSystemDrawerOpen(false);
+    });
+  });
+}
+
+async function openPumpSopStageFromDrawer(stageId) {
+  const schedule = getActiveTechnicianMaintenanceSchedule();
+  const template = criticalSopTemplates.find((item) => item.id === state.activeCriticalSopId);
+  if (!schedule || !isTechnicianStagedSop(template)) return;
+  const storageKey = getCriticalSopStorageKey(template.id);
+  const saved = state.criticalSops[storageKey] || state.criticalSops[template.id] || { steps: {} };
+  const stages = getPumpSopStageStates(template, saved, state.activeCriticalDevice);
+  const stage = stages.find((item) => item.id === stageId);
+  if (!stage) return;
+  if (!stage.accessible) {
+    const previous = stages[Math.max(0, stage.stageIndex - 1)];
+    document.querySelector("#syncState").textContent = `Stage ${stage.stageIndex + 1} is locked. Complete ${previous?.label || "the previous stage"} first.`;
+    return;
+  }
+  if (state.techInspectionDirty) {
+    const result = await saveCriticalSop(false);
+    if (!result?.ok) return;
+  }
+  state.sopStageSelection = state.sopStageSelection || state.pumpSopStageSelection || {};
+  state.pumpSopStageSelection = state.sopStageSelection;
+  state.sopStageSelection[storageKey] = stage.id;
+  clearTechnicianInspectionDirty();
+  renderCriticalSopPreservingScroll();
+  if (window.matchMedia("(max-width: 980px)").matches) setTechSystemDrawerOpen(false);
+  requestAnimationFrame(() => document.querySelector(".pump-sop-stage-content")?.scrollIntoView({ block: "start", behavior: "auto" }));
+}
+
+function updateTechSystemDrawerVisibility() {
+  if (!workspace) return;
+  const isTechnician = getCurrentUserRole() === "Technician";
+  workspace.classList.toggle("tech-system-drawer-open", isTechnician && state.techSystemDrawerOpen);
+  workspace.classList.toggle("tech-system-drawer-collapsed", isTechnician && !state.techSystemDrawerOpen);
+  techSystemDrawerOpenBtn?.classList.toggle("hidden", !isTechnician || state.techSystemDrawerOpen);
+  techSystemDrawerOpenBtn?.setAttribute("aria-expanded", String(Boolean(state.techSystemDrawerOpen)));
+  techSystemSidebar?.setAttribute("aria-hidden", String(!isTechnician || !state.techSystemDrawerOpen));
+}
+
+function setTechSystemDrawerOpen(open) {
+  state.techSystemDrawerOpen = Boolean(open);
+  updateTechSystemDrawerVisibility();
+}
+
 function updateWorkspaceTechScreenClass() {
   if (!workspace) return;
   TECH_SCREENS.forEach((screen) => {
@@ -1530,7 +1855,9 @@ function setTechScreen(screen, options = {}) {
     updateWorkspaceTechScreenClass();
     return;
   }
-  state.techScreen = TECH_SCREENS.includes(screen) ? screen : "jobs";
+  const nextScreen = TECH_SCREENS.includes(screen) ? screen : "jobs";
+  if (nextScreen !== state.techScreen && options.skipDirtyCheck !== true && !confirmTechnicianNavigation()) return false;
+  state.techScreen = nextScreen;
   updateWorkspaceTechScreenClass();
   renderTechWorkflowNav();
   if (state.techScreen === "faults") {
@@ -1546,9 +1873,11 @@ function setTechScreen(screen, options = {}) {
   if (options.scroll) {
     requestAnimationFrame(() => scrollTechScreenIntoView(state.techScreen));
   }
+  return true;
 }
 
 function renderTechWorkflowNav() {
+  renderTechDesktopNavigation();
   if (!techWorkflowNav) return;
   const screen = getCurrentTechScreen();
   techWorkflowNav.querySelectorAll("[data-tech-screen]").forEach((button) => {
@@ -1569,6 +1898,18 @@ function scrollTechScreenIntoView(screen) {
   if (!target) return;
   const top = target.getBoundingClientRect().top + window.scrollY - 12;
   window.scrollTo({ top: Math.max(0, top), behavior: "auto" });
+}
+
+function showTechnicianSystemList() {
+  if (!confirmTechnicianNavigation()) return false;
+  const schedule = getActiveTechnicianMaintenanceSchedule();
+  state.activeTechSystemKey = "";
+  clearTechnicianInspectionDirty();
+  persistTechnicianActiveContext(schedule?.scheduleId || "", "", floorSelect?.value || "");
+  renderTechWorkPanel();
+  setTechScreen("jobs", { scroll: true, skipDirtyCheck: true });
+  document.querySelector("#syncState").textContent = "Choose an assigned fire system to continue.";
+  return true;
 }
 
 function prepareTechnicianMimicWorkspace() {
@@ -1616,7 +1957,8 @@ async function openCurrentTechnicianMimic(options = {}) {
     return true;
   }
 
-  await focusTechnicianSystemMimic(schedule.scheduleId, activeSystemKey, { scroll });
+  const opened = await focusTechnicianSystemMimic(schedule.scheduleId, activeSystemKey, { scroll });
+  if (!opened) return false;
   updateTechnicianMimicBackAction(schedule, activeSystemKey);
   const group = getTechnicianFireSystemGroups(schedule).find((item) => item.id === activeSystemKey);
   const route = getTechnicianSystemStageRoute(schedule, activeSystemKey);
@@ -1628,15 +1970,40 @@ async function openCurrentTechnicianMimic(options = {}) {
 }
 
 function bindTechNavigationControls() {
+  bindReliableTap(techSystemDrawerOpenBtn, () => setTechSystemDrawerOpen(true));
+  bindReliableTap(techSystemDrawerCloseBtn, () => setTechSystemDrawerOpen(false));
   techWorkflowNav?.querySelectorAll("[data-tech-screen]").forEach((button) => {
     bindReliableTap(button, () => {
       setTechScreen(button.dataset.techScreen, { scroll: true });
     });
   });
   bindReliableTap(techBackToInspectionBtn, () => returnToCurrentTechnicianInspectionStage({ scroll: true }));
+  bindReliableTap(techMimicSystemListBtn, showTechnicianSystemList);
+  bindReliableTap(techBackSystemListBtn, showTechnicianSystemList);
+  bindReliableTap(techBackDashboardBtn, () => {
+    if (!confirmTechnicianNavigation()) return;
+    clearTechnicianInspectionDirty();
+    setTechScreen("jobs", { scroll: true, skipDirtyCheck: true });
+  });
   bindReliableTap(techViewMimicBtn, () => openCurrentTechnicianMimic({ scroll: true }));
   bindReliableTap(techViewFaultsBtn, () => setTechScreen("faults", { scroll: true }));
   bindReliableTap(techGoCompleteBtn, () => setTechScreen("complete", { scroll: true }));
+  techSystemSidebar?.querySelectorAll("[data-tech-dashboard]").forEach((button) => {
+    bindReliableTap(button, () => {
+      if (!confirmTechnicianNavigation()) return;
+      clearTechnicianInspectionDirty();
+      setTechScreen("jobs", { scroll: true, skipDirtyCheck: true });
+    });
+  });
+  techSystemSidebar?.querySelectorAll("[data-tech-system-list]").forEach((button) => {
+    bindReliableTap(button, showTechnicianSystemList);
+  });
+  techSystemSidebar?.querySelectorAll("[data-tech-screen]").forEach((button) => {
+    bindReliableTap(button, () => setTechScreen(button.dataset.techScreen, { scroll: true }));
+  });
+  checklistForm?.addEventListener("input", markTechnicianInspectionDirty);
+  checklistForm?.addEventListener("change", markTechnicianInspectionDirty);
+  criticalSopPanel?.addEventListener("input", markTechnicianInspectionDirty);
 }
 
 function getCurrentAdminModule() {
@@ -1826,7 +2193,7 @@ function renderAdminDeskScheduleRow(schedule, actionLabel = "Open") {
     <article class="front-desk-row">
       <div>
         <strong>${escapeHtml(schedule.companyName || "-")} / ${escapeHtml(schedule.siteName || "-")}</strong>
-        <span>${escapeHtml(schedule.serviceType || schedule.scopeLabel || "Maintenance")} | ${escapeHtml(schedule.date || "No date")} ${escapeHtml(schedule.time || "")}</span>
+        <span>${escapeHtml(getTechnicianServiceDisplayLabel(schedule))} | ${escapeHtml(schedule.date || "No date")} ${escapeHtml(schedule.time || "")}</span>
         <small>${escapeHtml(status)} | Progress ${escapeHtml(progress)}</small>
       </div>
       <button type="button" class="mini-button" data-admin-open-schedule="${escapeHtml(schedule.scheduleId || "")}">${escapeHtml(actionLabel)}</button>
@@ -2352,6 +2719,264 @@ function getLinkedVerificationDisplaySide(linkedState, side) {
   };
 }
 
+function getLinkedVerificationResultOptions(definition, side) {
+  if (definition?.verificationType === "FIRE_PUMP_INDICATION") {
+    return side?.sideId === "MFAP"
+      ? [{ value: "CONFIRMED", label: "Indication Received" }, { value: "NOT_CONFIRMED", label: "No Indication" }]
+      : [{ value: "CONFIRMED", label: "Pass" }, { value: "NOT_CONFIRMED", label: "Fail" }];
+  }
+  if (definition?.verificationType === "CO2_GAS_RELEASE_INDICATION") {
+    return side?.sideId === "REMOTE_PANEL_OR_MFAP"
+      ? [{ value: "CONFIRMED", label: "Indication Received" }, { value: "NOT_CONFIRMED", label: "No Indication" }]
+      : [{ value: "CONFIRMED", label: "Pass" }, { value: "NOT_CONFIRMED", label: "Fail" }];
+  }
+  return [{ value: "CONFIRMED", label: "Confirmed" }, { value: "NOT_CONFIRMED", label: "Not Confirmed" }];
+}
+
+function getMfapLiveIndicationPresentation(linkedState, counterpart) {
+  const definition = linkedState?.definition || {};
+  const live = getLinkedVerificationLiveState(linkedState?.schedule, linkedState?.linkedVerificationId);
+  const liveActive = isLinkedVerificationLiveActive(live);
+  const savedCounterpart = Boolean(counterpart?.record || counterpart?.draft);
+  if (definition.verificationType === "FIRE_PUMP_INDICATION") {
+    const titles = {
+      JOCKEY_MANUAL: "Jockey Pump - Manual Test",
+      DUTY_MANUAL: "Duty Pump - Manual Test",
+      STANDBY_MANUAL: "Standby Pump - Manual Test"
+    };
+    return {
+      title: titles[definition.pumpTestKey] || definition.title,
+      sideLabel: "Pump side",
+      sideStatus: liveActive ? "RUNNING" : savedCounterpart ? "TEST COMPLETE" : "AWAITING PUMP SIDE"
+    };
+  }
+  if (definition.verificationType === "CO2_GAS_RELEASE_INDICATION") {
+    return {
+      title: "CO2 System - Step 12",
+      sideLabel: "Suppression side",
+      sideStatus: liveActive ? "TESTING" : savedCounterpart ? "TEST COMPLETE" : "AWAITING SUPPRESSION SIDE"
+    };
+  }
+  return {
+    title: definition.title,
+    sideLabel: "Linked side",
+    sideStatus: liveActive ? "ACTIVE" : savedCounterpart ? "TEST COMPLETE" : "AWAITING COUNTERPART"
+  };
+}
+
+function getMfapInitiatedLinkedStates(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  if (!schedule) return [];
+  return getTechnicianAssignedLinkedStates([schedule])
+    .filter((linkedState) => linkedVerificationMatchesSystem(linkedState.definition, "fire-alarm"))
+    .filter((linkedState) => {
+      const ownSide = linkedState.definition.requiredSides.find((side) => linkedVerificationTechnicianMatches(side));
+      if (!["MFAP", "REMOTE_PANEL_OR_MFAP"].includes(ownSide?.sideId)) return false;
+      const counterpartStarted = linkedState.sides?.some((side) => side.sideId !== ownSide.sideId && Boolean(side.record || side.draft));
+      return isLinkedVerificationLiveActive(getLinkedVerificationLiveState(schedule, linkedState.linkedVerificationId)) || counterpartStarted;
+    });
+}
+
+function isMfapLinkedConfirmationPending(linkedState) {
+  const ownSide = linkedState?.definition?.requiredSides?.find((side) => linkedVerificationTechnicianMatches(side));
+  if (!ownSide) return false;
+  const own = getLinkedVerificationDisplaySide(linkedState, ownSide);
+  return !own.record && !own.draft;
+}
+
+function getMfapPendingLinkedStates(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  return getMfapInitiatedLinkedStates(schedule).filter(isMfapLinkedConfirmationPending);
+}
+
+function getMfapActiveLiveEvents(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  return getLiveCoordinationEvents(schedule, { activeOnly: true, assignedToCurrent: true });
+}
+
+function getLiveEventPriorityLabel(event) {
+  const priority = String(event?.priority || "LOW").toUpperCase();
+  return priority === "HIGH" ? "Critical observation" : priority === "MEDIUM" ? "Observation required" : "Test in progress";
+}
+
+function renderMfapLiveEventCards(schedule = getActiveTechnicianMaintenanceSchedule(), options = {}) {
+  const events = getMfapActiveLiveEvents(schedule)
+    .filter((event) => !(options.excludeLinked && event.linkedVerificationId));
+  const stale = state.sharedSyncUnavailable;
+  if (!events.length) return options.compact ? "" : `<div class="mfap-live-empty"><strong>No active live tests</strong><span>New Pump, CO2/Gas, MCP, Smoke, Heat, or Bell events will appear automatically.</span></div>`;
+  return `<div class="mfap-live-event-list ${options.compact ? "compact" : ""}">
+    ${events.map((event) => {
+      const acknowledged = Boolean(event.acknowledgement);
+      const title = event.deviceLabel || event.equipmentLabel || event.testType || "Live test";
+      return `<article class="mfap-live-event priority-${escapeHtml(String(event.priority || "LOW").toLowerCase())} ${acknowledged ? "acknowledged" : "pending"} ${stale ? "stale" : ""}" data-live-event-card="${escapeHtml(event.eventId)}">
+        <div><strong>${escapeHtml(title)}</strong><span>${escapeHtml(event.location || event.floorLabel || "Location not recorded")}</span><small>${escapeHtml(event.sourceTechnicianName || "Assigned technician")} · ${escapeHtml(getLiveEventPriorityLabel(event))}</small></div>
+        <b>${escapeHtml(stale ? "CONNECTION LOST" : event.currentState || "ACTIVE")}</b>
+        ${options.compact
+          ? `<button type="button" class="secondary" data-mfap-live-event-open="${escapeHtml(event.eventId)}">Open</button>`
+          : `<div class="mfap-live-event-actions"><button type="button" class="secondary" data-live-event-ack="${escapeHtml(event.eventId)}" data-live-event-ack-status="OBSERVED" ${acknowledged ? "disabled" : ""}>${acknowledged ? "Observed" : "Observed"}</button><button type="button" class="danger-button" data-live-event-ack="${escapeHtml(event.eventId)}" data-live-event-ack-status="FAULT" ${acknowledged ? "disabled" : ""}>Fault</button></div>`}
+      </article>`;
+    }).join("")}
+  </div>`;
+}
+
+function renderMfapLiveEventDrawerSection(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const events = getMfapActiveLiveEvents(schedule);
+  const connection = state.sharedSyncUnavailable
+    ? `<div class="mfap-live-connection-lost">LIVE CONNECTION LOST</div>`
+    : "";
+  return `${connection}<div class="tech-drawer-stage-heading mfap-live-drawer-heading"><span>Live tests</span><strong>${events.length}</strong></div>${renderMfapLiveEventCards(schedule, { compact: true })}`;
+}
+
+async function acknowledgeLiveCoordinationEvent(eventId, acknowledgementStatus = "OBSERVED") {
+  const schedule = getActiveTechnicianMaintenanceSchedule();
+  const event = getLiveCoordinationEvents(schedule).find((item) => item.eventId === eventId);
+  if (!schedule || !event) return;
+  const result = await postLiveCoordinationEvent(schedule, {
+    eventId,
+    action: "ACKNOWLEDGE",
+    technicianId: getCurrentUserId(),
+    technicianName: getCurrentUserName(),
+    acknowledgementStatus
+  }, Number(event.revision || 0));
+  document.querySelector("#syncState").textContent = result.ok
+    ? `${event.deviceLabel || event.equipmentLabel || "Live test"} marked ${acknowledgementStatus === "FAULT" ? "FAULT" : "observed"}. Final checklist result remains separate.`
+    : result.reason || "Unable to acknowledge live test.";
+  if (result.ok) {
+    renderActiveCriticalSopLinkedPrompt(schedule);
+    renderTechDesktopNavigation(schedule);
+  }
+}
+
+function bindMfapLiveEventControls(container = document) {
+  container.querySelectorAll?.("[data-live-event-ack]").forEach((button) => {
+    bindReliableTap(button, () => acknowledgeLiveCoordinationEvent(button.dataset.liveEventAck, button.dataset.liveEventAckStatus));
+  });
+  container.querySelectorAll?.("[data-mfap-live-event-open]").forEach((button) => {
+    bindReliableTap(button, () => {
+      setMfapWorkspaceTab("live");
+      if (window.matchMedia("(max-width: 980px)").matches) setTechSystemDrawerOpen(false);
+      requestAnimationFrame(() => document.querySelector(`[data-live-event-card="${CSS.escape(button.dataset.mfapLiveEventOpen)}"]`)?.scrollIntoView({ block: "center", behavior: "auto" }));
+    });
+  });
+}
+
+function notifyTechnicianOfLiveEvent(event) {
+  if (state.sharedSyncUnavailable) return;
+  const signature = `${event.eventId}::${event.revision || event.lastUpdated || ""}`;
+  state.notifiedLiveEventSignatures = state.notifiedLiveEventSignatures || new Set();
+  if (state.notifiedLiveEventSignatures.has(signature) || event.acknowledgement) return;
+  state.notifiedLiveEventSignatures.add(signature);
+  const priority = String(event.priority || "LOW").toUpperCase();
+  if (priority === "LOW") return;
+  try {
+    const AudioContextType = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextType) {
+      const context = new AudioContextType();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.frequency.value = priority === "HIGH" ? 880 : 660;
+      gain.gain.setValueAtTime(0.05, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.18);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.18);
+    }
+  } catch (error) {
+    // Browser audio permission is optional; visual state remains authoritative.
+  }
+  navigator.vibrate?.(priority === "HIGH" ? [120, 60, 120] : [100]);
+}
+
+function getMfapPendingContextKey(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  return [
+    getScheduleKey(schedule),
+    state.activeCriticalDevice?.id || state.activeCriticalDevice?.tag || ""
+  ].join("::");
+}
+
+function initializeMfapPendingUiState(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const contextKey = getMfapPendingContextKey(schedule);
+  if (state.mfapPendingContextKey === contextKey) return;
+  state.mfapPendingContextKey = contextKey;
+  state.activeMfapWorkspaceTab = "checklist";
+  state.mfapKnownPendingLinkedIds = getMfapPendingLinkedStates(schedule).map((item) => item.linkedVerificationId);
+  state.mfapKnownLiveEventSignatures = getMfapActiveLiveEvents(schedule).map((event) => `${event.eventId}::${event.revision || event.lastUpdated || ""}`);
+  state.mfapNewPendingLinkedId = "";
+}
+
+function getMfapLiveIndicationAlertTitle(linkedState) {
+  const ownSide = linkedState?.definition?.requiredSides?.find((side) => linkedVerificationTechnicianMatches(side));
+  const counterpartSide = linkedState?.definition?.requiredSides?.find((side) => side.sideId !== ownSide?.sideId);
+  const counterpart = counterpartSide ? getLinkedVerificationDisplaySide(linkedState, counterpartSide) : null;
+  return getMfapLiveIndicationPresentation(linkedState, counterpart).title;
+}
+
+function renderMfapWorkspaceNavigation(schedule = getActiveTechnicianMaintenanceSchedule(), options = {}) {
+  if (state.activeCriticalSopId !== "fire-alarm-tripping-sop" || !schedule) return;
+  const pendingStates = getMfapPendingLinkedStates(schedule);
+  const pendingIds = pendingStates.map((item) => item.linkedVerificationId);
+  const liveEvents = getMfapActiveLiveEvents(schedule);
+  let newLiveEvent = null;
+  if (options.detectNew === true) {
+    const knownEvents = new Set(state.mfapKnownLiveEventSignatures || []);
+    newLiveEvent = liveEvents.find((event) => !knownEvents.has(`${event.eventId}::${event.revision || event.lastUpdated || ""}`) && !event.acknowledgement) || null;
+    if (newLiveEvent) {
+      state.mfapNewPendingLinkedId = newLiveEvent.linkedVerificationId || newLiveEvent.eventId;
+      notifyTechnicianOfLiveEvent(newLiveEvent);
+    }
+  }
+  state.mfapKnownPendingLinkedIds = pendingIds;
+  state.mfapKnownLiveEventSignatures = liveEvents.map((event) => `${event.eventId}::${event.revision || event.lastUpdated || ""}`);
+  if (state.mfapNewPendingLinkedId && !pendingIds.includes(state.mfapNewPendingLinkedId)) {
+    state.mfapNewPendingLinkedId = "";
+  }
+
+  const checklistView = document.querySelector("[data-mfap-checklist-view]");
+  const liveView = document.querySelector("[data-mfap-live-view]");
+  const checklistTab = document.querySelector('[data-mfap-workspace-tab="checklist"]');
+  const liveTab = document.querySelector('[data-mfap-workspace-tab="live"]');
+  const pendingBadge = document.querySelector("[data-mfap-pending-count]");
+  const alert = document.querySelector("[data-mfap-new-indication-alert]");
+  const alertTitle = document.querySelector("[data-mfap-new-indication-title]");
+  const liveActive = state.activeMfapWorkspaceTab === "live";
+  checklistView?.classList.toggle("hidden", liveActive);
+  liveView?.classList.toggle("hidden", !liveActive);
+  checklistTab?.classList.toggle("active", !liveActive);
+  liveTab?.classList.toggle("active", liveActive);
+  checklistTab?.setAttribute("aria-selected", String(!liveActive));
+  liveTab?.setAttribute("aria-selected", String(liveActive));
+  if (pendingBadge) pendingBadge.textContent = String(liveEvents.length);
+
+  const newLinkedState = pendingStates.find((item) => item.linkedVerificationId === state.mfapNewPendingLinkedId);
+  const showAlert = Boolean((newLiveEvent || newLinkedState) && !liveActive);
+  alert?.classList.toggle("hidden", !showAlert);
+  if (alertTitle) alertTitle.textContent = newLiveEvent
+    ? `${newLiveEvent.deviceLabel || newLiveEvent.equipmentLabel || "Live test"} · ${getLiveEventPriorityLabel(newLiveEvent)}`
+    : newLinkedState ? getMfapLiveIndicationAlertTitle(newLinkedState) : "";
+}
+
+function setMfapWorkspaceTab(tab, options = {}) {
+  state.activeMfapWorkspaceTab = tab === "live" ? "live" : "checklist";
+  if (state.activeMfapWorkspaceTab === "live") state.mfapNewPendingLinkedId = "";
+  renderMfapWorkspaceNavigation(getActiveTechnicianMaintenanceSchedule());
+  if (state.activeMfapWorkspaceTab === "live" && options.focusLinkedId) {
+    requestAnimationFrame(() => {
+      const escaped = CSS.escape(options.focusLinkedId);
+      const card = document.querySelector(`[data-mfap-live-view] [data-linked-card="${escaped}"]`)
+        || document.querySelector(`[data-mfap-live-view] [data-live-event-card="${escaped}"]`)
+        || document.querySelector(`[data-mfap-live-view] [data-live-event-card="${CSS.escape(`live-event::linked::${options.focusLinkedId}`)}"]`);
+      card?.scrollIntoView({ block: "center", behavior: "auto" });
+    });
+  }
+}
+
+function bindMfapWorkspaceNavigation(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  document.querySelectorAll("[data-mfap-workspace-tab]").forEach((button) => {
+    bindReliableTap(button, () => setMfapWorkspaceTab(button.dataset.mfapWorkspaceTab));
+  });
+  document.querySelectorAll("[data-mfap-view-new-indication]").forEach((button) => {
+    bindReliableTap(button, () => setMfapWorkspaceTab("live", { focusLinkedId: state.mfapNewPendingLinkedId }));
+  });
+  renderMfapWorkspaceNavigation(schedule);
+}
+
 function renderTechnicianLinkedVerificationDesk(jobs, activeSchedule) {
   if (!techLinkedVerificationDesk || !techLinkedVerificationList || getCurrentUserRole() !== "Technician") return;
   const linkedStates = getTechnicianAssignedLinkedStates(jobs);
@@ -2398,14 +3023,28 @@ async function openTechnicianLinkedVerification(scheduleId, linkedVerificationId
   card?.scrollIntoView({ block: "center", behavior: "auto" });
 }
 
-function renderTechnicianLinkedVerificationCards(schedule, systemKey) {
+function renderTechnicianLinkedVerificationCards(schedule, systemKey, options = {}) {
   const linkedStates = getTechnicianAssignedLinkedStates([schedule])
-    .filter((linkedState) => linkedVerificationMatchesSystem(linkedState.definition, systemKey));
+    .filter((linkedState) => linkedVerificationMatchesSystem(linkedState.definition, systemKey))
+    .filter((linkedState) => {
+      if (!options.initiatedOnly) return true;
+      const ownSide = linkedState.definition.requiredSides.find((side) => linkedVerificationTechnicianMatches(side));
+      const counterpart = linkedState.sides?.find((side) => side.sideId !== ownSide?.sideId);
+      const isMfapSide = ["MFAP", "REMOTE_PANEL_OR_MFAP"].includes(ownSide?.sideId);
+      return isMfapSide && Boolean(
+        isLinkedVerificationLiveActive(getLinkedVerificationLiveState(schedule, linkedState.linkedVerificationId))
+        || counterpart?.record
+        || counterpart?.draft
+      );
+    })
+    .sort((a, b) => options.quickResultButtons
+      ? Number(isMfapLinkedConfirmationPending(b)) - Number(isMfapLinkedConfirmationPending(a))
+      : 0);
   if (!linkedStates.length) return "";
   return `
     <section class="linked-verification-system-section">
       <div class="linked-verification-section-head">
-        <div><strong>Linked Verification</strong><span>Record only your assigned location. Both synced sides are required.</span></div>
+        <div><strong>${escapeHtml(options.heading || "Linked Verification")}</strong><span>${escapeHtml(options.description || "Record only your assigned location. Both synced sides are required.")}</span></div>
       </div>
       ${linkedStates.map((linkedState) => {
         const ownSide = linkedState.definition.requiredSides.find((side) => linkedVerificationTechnicianMatches(side));
@@ -2413,40 +3052,240 @@ function renderTechnicianLinkedVerificationCards(schedule, systemKey) {
         const counterparts = linkedState.definition.requiredSides
           .filter((side) => side.sideId !== own.sideId)
           .map((side) => getLinkedVerificationDisplaySide(linkedState, side));
-        const readOnly = linkedState.status === "VERIFIED" || isTechnicianReportReadOnly(schedule);
+        const readOnly = isTechnicianReportReadOnly(schedule);
         const evidenceRequired = linkedState.definition.evidenceRequired || own.evidenceRequired;
+        const quickPresentation = options.quickResultButtons
+          ? getMfapLiveIndicationPresentation(linkedState, counterparts[0])
+          : null;
         return `
           <article class="linked-verification-card" data-linked-card="${escapeHtml(linkedState.linkedVerificationId)}">
             <header>
-              <div><strong>${escapeHtml(linkedState.definition.title)}</strong><span>${escapeHtml(linkedState.definition.verificationType)}</span></div>
+              <div><strong>${escapeHtml(quickPresentation?.title || linkedState.definition.title)}</strong><span>${escapeHtml(linkedState.definition.verificationType)}</span></div>
               <span class="linked-status ${escapeHtml(String(linkedState.status || "").toLowerCase())}">${escapeHtml(getLinkedVerificationStatusLabel(linkedState.status))}</span>
             </header>
-            <div class="linked-side-summary">
-              <div><small>Your side</small><strong>${escapeHtml(own.sideName)}</strong><span>${escapeHtml(own.location)}</span><em>${escapeHtml(own.displayStatus === "SYNCED" ? `Synced${own.result ? ` - ${own.result}` : ""}` : getLinkedVerificationStatusLabel(own.displayStatus))}</em></div>
-              ${counterparts.map((side) => `<div><small>Counterpart</small><strong>${escapeHtml(side.sideName)}</strong><span>${escapeHtml(side.location)}</span><em>${escapeHtml(side.record ? `Synced - ${side.record.result}` : "Awaiting counterpart")}</em></div>`).join("")}
-            </div>
-            <div class="linked-side-entry">
-              <label>Result
-                <select data-linked-result ${readOnly ? "disabled" : ""}>
-                  <option value="">Select result</option>
-                  <option value="CONFIRMED" ${own.result === "CONFIRMED" ? "selected" : ""}>Confirmed</option>
-                  <option value="NOT_CONFIRMED" ${own.result === "NOT_CONFIRMED" ? "selected" : ""}>Not Confirmed</option>
-                </select>
-              </label>
-              <label>Photo Evidence ${evidenceRequired ? "(Required)" : "(Optional)"}
-                <input type="file" accept="image/*" capture="environment" data-linked-evidence ${readOnly ? "disabled" : ""}>
-              </label>
-              <label class="linked-notes">Short Note (Optional)
-                <textarea rows="2" data-linked-notes ${readOnly ? "disabled" : ""}>${escapeHtml(own.notes)}</textarea>
-              </label>
-              <div class="linked-side-actions">
-                <span>${own.evidenceRefs.length ? `${own.evidenceRefs.length} photo(s) attached` : "No photo attached"}</span>
-                <button type="button" data-linked-save-side="${escapeHtml(own.sideId)}" data-linked-event-id="${escapeHtml(linkedState.linkedVerificationId)}" ${readOnly ? "disabled" : ""}>Save My Side</button>
+            ${quickPresentation ? `
+              <div class="linked-side-summary linked-live-side-summary">
+                <div><small>${escapeHtml(quickPresentation.sideLabel)}</small><strong>${escapeHtml(quickPresentation.sideStatus)}</strong></div>
               </div>
+            ` : `
+              <div class="linked-side-summary">
+                <div><small>Your side</small><strong>${escapeHtml(own.sideName)}</strong><span>${escapeHtml(own.location)}</span><em>${escapeHtml(own.displayStatus === "SYNCED" ? `Synced${own.result ? ` - ${own.result}` : ""}` : getLinkedVerificationStatusLabel(own.displayStatus))}</em></div>
+                ${counterparts.map((side) => `<div><small>Counterpart</small><strong>${escapeHtml(side.sideName)}</strong><span>${escapeHtml(side.location)}</span><em>${escapeHtml(side.record ? `Synced - ${side.record.result}` : "Awaiting counterpart")}</em></div>`).join("")}
+              </div>
+            `}
+            <div class="linked-side-entry">
+              ${options.quickResultButtons ? `
+                <strong class="linked-mfap-confirmation-label">MFAP confirmation:</strong>
+                <div class="linked-quick-results" role="group" aria-label="MFAP indication result">
+                  <select class="hidden" data-linked-result aria-hidden="true">
+                    <option value="">Select result</option>
+                    <option value="CONFIRMED" ${own.result === "CONFIRMED" ? "selected" : ""}>Indication received</option>
+                    <option value="NOT_CONFIRMED" ${own.result === "NOT_CONFIRMED" ? "selected" : ""}>No indication</option>
+                  </select>
+                  <button type="button" data-linked-quick-result="CONFIRMED" data-linked-save-side="${escapeHtml(own.sideId)}" data-linked-event-id="${escapeHtml(linkedState.linkedVerificationId)}" ${readOnly ? "disabled" : ""}>Indication Received</button>
+                  <button type="button" class="danger" data-linked-quick-result="NOT_CONFIRMED" data-linked-save-side="${escapeHtml(own.sideId)}" data-linked-event-id="${escapeHtml(linkedState.linkedVerificationId)}" ${readOnly ? "disabled" : ""}>No Indication</button>
+                </div>
+              ` : `
+                <label>Result
+                  <select data-linked-result ${readOnly ? "disabled" : ""}>
+                    <option value="">Select result</option>
+                    ${getLinkedVerificationResultOptions(linkedState.definition, own).map((option) => `<option value="${option.value}" ${own.result === option.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+                  </select>
+                </label>
+                <label>Photo Evidence ${evidenceRequired ? "(Required)" : "(Optional)"}
+                  <input type="file" accept="image/*" capture="environment" data-linked-evidence ${readOnly ? "disabled" : ""}>
+                </label>
+                <label class="linked-notes">Short Note (Optional)
+                  <textarea rows="2" data-linked-notes ${readOnly ? "disabled" : ""}>${escapeHtml(own.notes)}</textarea>
+                </label>
+                <div class="linked-side-actions">
+                  <span>${own.evidenceRefs.length ? `${own.evidenceRefs.length} photo(s) attached` : "No photo attached"}</span>
+                  <button type="button" data-linked-save-side="${escapeHtml(own.sideId)}" data-linked-event-id="${escapeHtml(linkedState.linkedVerificationId)}" ${readOnly ? "disabled" : ""}>Save My Side</button>
+                </div>
+              `}
             </div>
           </article>`;
       }).join("")}
     </section>`;
+}
+
+function renderCriticalSopLiveLinkedPrompt(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  if (state.activeCriticalSopId !== "fire-alarm-tripping-sop" || !schedule) return "";
+  const liveEvents = renderMfapLiveEventCards(schedule, { excludeLinked: true });
+  const linked = renderTechnicianLinkedVerificationCards(schedule, "fire-alarm", {
+    initiatedOnly: true,
+    quickResultButtons: true,
+    heading: "LIVE INDICATIONS",
+    description: "A linked Pump or Gas/CO2 indication test is active. Check the MFAP indication and record only the assigned MFAP side."
+  });
+  const connection = state.sharedSyncUnavailable
+    ? `<div class="mfap-live-connection-lost">LIVE CONNECTION LOST · remote events may be stale</div>`
+    : "";
+  return `${connection}${liveEvents}${linked ? `<div class="mfap-linked-result-section">${linked}</div>` : ""}`;
+}
+
+function bindCriticalSopLinkedPromptControls(container, schedule) {
+  container?.querySelectorAll("[data-linked-save-side]").forEach((button) => {
+    bindReliableTap(button, () => {
+      const quickResult = button.dataset.linkedQuickResult;
+      const resultControl = button.closest("[data-linked-card]")?.querySelector("[data-linked-result]");
+      if (quickResult && resultControl) resultControl.value = quickResult;
+      return handleLinkedVerificationSideSave(button, schedule);
+    });
+  });
+  bindMfapLiveEventControls(container);
+}
+
+function getSopStepLinkedVerificationState(step, schedule = getActiveTechnicianMaintenanceSchedule(), device = state.activeCriticalDevice) {
+  if (!schedule || !device || (!step?.linkedPumpTestKey && !step?.linkedGasTestKey)) return null;
+  const deviceId = device.id || device.tag;
+  const definition = getScheduleLinkedVerificationDefinitions(schedule).find((item) => (
+    step.linkedPumpTestKey
+      ? item.pumpTestKey === step.linkedPumpTestKey && item.pumpDeviceId === deviceId
+      : item.gasTestKey === step.linkedGasTestKey && item.gasDeviceId === deviceId
+  ));
+  if (!definition) return null;
+  const linkedState = calculateClientLinkedVerificationState(schedule, definition);
+  const ownSide = definition.requiredSides.find((side) => linkedVerificationTechnicianMatches(side));
+  if (!ownSide || ["MFAP", "REMOTE_PANEL_OR_MFAP"].includes(ownSide.sideId)) return null;
+  const own = getLinkedVerificationDisplaySide(linkedState, ownSide);
+  const counterpartSide = definition.requiredSides.find((side) => side.sideId !== ownSide.sideId);
+  const counterpart = getLinkedVerificationDisplaySide(linkedState, counterpartSide);
+  return { definition, linkedState, own, counterpart };
+}
+
+function renderSopStepLinkedVerification(step, schedule = getActiveTechnicianMaintenanceSchedule(), device = state.activeCriticalDevice) {
+  const linked = getSopStepLinkedVerificationState(step, schedule, device);
+  if (!linked) return "";
+  const mismatch = linked.linkedState.status === "MISMATCH_REVIEW_REQUIRED";
+  const live = getLinkedVerificationLiveState(schedule, linked.definition.linkedVerificationId);
+  const liveActive = isLinkedVerificationLiveActive(live);
+  const isGasEvent = Boolean(step.linkedGasTestKey);
+  const ownLabel = step.linkedPumpTestKey ? `${step.choiceLabel || step.title} running` : "Suppression-side indication";
+  const counterpartLabel = step.linkedPumpTestKey ? "MFAP indication" : "Remote panel / MFAP indication";
+  const ownStatus = linked.own.record ? (linked.own.result === "CONFIRMED" ? "CONFIRMED" : "NOT CONFIRMED") : linked.own.draft ? "PENDING SYNC" : "AWAITING LOCAL RESULT";
+  const counterpartStatus = linked.counterpart.record ? (linked.counterpart.result === "CONFIRMED" ? "CONFIRMED" : "NO INDICATION") : "AWAITING COUNTERPART";
+  return `
+    <div class="sop-inline-linked ${mismatch ? "mismatch" : ""}">
+      <strong>${escapeHtml(linked.definition.title)}</strong>
+      <div><span>${escapeHtml(ownLabel)}</span><b>${escapeHtml(ownStatus)}</b></div>
+      <div><span>${escapeHtml(counterpartLabel)}</span><b>${escapeHtml(counterpartStatus)}</b></div>
+      ${isGasEvent && liveActive ? `<button type="button" class="danger-button linked-live-toggle active" data-linked-live-toggle="${escapeHtml(linked.definition.linkedVerificationId)}" data-linked-live-side="${escapeHtml(linked.own.sideId)}" data-linked-live-status="ACTIVE" data-linked-live-priority="HIGH" data-linked-live-current-state="MFAP_CONFIRMATION_REQUIRED">MFAP Confirmation Required</button>` : ""}
+      <button type="button" class="secondary linked-live-toggle ${liveActive ? "active" : ""}" data-linked-live-toggle="${escapeHtml(linked.definition.linkedVerificationId)}" data-linked-live-side="${escapeHtml(linked.own.sideId)}" data-linked-live-status="${liveActive ? "ENDED" : "ACTIVE"}" data-linked-live-priority="${isGasEvent ? "HIGH" : "MEDIUM"}" data-linked-live-current-state="${liveActive ? "CLOSED" : "OBSERVATION_REQUIRED"}">${liveActive ? "End Live Test" : "Start Manual Test"}</button>
+      <small>${escapeHtml(liveActive ? "Live test broadcast is active. The assigned MFAP technician will receive it on shared-state refresh." : "Start only when the physical manual test begins. This does not save the checklist result.")}</small>
+      <small>${escapeHtml(mismatch ? "Mismatch Review Required" : getLinkedVerificationStatusLabel(linked.linkedState.status))}</small>
+    </div>`;
+}
+
+function getGasLiveCoordinationContext(schedule = getActiveTechnicianMaintenanceSchedule(), device = state.activeCriticalDevice) {
+  if (!schedule || !device || state.activeCriticalSopId !== "gas-discharge-sop") return null;
+  const deviceId = device.id || device.tag;
+  const definition = getScheduleLinkedVerificationDefinitions(schedule).find((item) => item.gasDeviceId === deviceId);
+  const side = definition?.requiredSides?.find((item) => linkedVerificationTechnicianMatches(item) && item.sideId === "SUPPRESSION_SYSTEM_LOCATION");
+  return definition && side ? { definition, side, live: getLinkedVerificationLiveState(schedule, definition.linkedVerificationId) } : null;
+}
+
+function renderGasLiveCoordinationStart(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const context = getGasLiveCoordinationContext(schedule);
+  if (!context) return "";
+  const active = isLinkedVerificationLiveActive(context.live);
+  return `<div class="gas-live-coordination ${active ? "active" : ""}">
+    <div><strong>MFAP Coordination</strong><span>${active ? "Test in progress · MFAP technician notified" : "Notify the assigned MFAP technician when this test begins."}</span></div>
+    <button type="button" class="secondary" data-gas-live-start="${escapeHtml(context.definition.linkedVerificationId)}" data-gas-live-side="${escapeHtml(context.side.sideId)}" ${active ? "disabled" : ""}>${active ? "Test Started" : "Start Test Notification"}</button>
+  </div>`;
+}
+
+async function handleLinkedLiveToggle(button, schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const linkedVerificationId = button?.dataset.linkedLiveToggle;
+  const sideId = button?.dataset.linkedLiveSide;
+  const status = button?.dataset.linkedLiveStatus || "ACTIVE";
+  const definition = getScheduleLinkedVerificationDefinitions(schedule).find((item) => item.linkedVerificationId === linkedVerificationId);
+  const side = definition?.requiredSides?.find((item) => item.sideId === sideId);
+  if (!definition || !side) return;
+  button.disabled = true;
+  const result = await saveLinkedVerificationLiveState(schedule, definition, side, status, {
+    priority: button.dataset.linkedLivePriority,
+    currentState: button.dataset.linkedLiveCurrentState
+  });
+  document.querySelector("#syncState").textContent = result.ok
+    ? status === "ACTIVE"
+      ? "Live manual test started. The assigned MFAP technician will receive it automatically."
+      : "Live manual test ended. Saved checklist results remain separate."
+    : result.reason || (result.conflict ? "Live test changed on another phone. Refresh and try again." : "Unable to update live test state.");
+  await requestSharedJobState(schedule, { migrate: false, apply: true });
+  renderCriticalSopPreservingScroll();
+}
+
+async function handleGasLiveStart(button, schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const definition = getScheduleLinkedVerificationDefinitions(schedule).find((item) => item.linkedVerificationId === button.dataset.gasLiveStart);
+  const side = definition?.requiredSides?.find((item) => item.sideId === button.dataset.gasLiveSide);
+  if (!definition || !side) return;
+  button.disabled = true;
+  const result = await saveLinkedVerificationLiveState(schedule, definition, side, "ACTIVE", {
+    priority: "LOW",
+    currentState: "TEST_IN_PROGRESS"
+  });
+  document.querySelector("#syncState").textContent = result.ok
+    ? "CO2/Gas test started. The assigned MFAP technician has an informational live event."
+    : result.reason || "Unable to start live coordination.";
+  await requestSharedJobState(schedule, { migrate: false, apply: true });
+  renderCriticalSopPreservingScroll();
+}
+
+function refreshActiveSopStepLinkedVerifications(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const template = criticalSopTemplates.find((item) => item.id === state.activeCriticalSopId);
+  if (!template || !schedule || criticalSopPanel?.classList.contains("hidden")) return;
+  document.querySelectorAll("[data-sop-inline-linked-step]").forEach((container) => {
+    const step = template.steps[Number(container.dataset.sopInlineLinkedStep)];
+    const html = renderSopStepLinkedVerification(step, schedule, state.activeCriticalDevice);
+    if (container.dataset.linkedSignature === html) return;
+    container.dataset.linkedSignature = html;
+    container.innerHTML = html;
+    container.querySelectorAll("[data-linked-live-toggle]").forEach((button) => {
+      bindReliableTap(button, () => handleLinkedLiveToggle(button, schedule));
+    });
+  });
+}
+
+function renderActiveCriticalSopLinkedPrompt(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const container = document.querySelector("[data-critical-linked-prompt]");
+  if (!container || !schedule || state.activeCriticalSopId !== "fire-alarm-tripping-sop") return;
+  const html = renderCriticalSopLiveLinkedPrompt(schedule);
+  if (container.dataset.linkedSignature !== html) {
+    container.dataset.linkedSignature = html;
+    container.innerHTML = html;
+    bindCriticalSopLinkedPromptControls(container, schedule);
+  }
+  const alertsContainer = document.querySelector("[data-critical-job-alerts]");
+  if (alertsContainer) {
+    const alertsHtml = renderTechnicianJobAlerts(schedule);
+    if (alertsContainer.dataset.alertSignature !== alertsHtml) {
+      alertsContainer.dataset.alertSignature = alertsHtml;
+      alertsContainer.innerHTML = alertsHtml;
+    }
+  }
+  renderMfapWorkspaceNavigation(schedule, { detectNew: true });
+}
+
+function getFapLinkedAutoResultSignature(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const template = criticalSopTemplates.find((item) => item.id === "fire-alarm-tripping-sop");
+  const step = template?.steps.find((item) => Array.isArray(item.autoResultFromLinkedVerifications));
+  const autoResult = step ? getSopLinkedVerificationAutoState(step, schedule) : null;
+  return JSON.stringify({
+    overall: autoResult?.overall || "",
+    details: autoResult?.details || []
+  });
+}
+
+function refreshActiveFapLinkedAutoResult(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const form = document.querySelector("#criticalSopForm");
+  if (!schedule || !form || state.activeCriticalSopId !== "fire-alarm-tripping-sop" || criticalSopPanel?.classList.contains("hidden")) return;
+  const signature = getFapLinkedAutoResultSignature(schedule);
+  if (form.dataset.linkedAutoSignature === signature) return;
+  const focused = document.activeElement;
+  if (focused && focused !== document.body && form.contains(focused)) return;
+  renderCriticalSopPreservingScroll();
+  form.dataset.linkedAutoSignature = signature;
 }
 
 async function handleLinkedVerificationSideSave(button, schedule) {
@@ -2457,7 +3296,17 @@ async function handleLinkedVerificationSideSave(button, schedule) {
   const card = button.closest("[data-linked-card]");
   if (!definition || !side || !card) return;
   const evidenceInput = card.querySelector("[data-linked-evidence]");
-  const evidenceRefs = (await readPhotoAttachmentFiles(evidenceInput, "linked-verification")).slice(0, 1);
+  const evidenceRefs = (await readPhotoAttachmentFiles(evidenceInput, "linked-verification", {
+    scheduleId: schedule.scheduleId,
+    jobId: schedule.jobId || `JOB-${schedule.scheduleId}`,
+    clientId: schedule.clientId || schedule.companyName,
+    clientName: schedule.companyName,
+    siteId: schedule.siteId || schedule.siteName,
+    siteName: schedule.siteName,
+    floorId: side.floorId || "",
+    floorLabel: side.location || side.sideLocation || side.sideName,
+    locationLabel: side.location || side.sideLocation || side.sideName
+  })).slice(0, 1);
   const result = await saveLinkedVerificationSide(schedule, definition, side, {
     result: card.querySelector("[data-linked-result]")?.value || "",
     notes: card.querySelector("[data-linked-notes]")?.value.trim() || "",
@@ -2476,6 +3325,9 @@ async function handleLinkedVerificationSideSave(button, schedule) {
   }
   renderTechWorkPanel();
   renderTechSystemStagePanel(schedule);
+  if (state.activeCriticalSopId === "fire-alarm-tripping-sop" && !criticalSopPanel?.classList.contains("hidden")) {
+    renderCriticalSopPreservingScroll();
+  }
 }
 
 function renderAdminLinkedVerificationPanel() {
@@ -2532,6 +3384,31 @@ window.addEventListener("online", async () => {
     renderAdminLinkedVerificationPanel();
   }
 });
+
+function startTechnicianSharedHeartbeat() {
+  if (technicianSharedRefreshTimerId) return;
+  technicianSharedRefreshTimerId = window.setInterval(refreshActiveTechnicianSharedState, 5000);
+}
+
+async function refreshActiveTechnicianSharedState() {
+  if (technicianSharedRefreshInFlight || document.hidden || getCurrentUserRole() !== "Technician") return;
+  const schedule = getActiveTechnicianMaintenanceSchedule();
+  if (!schedule) return;
+  technicianSharedRefreshInFlight = true;
+  try {
+    await requestSharedJobState(schedule, { migrate: false, apply: true });
+    await loadLinkedVerificationIndex();
+    renderTechSystemStagePanel(schedule);
+    renderActiveCriticalSopLinkedPrompt(schedule);
+    refreshActiveFapLinkedAutoResult(schedule);
+    refreshActiveSopStepLinkedVerifications(schedule);
+    renderPumpDrawerStages(schedule);
+  } catch (error) {
+    console.warn("Technician shared-state refresh unavailable", error);
+  } finally {
+    technicianSharedRefreshInFlight = false;
+  }
+}
 
 function shouldUpdateDiagnosticsForCurrentUser() {
   return getCurrentUserRole() !== "Technician" || workspace?.classList.contains("show-tech-diagnostics");
@@ -2796,6 +3673,18 @@ function getActiveTechAssignedDeviceIds(schedule = getTechMarkerScopeSchedule())
   if (getCurrentUserRole() !== "Technician") return null;
   const ids = schedule?.plannedDeviceIds;
   if (!Array.isArray(ids) || !ids.length) return new Set();
+  const assignments = schedule?.deviceAssignments;
+  if (assignments && typeof assignments === "object") {
+    const currentUserId = normalizeScopeText(getCurrentUserId());
+    const currentUserName = normalizeScopeText(getCurrentUserName());
+    return new Set(ids.filter((id) => {
+      const assignment = assignments[id];
+      if (!assignment) return true;
+      const assignedId = normalizeScopeText(assignment.technicianId || assignment.assignedTechnicianId || "");
+      const assignedName = normalizeScopeText(assignment.technicianName || assignment.assignedTechnicianName || "");
+      return assignedId === currentUserId || assignedName === currentUserName;
+    }));
+  }
   const cache = getRuntimeCaches();
   const key = `${getScheduleVersionKey(schedule)}::assigned-ids`;
   if (!cache.assignedIdSets.has(key)) {
@@ -3040,7 +3929,62 @@ function isRequestApproved(request) {
   return status.includes("APPROVED");
 }
 
+function syncTechnicianChecklistExceptionState() {
+  if (getCurrentUserRole() !== "Technician" || !questionList) return;
+  const questionCards = [...questionList.querySelectorAll(".question")];
+  let hasFailedQuestion = false;
+  questionCards.forEach((card) => {
+    const failed = card.querySelector('input[value="Fail"]:checked');
+    card.classList.toggle("question-failed", Boolean(failed));
+    hasFailedQuestion = hasFailedQuestion || Boolean(failed);
+  });
+  if (hasFailedQuestion) {
+    workspace.classList.add("tech-fault-entry-active");
+    workspace.classList.remove("tech-remarks-entry-active");
+    checklistForm.dataset.questionFault = "true";
+    const failButton = document.querySelector("#markFailBtn");
+    if (failButton) failButton.textContent = "Save FAULT";
+    return;
+  }
+  if (checklistForm.dataset.questionFault === "true" && checklistForm.dataset.manualFault !== "true") {
+    workspace.classList.remove("tech-fault-entry-active");
+    const failButton = document.querySelector("#markFailBtn");
+    if (failButton) failButton.textContent = "FAULT";
+  }
+  delete checklistForm.dataset.questionFault;
+}
+
+function renderTechnicianInspectionContext(device, schedule) {
+  if (!techInspectionContext) return;
+  if (getCurrentUserRole() !== "Technician") {
+    techInspectionContext.innerHTML = "";
+    return;
+  }
+  const groups = getTechnicianFireSystemGroups(schedule);
+  const activeKey = getActiveTechnicianSystemKey(schedule);
+  const group = groups.find((item) => item.id === activeKey)
+    || groups.find((item) => item.devices.some((candidate) => (candidate.id || candidate.tag) === (device.id || device.tag)));
+  const systemKey = group?.id || activeKey || "other-configured";
+  const visibleDevices = getVisibleTechnicianDevicesForSystem(schedule);
+  const itemIndex = visibleDevices.findIndex((candidate) => (candidate.id || candidate.tag) === (device.id || device.tag));
+  const itemText = itemIndex >= 0 ? `Item ${itemIndex + 1} of ${visibleDevices.length}` : `${visibleDevices.length} assigned`;
+  const technician = getCurrentUserName();
+  const jobContext = [schedule?.companyName, schedule?.siteName].filter(Boolean).join(" / ");
+  const timestamp = new Date().toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  techInspectionContext.innerHTML = `
+    <div class="tech-inspection-system">
+      ${getTechnicianSystemIcon(systemKey)}
+      <span><strong>${escapeHtml(group?.label || device.type || "Assigned System")}</strong><small>${escapeHtml(itemText)}</small></span>
+    </div>
+    <p data-tech-autofill-context>${escapeHtml(technician)} · ${escapeHtml(jobContext || "Assigned job")} · ${escapeHtml(timestamp)}</p>
+  `;
+}
+
 async function selectDevice(id, options = {}) {
+  if (getCurrentUserRole() === "Technician" && state.selectedId && state.selectedId !== id && options.skipDirtyCheck !== true && !confirmTechnicianNavigation()) {
+    return false;
+  }
+  clearTechnicianInspectionDirty();
   state.selectedId = id;
   const device = findInspectionDevice(id);
   if (!device) return;
@@ -3105,18 +4049,25 @@ async function selectDevice(id, options = {}) {
   state.activeCriticalDevice = null;
   workspace.classList.remove("critical-sop-active");
   workspace.classList.remove("tech-fault-entry-active");
+  delete checklistForm.dataset.manualFault;
+  delete checklistForm.dataset.questionFault;
   placeChecklistFormForRole();
   const saved = state.inspections[id] || {};
+  workspace.classList.toggle("tech-remarks-entry-active", Boolean(saved.notes));
+  document.querySelector("#toggleInspectionRemarksBtn")?.setAttribute("aria-expanded", String(Boolean(saved.notes)));
 
   emptyState.classList.add("hidden");
   checklistForm.classList.remove("hidden");
   document.querySelector("#deviceType").textContent = device.type;
   document.querySelector("#deviceName").textContent = device.id;
   document.querySelector("#deviceLocation").textContent = displayDeviceLocation(device.location);
+  renderTechnicianInspectionContext(device, getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule());
   document.querySelector("#notes").value = saved.notes || "";
   document.querySelector("#actionTaken").value = "";
   document.querySelector("#beforePhoto").value = "";
   document.querySelector("#afterPhoto").value = "";
+  pendingInspectionPhotoEvidence.before = null;
+  pendingInspectionPhotoEvidence.after = null;
   updateInspectionPhotoEvidenceStatus(saved);
   const failButton = document.querySelector("#markFailBtn");
   const passButton = checklistForm.querySelector("button[type='submit']");
@@ -3129,22 +4080,29 @@ async function selectDevice(id, options = {}) {
   device.questions.forEach((question, index) => {
     const value = saved.answers?.[index] || "Pass";
     const card = document.createElement("div");
-    card.className = "question";
+    card.className = "question tech-checklist-question";
     card.innerHTML = `
       <p>${index + 1}. ${question}</p>
       <div class="choice-row">
         ${["Pass", "Fail", "N/A"].map((choice) => `
-          <label>
+          <label class="choice-${choice === "N/A" ? "na" : choice.toLowerCase()}">
             <input type="radio" name="q${index}" value="${choice}" ${choice === value ? "checked" : ""}>
-            ${choice}
+            ${choice === "Fail" ? "FAULT" : choice === "N/A" ? "N/A" : "PASS"}
           </label>
         `).join("")}
       </div>
     `;
+    card.querySelectorAll('input[type="radio"]').forEach((input) => {
+      input.addEventListener("change", syncTechnicianChecklistExceptionState);
+    });
     questionList.appendChild(card);
   });
+  syncTechnicianChecklistExceptionState();
 
   markAssignedItemOpened(device, { critical: false, logEvent: true });
+  if (getCurrentUserRole() === "Technician") {
+    void updateFieldDeviceLiveEvent(getActiveTechnicianMaintenanceSchedule(), device, "ACTIVE");
+  }
 
   if (options.scrollIntoView !== false) {
     requestAnimationFrame(() => {
@@ -3457,8 +4415,15 @@ function createCriticalSopTemplateSnapshot(template) {
       requiresRemark: Boolean(step.requiresRemark),
       requiresPhoto: Boolean(step.requiresPhoto),
       requiresSupervisor: Boolean(step.requiresSupervisor),
+      captureTechnician: Boolean(step.captureTechnician),
+      lockChoiceAfterSave: Boolean(step.lockChoiceAfterSave),
+      usesStandbyConfiguration: Boolean(step.usesStandbyConfiguration),
       choiceLabel: step.choiceLabel || "",
       readingLabel: step.readingLabel || "",
+      readingType: step.readingType || "text",
+      readingStep: step.readingStep || "",
+      readingUnit: step.readingUnit || "",
+      autoResultFromLinkedVerifications: step.autoResultFromLinkedVerifications || [],
       choices: step.choices || []
     }))
   };
@@ -3543,8 +4508,6 @@ function createCriticalWorkflowRun(definition, parentDevice, schedule, existing 
     parentFloorId: parentDevice?.floorId || "",
     parentFloor: parentDevice?.floorTitle || parentDevice?.floor || "",
     location: displayDeviceLocation(parentDevice?.location || ""),
-    prerequisiteStepIndexes: existing.prerequisiteStepIndexes || getValidSopStepIndexes(template, definition.prerequisiteStepIndexes),
-    finalStepIndexes: existing.finalStepIndexes || getValidSopStepIndexes(template, definition.finalStepIndexes),
     childDeviceIds: [],
     secondaryChildDeviceIds: [],
     childDependencies: {},
@@ -3552,7 +4515,10 @@ function createCriticalWorkflowRun(definition, parentDevice, schedule, existing 
     createdBy: existing.createdBy || getCurrentUserName(),
     status: existing.status || "precheck_required",
     stageLabel: existing.stageLabel || "Prerequisite required",
-    ...existing
+    ...existing,
+    prerequisiteStepIndexes: getValidSopStepIndexes(template, definition.prerequisiteStepIndexes),
+    finalStepIndexes: getValidSopStepIndexes(template, definition.finalStepIndexes),
+    dependencyModelVersion: "critical-dependencies-v2-test-ready"
   };
 }
 
@@ -3593,7 +4559,7 @@ function ensureActiveJobCriticalWorkflows(schedule = getActiveTechnicianMaintena
   const parentDevices = assignedDevices.filter((device) => isCriticalSopDevice(device));
   const runs = state.activeJob.criticalWorkflowRuns || {};
   state.activeJob.criticalWorkflowRuns = runs;
-  state.activeJob.criticalDependencyModelVersion = "critical-dependencies-v1";
+  state.activeJob.criticalDependencyModelVersion = "critical-dependencies-v2-test-ready";
 
   parentDevices.forEach((device) => {
     const definition = getCriticalDependencyDefinitionForParent(device);
@@ -3747,32 +4713,38 @@ function getCriticalWorkflowRunState(run, schedule = null) {
   const record = getCriticalSopRecordForWorkflowRun(run, schedule) || { steps: {} };
   const prerequisite = getSopStageState(template, record, run?.prerequisiteStepIndexes || []);
   const final = getSopStageState(template, record, run?.finalStepIndexes || []);
+  const finalIndexes = new Set(run?.finalStepIndexes || []);
+  const checklist = getSopStageState(template, record, (template?.steps || []).map((_, index) => index).filter((index) => !finalIndexes.has(index)));
   const childIds = getCriticalWorkflowChildIds(run);
   const childCompleteCount = childIds.filter((childId) => isChildInspectionComplete(childId, schedule)).length;
   const childrenComplete = childCompleteCount === childIds.length;
   const totalCompletedSteps = template ? getCriticalSopCompleteCount(template, record) : 0;
   const sopComplete = template ? isCriticalSopRecordComplete(template, record) : false;
-  let status = "precheck_required";
-  let stageLabel = "Complete prerequisite before field testing.";
+  let status = "not_ready";
+  let stageLabel = "Complete the approved preparation steps before field testing.";
 
   if (prerequisite.failed) {
-    status = "prerequisite_failed";
-    stageLabel = "Prerequisite has failed/unsafe result.";
+    status = "not_ready";
+    stageLabel = "Preparation has a failed/unsafe result.";
   } else if (prerequisite.complete && !childrenComplete) {
-    status = "children_open";
-    stageLabel = `Field devices unlocked (${childCompleteCount}/${childIds.length} linked done).`;
+    status = totalCompletedSteps > prerequisite.completed ? "checklist_in_progress" : "test_ready";
+    stageLabel = `TEST READY · field devices unlocked (${childCompleteCount}/${childIds.length} linked done).`;
   } else if (prerequisite.complete && childrenComplete && !final.complete) {
-    status = "final_required";
-    stageLabel = "Final restoration / normal confirmation required.";
+    status = checklist.complete ? "checklist_complete" : "final_required";
+    stageLabel = checklist.complete
+      ? "CHECKLIST COMPLETE · final restoration / normal confirmation required."
+      : "Final restoration / normal confirmation required.";
   } else if (prerequisite.complete && childrenComplete && final.complete && sopComplete) {
-    status = "complete";
-    stageLabel = "Critical workflow complete.";
+    status = "final_restored";
+    stageLabel = "FINAL RESTORED · critical workflow complete.";
   }
 
   return {
     status,
     stageLabel,
     prerequisiteComplete: prerequisite.complete,
+    testReady: prerequisite.complete && !prerequisite.failed,
+    checklistComplete: checklist.complete,
     prerequisiteFailed: prerequisite.failed,
     prerequisiteMissing: prerequisite.missing,
     finalComplete: final.complete,
@@ -3792,6 +4764,8 @@ function updateCriticalWorkflowRunProgress(run, schedule = null) {
   run.status = stage.status;
   run.stageLabel = stage.stageLabel;
   run.prerequisiteComplete = stage.prerequisiteComplete;
+  run.testReady = stage.testReady;
+  run.checklistComplete = stage.checklistComplete;
   run.prerequisiteFailed = stage.prerequisiteFailed;
   run.finalComplete = stage.finalComplete;
   run.childrenComplete = stage.childrenComplete;
@@ -3873,7 +4847,7 @@ function getDeviceCriticalAccessState(device, schedule = getActiveTechnicianMain
       dependencies,
       parentDeviceId: locked.run.parentDeviceId,
       parentDeviceTag: locked.run.parentDeviceTag,
-      reason: `${locked.run.parentDeviceTag} ${locked.run.label} prerequisite must be completed before opening ${deviceId}.`
+      reason: `${locked.run.parentDeviceTag} ${locked.run.label} must reach TEST READY before opening ${deviceId}.`
     };
     cache.criticalAccess.set(cacheKey, result);
     return result;
@@ -3917,6 +4891,14 @@ function openCriticalSopForDevice(device, options = {}) {
   workspace.classList.add("critical-sop-active");
   placeCriticalSopPanelForRole();
   renderCriticalSop();
+  if (templateId === "sprinkler-hydrant-pump-sop") {
+    const schedule = getActiveTechnicianMaintenanceSchedule();
+    loadPumpConfiguration(schedule, state.activeCriticalDevice).then(() => {
+      if (state.activeCriticalSopId === templateId && state.activeCriticalDevice?.tag === (device.id || device.tag)) {
+        renderCriticalSopPreservingScroll();
+      }
+    });
+  }
   markAssignedItemOpened(device, { critical: true, logEvent: false });
   addJobEvent("Critical SOP opened", `${state.activeCriticalDevice.tag} - ${state.activeCriticalDevice.type}`);
   if (getCurrentUserRole() === "Technician") {
@@ -3980,13 +4962,17 @@ function getInspectionPhotoEvidenceState(inspection = state.inspections[state.se
   const afterInput = document.querySelector("#afterPhoto");
   const beforeFile = beforeInput?.files?.[0] || null;
   const afterFile = afterInput?.files?.[0] || null;
+  const beforeEvidence = pendingInspectionPhotoEvidence.before || inspection.beforePhotoEvidence || null;
+  const afterEvidence = pendingInspectionPhotoEvidence.after || inspection.afterPhotoEvidence || null;
   return {
     beforeFile,
     afterFile,
     beforeName: beforeFile?.name || inspection.beforePhoto || "",
     afterName: afterFile?.name || inspection.afterPhoto || "",
-    beforeData: inspection.beforePhotoData || "",
-    afterData: inspection.afterPhotoData || ""
+    beforeData: getEvidenceDisplaySource(beforeEvidence) || inspection.beforePhotoData || "",
+    afterData: getEvidenceDisplaySource(afterEvidence) || inspection.afterPhotoData || "",
+    beforeEvidence,
+    afterEvidence
   };
 }
 
@@ -4001,7 +4987,7 @@ function updateInspectionPhotoEvidenceStatus(inspection = state.inspections[stat
   if (afterName) afterName.textContent = evidence.afterName ? `After: ${evidence.afterName}` : "No saved after photo";
   if (status) {
     status.textContent = names.length
-      ? `Photo evidence ready: ${names.join(" / ")}`
+      ? `Stamped photo evidence ready: ${names.join(" / ")}`
       : "No photo evidence yet.";
   }
   if (viewButton) {
@@ -4011,16 +4997,16 @@ function updateInspectionPhotoEvidenceStatus(inspection = state.inspections[stat
 
 function viewInspectionPhotoEvidence() {
   const evidence = getInspectionPhotoEvidenceState();
-  const file = evidence.beforeFile || evidence.afterFile;
   const data = evidence.beforeData || evidence.afterData;
+  if (data) {
+    window.open(data, "_blank", "noopener");
+    return;
+  }
+  const file = evidence.beforeFile || evidence.afterFile;
   if (file) {
     const url = URL.createObjectURL(file);
     window.open(url, "_blank", "noopener");
     window.setTimeout(() => URL.revokeObjectURL(url), 30000);
-    return;
-  }
-  if (data) {
-    window.open(data, "_blank", "noopener");
     return;
   }
   if (evidence.beforeName || evidence.afterName) {
@@ -4039,13 +5025,41 @@ saveNextInspectionBtn?.addEventListener("click", async () => {
   await saveInspection(null, { openNextAssignedItem: true });
 });
 
-document.querySelector("#beforePhoto")?.addEventListener("change", () => updateInspectionPhotoEvidenceStatus());
-document.querySelector("#afterPhoto")?.addEventListener("change", () => updateInspectionPhotoEvidenceStatus());
+document.querySelector("#beforePhoto")?.addEventListener("change", async (event) => {
+  const status = document.querySelector("#photoEvidenceStatus");
+  if (status) status.textContent = "Preparing stamped preview...";
+  try {
+    pendingInspectionPhotoEvidence.before = await createPhotoEvidenceFromFile(event.target.files?.[0], "before", getPhotoEvidenceContext());
+    updateInspectionPhotoEvidenceStatus();
+  } catch (error) {
+    pendingInspectionPhotoEvidence.before = null;
+    if (status) status.textContent = "Unable to prepare this photo. Retake or choose another image.";
+  }
+});
+document.querySelector("#afterPhoto")?.addEventListener("change", async (event) => {
+  const status = document.querySelector("#photoEvidenceStatus");
+  if (status) status.textContent = "Preparing stamped preview...";
+  try {
+    pendingInspectionPhotoEvidence.after = await createPhotoEvidenceFromFile(event.target.files?.[0], "after", getPhotoEvidenceContext());
+    updateInspectionPhotoEvidenceStatus();
+  } catch (error) {
+    pendingInspectionPhotoEvidence.after = null;
+    if (status) status.textContent = "Unable to prepare this photo. Retake or choose another image.";
+  }
+});
 document.querySelector("#viewInspectionPhotoBtn")?.addEventListener("click", viewInspectionPhotoEvidence);
+
+document.querySelector("#toggleInspectionRemarksBtn")?.addEventListener("click", () => {
+  workspace.classList.add("tech-remarks-entry-active");
+  const button = document.querySelector("#toggleInspectionRemarksBtn");
+  button?.setAttribute("aria-expanded", "true");
+  document.querySelector("#notes")?.focus();
+});
 
 document.querySelector("#markFailBtn").addEventListener("click", async () => {
   if (getCurrentUserRole() === "Technician" && !workspace.classList.contains("tech-fault-entry-active")) {
     workspace.classList.add("tech-fault-entry-active");
+    checklistForm.dataset.manualFault = "true";
     const failButton = document.querySelector("#markFailBtn");
     if (failButton) failButton.textContent = "Save FAULT";
     document.querySelector("#syncState").textContent = "FAULT selected. Add defect description and photo evidence, then save.";
@@ -4079,15 +5093,24 @@ async function saveInspection(forcedStatus, options = {}) {
   const notesValue = document.querySelector("#notes").value.trim();
   const actionValue = document.querySelector("#actionTaken").value.trim();
   const previousInspection = state.inspections[device.id] || {};
-  const beforePhotoData = beforeFile ? await readFileData(beforeFile) : previousInspection.beforePhotoData || "";
-  const afterPhotoData = afterFile ? await readFileData(afterFile) : previousInspection.afterPhotoData || "";
+  const photoContext = getPhotoEvidenceContext({ deviceId: device.id, floorId: device.floorId, locationLabel: displayDeviceLocation(device.location || device.floor || "") });
+  const beforePhotoEvidence = beforeFile
+    ? pendingInspectionPhotoEvidence.before || await createPhotoEvidenceFromFile(beforeFile, "before", photoContext)
+    : previousInspection.beforePhotoEvidence || null;
+  const afterPhotoEvidence = afterFile
+    ? pendingInspectionPhotoEvidence.after || await createPhotoEvidenceFromFile(afterFile, "after", photoContext)
+    : previousInspection.afterPhotoEvidence || null;
+  const beforePhotoData = getEvidenceDisplaySource(beforePhotoEvidence) || previousInspection.beforePhotoData || "";
+  const afterPhotoData = getEvidenceDisplaySource(afterPhotoEvidence) || previousInspection.afterPhotoData || "";
   const hasFaultPhoto = Boolean(
     beforeFile
     || afterFile
     || previousInspection.beforePhoto
     || previousInspection.beforePhotoData
+    || previousInspection.beforePhotoEvidence
     || previousInspection.afterPhoto
     || previousInspection.afterPhotoData
+    || previousInspection.afterPhotoEvidence
   );
   if (getCurrentUserRole() === "Technician" && status === "fail") {
     if (!notesValue) {
@@ -4103,6 +5126,8 @@ async function saveInspection(forcedStatus, options = {}) {
   }
   const auditSession = completeAssignedItemSession(device, { status, critical: false });
   const activeScheduleForSave = getActiveTechnicianMaintenanceSchedule();
+  const activeSystemKey = getActiveTechnicianSystemKey(activeScheduleForSave);
+  const activeSystemDefinition = getTechnicianFireSystemDefinition(activeSystemKey);
   state.inspections[device.id] = {
     status,
     answers,
@@ -4110,13 +5135,24 @@ async function saveInspection(forcedStatus, options = {}) {
     action: actionValue,
     beforePhoto: beforeFile?.name || previousInspection.beforePhoto || "",
     beforePhotoData,
+    beforePhotoEvidence,
     afterPhoto: afterFile?.name || previousInspection.afterPhoto || "",
     afterPhotoData,
+    afterPhotoEvidence,
     inspectedAt: new Date().toISOString(),
     inspectedBy: getCurrentUserName(),
+    technicianId: getCurrentUserId(),
     inspectedRole: getCurrentUserRole(),
     jobId: state.activeJob?.jobId || "",
     scheduleId: activeScheduleForSave?.scheduleId || state.activeJob?.scheduleId || "",
+    clientId: activeScheduleForSave?.clientId || activeScheduleForSave?.companyName || state.activeJob?.companyName || "",
+    companyName: activeScheduleForSave?.companyName || state.activeJob?.companyName || "",
+    siteId: activeScheduleForSave?.siteId || activeScheduleForSave?.siteName || state.activeJob?.siteName || "",
+    siteName: activeScheduleForSave?.siteName || state.activeJob?.siteName || "",
+    systemId: activeSystemKey || "",
+    systemName: activeSystemDefinition?.label || "",
+    floorId: device.floorId || floorSelect.value || "",
+    location: displayDeviceLocation(device.location || device.floor || ""),
     checklistStartedAt: auditSession?.lastStartedAt || auditSession?.firstOpenedAt || "",
     checklistDurationMs: auditSession?.lastDurationMs || 0,
     checklistTotalDurationMs: auditSession?.durationMs || 0
@@ -4155,12 +5191,17 @@ async function saveInspection(forcedStatus, options = {}) {
     state.inspections[device.id].syncStatus = "draft";
     state.inspections[device.id].unsynced = true;
   }
+  if (getCurrentUserRole() === "Technician" && !sharedSave.offline && !sharedSave.conflict) {
+    await updateFieldDeviceLiveEvent(activeScheduleForSave, device, "ENDED");
+  }
   invalidateRuntimeCaches();
 
   const inspectionSaved = writeStoredJson("tmFireInspections", state.inspections);
   if (!inspectionSaved) {
     state.inspections[device.id].beforePhotoData = "";
     state.inspections[device.id].afterPhotoData = "";
+    state.inspections[device.id].beforePhotoEvidence = stripEvidenceBinaryData(state.inspections[device.id].beforePhotoEvidence);
+    state.inspections[device.id].afterPhotoEvidence = stripEvidenceBinaryData(state.inspections[device.id].afterPhotoEvidence);
     writeStoredJson("tmFireInspections", state.inspections);
   }
   writeStoredJson("tmFireHistory", state.history);
@@ -4172,6 +5213,7 @@ async function saveInspection(forcedStatus, options = {}) {
   ensureActiveJobCriticalWorkflows(getActiveTechnicianMaintenanceSchedule());
   syncActiveJobProgressToSchedule();
   persistActiveJob();
+  clearTechnicianInspectionDirty();
   if (getCurrentUserRole() === "Technician") {
     state.focusedMapTag = device.id;
     renderMarkers();
@@ -4182,6 +5224,10 @@ async function saveInspection(forcedStatus, options = {}) {
       if (openedNext) return;
     }
     workspace.classList.remove("tech-fault-entry-active");
+    workspace.classList.remove("tech-remarks-entry-active");
+    document.querySelector("#toggleInspectionRemarksBtn")?.setAttribute("aria-expanded", "false");
+    delete checklistForm.dataset.manualFault;
+    delete checklistForm.dataset.questionFault;
     checklistForm.classList.add("hidden");
     emptyState.classList.remove("hidden");
     setTechScreen("mimic", { scroll: true, renderMarkers: false });
@@ -4212,19 +5258,216 @@ function readFileData(file) {
   });
 }
 
-async function readPhotoAttachmentFiles(input, category) {
+const PHOTO_EVIDENCE_STAMP_VERSION = "rmt-photo-stamp-v1";
+const pendingInspectionPhotoEvidence = { before: null, after: null };
+const photoEvidenceFileCache = new WeakMap();
+
+function createEvidenceId(prefix = "EVD") {
+  const random = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}-${random}`;
+}
+
+function formatTimezoneOffset(date = new Date()) {
+  const totalMinutes = -date.getTimezoneOffset();
+  const sign = totalMinutes >= 0 ? "+" : "-";
+  const hours = String(Math.floor(Math.abs(totalMinutes) / 60)).padStart(2, "0");
+  const minutes = String(Math.abs(totalMinutes) % 60).padStart(2, "0");
+  return `${sign}${hours}:${minutes}`;
+}
+
+function formatLocalCaptureTimestamp(date = new Date()) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}${formatTimezoneOffset(date)}`;
+}
+
+function sanitizeEvidenceGps(gps = null) {
+  const permissionState = String(gps?.permissionState || "not-requested");
+  const latitude = Number(gps?.latitude);
+  const longitude = Number(gps?.longitude);
+  const accuracy = Number(gps?.accuracy);
+  return {
+    ...(Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : {}),
+    ...(Number.isFinite(accuracy) ? { accuracy } : {}),
+    permissionState
+  };
+}
+
+function getPhotoEvidenceContext(overrides = {}) {
+  const schedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule() || {};
+  const profile = getCurrentSiteIdentity();
+  const device = state.selectedId ? findInspectionDevice(state.selectedId) : null;
+  const pick = (key, fallback) => Object.prototype.hasOwnProperty.call(overrides, key) ? overrides[key] : fallback;
+  return {
+    jobId: pick("jobId", state.activeJob?.jobId || ""),
+    scheduleId: pick("scheduleId", schedule.scheduleId || state.activeJob?.scheduleId || ""),
+    clientId: pick("clientId", schedule.clientId || schedule.companyName || profile.companyName || ""),
+    clientName: pick("clientName", schedule.companyName || profile.companyName || ""),
+    siteId: pick("siteId", schedule.siteId || schedule.siteName || profile.siteName || ""),
+    siteName: pick("siteName", schedule.siteName || profile.siteName || ""),
+    floorId: pick("floorId", device?.floorId || floorSelect?.value || ""),
+    floorLabel: pick("floorLabel", device?.floorTitle || device?.floor || getFloorAsset(floorSelect?.value)?.title || ""),
+    deviceId: pick("deviceId", device?.id || device?.tag || ""),
+    assetSerial: pick("assetSerial", ""),
+    locationLabel: pick("locationLabel", cleanDeviceLocation(device?.location || "")),
+    technicianId: pick("technicianId", getCurrentUserId()),
+    technicianName: pick("technicianName", getCurrentUserName()),
+    gps: sanitizeEvidenceGps(overrides.gps)
+  };
+}
+
+function getEvidenceDisplaySource(evidence = {}) {
+  return evidence?.stampedDataUrl || evidence?.stampedPhotoUrl || evidence?.photoUrl || evidence?.dataUrl || evidence?.originalDataUrl || evidence?.originalPhotoUrl || "";
+}
+
+function stripEvidenceBinaryData(evidence) {
+  if (!evidence) return evidence;
+  const clean = { ...evidence };
+  delete clean.dataUrl;
+  delete clean.originalDataUrl;
+  delete clean.stampedDataUrl;
+  return clean;
+}
+
+function getPhotoStampFields(context, capturedDate) {
+  const dateTime = capturedDate.toLocaleString([], {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  const clientSite = [context.clientName || context.clientId, context.siteName || context.siteId].filter(Boolean).join(" / ");
+  const subject = [context.deviceId || context.assetSerial, context.floorLabel || context.floorId, context.locationLabel].filter(Boolean).join(" / ");
+  return [
+    { key: "capturedAt", label: "Captured", value: dateTime },
+    { key: "technician", label: "Technician", value: context.technicianName || context.technicianId },
+    { key: "site", label: "Client / Site", value: clientSite },
+    { key: "job", label: "Job", value: context.scheduleId || context.jobId },
+    { key: "subject", label: "Device / Location", value: subject }
+  ].filter((field) => field.value);
+}
+
+function loadEvidenceImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Unable to load evidence image"));
+    image.src = dataUrl;
+  });
+}
+
+async function createStampedEvidenceDataUrl(originalDataUrl, stampFields) {
+  const startedAt = performance.now();
+  const image = await loadEvidenceImage(originalDataUrl);
+  const imageLoadedAt = performance.now();
+  const maxEdge = 1600;
+  const scale = Math.min(1, maxEdge / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height));
+  const width = Math.max(1, Math.round((image.naturalWidth || image.width) * scale));
+  const height = Math.max(1, Math.round((image.naturalHeight || image.height) * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Photo stamping is unavailable in this browser");
+  context.drawImage(image, 0, 0, width, height);
+
+  const lines = stampFields.slice(0, 5).map((field) => field.label === "Captured" ? field.value : `${field.label}: ${field.value}`);
+  const maxStampHeight = Math.round(height * 0.18);
+  const padding = Math.max(5, Math.min(14, Math.round(height * 0.012)));
+  const lineHeight = Math.max(10, Math.floor((maxStampHeight - padding * 2) / Math.max(1, lines.length)));
+  const fontSize = Math.max(9, Math.min(24, Math.floor(lineHeight * 0.8), Math.round(width * 0.018)));
+  const visibleLines = lines;
+  context.font = `600 ${fontSize}px Arial, sans-serif`;
+  const measuredWidth = visibleLines.reduce((maximum, line) => Math.max(maximum, context.measureText(line).width), 0);
+  const stampWidth = Math.min(width, Math.ceil(measuredWidth + padding * 2));
+  const stampHeight = Math.min(maxStampHeight, visibleLines.length * lineHeight + padding * 2);
+  const stampX = 0;
+  const stampY = Math.max(0, height - stampHeight);
+  context.fillStyle = "rgba(15, 23, 42, 0.76)";
+  context.fillRect(stampX, stampY, stampWidth, stampHeight);
+  context.fillStyle = "#ffffff";
+  context.textBaseline = "top";
+  visibleLines.forEach((line, index) => {
+    const availableWidth = stampWidth - padding * 2;
+    let displayLine = line;
+    let visibleCharacters = line.length;
+    while (visibleCharacters > 8 && context.measureText(displayLine).width > availableWidth) {
+      visibleCharacters -= 2;
+      displayLine = `${line.slice(0, visibleCharacters)}...`;
+    }
+    context.fillText(displayLine, stampX + padding, stampY + padding + index * lineHeight);
+  });
+  const stampCompletedAt = performance.now();
+  return {
+    dataUrl: canvas.toDataURL("image/jpeg", 0.9),
+    width,
+    height,
+    processingTimingMs: {
+      imageLoad: Math.round((imageLoadedAt - startedAt) * 10) / 10,
+      stampGeneration: Math.round((stampCompletedAt - imageLoadedAt) * 10) / 10,
+      total: Math.round((stampCompletedAt - startedAt) * 10) / 10
+    }
+  };
+}
+
+async function createPhotoEvidenceFromFile(file, category, contextOverrides = {}) {
+  if (!file) return null;
+  if (photoEvidenceFileCache.has(file)) return photoEvidenceFileCache.get(file);
+  const evidencePromise = (async () => {
+    const originalDataUrl = await readFileData(file);
+    if (!originalDataUrl) return null;
+    const capturedDate = new Date();
+    const context = getPhotoEvidenceContext(contextOverrides);
+    const evidenceId = createEvidenceId();
+    const stampFields = getPhotoStampFields(context, capturedDate);
+    const stamped = await createStampedEvidenceDataUrl(originalDataUrl, stampFields);
+    return {
+      schemaVersion: "photo-evidence-v1",
+      evidenceId,
+      originalEvidenceId: `${evidenceId}::original`,
+      stampedEvidenceId: `${evidenceId}::stamped`,
+      name: file.name,
+      type: file.type || "image/*",
+      size: file.size || 0,
+      category,
+      jobId: context.jobId,
+      scheduleId: context.scheduleId,
+      clientId: context.clientId,
+      clientName: context.clientName,
+      siteId: context.siteId,
+      siteName: context.siteName,
+      floorId: context.floorId,
+      floorLabel: context.floorLabel,
+      deviceId: context.deviceId,
+      assetSerial: context.assetSerial,
+      technicianId: context.technicianId,
+      technicianName: context.technicianName,
+      capturedAt: capturedDate.toISOString(),
+      capturedBy: context.technicianName,
+      capturedAtLocal: formatLocalCaptureTimestamp(capturedDate),
+      capturedAtUtc: capturedDate.toISOString(),
+      timezoneOffset: formatTimezoneOffset(capturedDate),
+      syncedAt: "",
+      locationLabel: context.locationLabel || context.floorLabel || "",
+      gps: context.gps,
+      stampVersion: PHOTO_EVIDENCE_STAMP_VERSION,
+      stampFields,
+      syncState: "LOCAL",
+      originalDataUrl,
+      stampedDataUrl: stamped.dataUrl,
+      dataUrl: stamped.dataUrl,
+      stampedWidth: stamped.width,
+      stampedHeight: stamped.height,
+      processingTimingMs: stamped.processingTimingMs
+    };
+  })();
+  photoEvidenceFileCache.set(file, evidencePromise);
+  return evidencePromise;
+}
+
+async function readPhotoAttachmentFiles(input, category, context = {}) {
   const files = [...(input?.files || [])].slice(0, 8);
-  const capturedAt = new Date().toISOString();
-  const capturedBy = getCurrentUserName();
-  return Promise.all(files.map(async (file) => ({
-    name: file.name,
-    type: file.type || "image/*",
-    size: file.size || 0,
-    category,
-    dataUrl: await readFileData(file),
-    capturedAt,
-    capturedBy
-  })));
+  return (await Promise.all(files.map((file) => createPhotoEvidenceFromFile(file, category, context)))).filter(Boolean);
 }
 
 function renderHistory(deviceId) {
@@ -4338,6 +5581,8 @@ function stripInspectionPhotoData(inspections = {}) {
     const next = { ...inspection };
     delete next.beforePhotoData;
     delete next.afterPhotoData;
+    next.beforePhotoEvidence = stripEvidenceBinaryData(next.beforePhotoEvidence);
+    next.afterPhotoEvidence = stripEvidenceBinaryData(next.afterPhotoEvidence);
     return [deviceId, next];
   }));
 }
@@ -4483,6 +5728,9 @@ function getSharedCriticalSopRecordByDevice(deviceId, templateId = "", schedule 
 }
 
 function inspectionRecordToLocal(record = {}) {
+  const evidenceRefs = Array.isArray(record.evidenceRefs) ? record.evidenceRefs : [];
+  const beforePhotoEvidence = evidenceRefs.find((item) => item.type === "before") || record.beforePhotoEvidence || null;
+  const afterPhotoEvidence = evidenceRefs.find((item) => item.type === "after") || record.afterPhotoEvidence || null;
   return {
     status: record.status || "pending",
     answers: record.answers || [],
@@ -4490,6 +5738,8 @@ function inspectionRecordToLocal(record = {}) {
     action: record.action || "",
     beforePhoto: record.beforePhoto || record.beforePhotoRef || "",
     afterPhoto: record.afterPhoto || record.afterPhotoRef || "",
+    beforePhotoEvidence,
+    afterPhotoEvidence,
     inspectedAt: record.inspectedAt || record.updatedAt || "",
     inspectedBy: record.technicianName || record.inspectedBy || "",
     inspectedRole: record.technicianRole || record.inspectedRole || "",
@@ -4544,6 +5794,7 @@ function getScheduleSnapshotForSharedApi(schedule = getActiveTechnicianMaintenan
   const { jobProgress, photoProof, ...snapshot } = schedule;
   return {
     ...snapshot,
+    linkedVerifications: getScheduleLinkedVerificationDefinitions(schedule),
     plannedDeviceIds: Array.isArray(schedule.plannedDeviceIds) ? schedule.plannedDeviceIds : [],
     plannedFloorCounts: Array.isArray(schedule.plannedFloorCounts) ? schedule.plannedFloorCounts : []
   };
@@ -4566,6 +5817,7 @@ async function requestSharedJobState(schedule, { migrate = true, apply = true } 
     const cache = setSharedJobCache(scheduleId, payload, { online: true });
     state.sharedSyncUnavailable = false;
     replaceLinkedVerificationIndexForSchedule(scheduleId, payload.linkedVerifications || []);
+    reconcileLinkedVerificationConflictDrafts(scheduleId, cache.store);
     if (apply) applySharedRecordsToLocalState(cache.store, schedule);
     return cache;
   } catch (error) {
@@ -5687,16 +6939,16 @@ async function readTechExtinguisherPhotoProof(existingProof = state.activeTechEx
   };
   return {
     collection: techExtCollectionPhotos?.files?.length
-      ? await readPhotoAttachmentFiles(techExtCollectionPhotos, "Collection")
+      ? await readPhotoAttachmentFiles(techExtCollectionPhotos, "Collection", getPhotoEvidenceContext())
       : fallback.collection || [],
     returnReinstall: techExtReturnPhotos?.files?.length
-      ? await readPhotoAttachmentFiles(techExtReturnPhotos, "Return / Reinstall")
+      ? await readPhotoAttachmentFiles(techExtReturnPhotos, "Return / Reinstall", getPhotoEvidenceContext())
       : fallback.returnReinstall || [],
     loanIssue: techExtLoanIssuePhotos?.files?.length
-      ? await readPhotoAttachmentFiles(techExtLoanIssuePhotos, "Loan Unit Issued")
+      ? await readPhotoAttachmentFiles(techExtLoanIssuePhotos, "Loan Unit Issued", getPhotoEvidenceContext())
       : fallback.loanIssue || [],
     loanReturn: techExtLoanReturnPhotos?.files?.length
-      ? await readPhotoAttachmentFiles(techExtLoanReturnPhotos, "Loan Unit Collected Back")
+      ? await readPhotoAttachmentFiles(techExtLoanReturnPhotos, "Loan Unit Collected Back", getPhotoEvidenceContext())
       : fallback.loanReturn || []
   };
 }
@@ -5743,7 +6995,7 @@ function renderTechExtinguisherPhotoPreview(photoProof = state.activeTechExtPhot
       ${photos.length ? `
         <div class="tech-ext-photo-thumbs">
           ${photos.map((photo) => {
-            const source = photo.dataUrl || photo.photoUrl || "";
+            const source = getEvidenceDisplaySource(photo);
             return `
               <div class="photo-thumb">
                 ${source ? `<img src="${escapeHtml(source)}" alt="${escapeHtml(label)} proof">` : `<div class="photo-placeholder">Photo</div>`}
@@ -6647,7 +7899,18 @@ async function saveExtinguisherAssetVerification(assetId, result, form = null, e
   const recordId = `ext-verification::${schedule.scheduleId}::${assetId}`;
   const current = store.extinguisherVerificationRecords?.[recordId] || {};
   const evidenceInput = form?.querySelector("[data-ext-evidence]") || extra.evidenceInput || null;
-  const evidenceRefs = evidenceInput?.files?.length ? await readPhotoAttachmentFiles(evidenceInput, "Extinguisher Evidence") : [];
+  const evidenceRefs = evidenceInput?.files?.length ? await readPhotoAttachmentFiles(evidenceInput, "Extinguisher Evidence", {
+    scheduleId: schedule.scheduleId,
+    jobId: schedule.jobId || `JOB-${schedule.scheduleId}`,
+    clientId: schedule.clientId || schedule.companyName,
+    clientName: schedule.companyName,
+    siteId: schedule.siteId || schedule.siteName,
+    siteName: schedule.siteName,
+    floorId: asset?.floorId || "",
+    floorLabel: asset?.floor || "",
+    assetSerial: asset?.serialNumber || extra.serialNumber || "",
+    locationLabel: form?.querySelector("[data-ext-current-location]")?.value.trim() || extra.currentLocation || asset?.location || ""
+  }) : [];
   const record = {
     assetId,
     serialNumber: asset?.serialNumber || normalizeExtinguisherSerial(extra.serialNumber),
@@ -8030,6 +9293,7 @@ function getTechnicianMaintenanceSchedules(limit = Infinity) {
   const today = formatDateValue(new Date());
   const jobs = state.schedules
     .filter((schedule) => schedule.status !== "Completed")
+    .filter((schedule) => !schedule.archived && schedule.active !== false)
     .filter((schedule) => !isExtinguisherJobSchedule(schedule))
     .filter(isScheduleAssignedToCurrentTechnician)
     .sort((a, b) => {
@@ -8115,7 +9379,7 @@ function getTechnicianFireSystemDefinitions() {
   return [
     {
       id: "fire-alarm",
-      label: "Fire Alarm",
+      label: "Fire Alarm Panel",
       hint: "MFAP, MCP, smoke, heat",
       scopeId: "fire-alarm",
       dependencyDefinitionIds: ["fire-alarm"],
@@ -8123,6 +9387,15 @@ function getTechnicianFireSystemDefinitions() {
       fieldLabel: "MCP / Smoke / Heat",
       completionLabel: "Normal Status",
       matchKeywords: ["main fire alarm panel", "mfap", ".mfap.", "fire alarm panel", "manual call point", "break glass", "mcp", ".mcp.", "smoke detector", ".sd.", "heat detector", ".hd.", "fire alarm bell"]
+    },
+    {
+      id: "pump",
+      label: "Pump",
+      hint: "Configured fire-pump work",
+      systemCheckLabel: "Pump Check",
+      fieldLabel: "Assigned Pump Tasks",
+      completionLabel: "Pump Completion",
+      matchKeywords: ["fire pump panel", "fire pump control", "main fire pump", "pump room panel"]
     },
     {
       id: "hose-reel",
@@ -8138,7 +9411,7 @@ function getTechnicianFireSystemDefinitions() {
     },
     {
       id: "pump-system",
-      label: "Sprinkler / Wet Riser / Hydrant",
+      label: "SPP / Sprinkler",
       hint: "Water-based pumps, riser, hydrant, flow switch",
       scopeId: "pump-system",
       dependencyDefinitionIds: ["water-based-pump"],
@@ -8150,7 +9423,7 @@ function getTechnicianFireSystemDefinitions() {
     },
     {
       id: "gas-release",
-      label: "Gas / Special Suppression",
+      label: "CO2 / Gas Release",
       hint: "CO2, FM200 and configured gas systems",
       scopeId: "gas-release",
       dependencyDefinitionIds: ["gas-release"],
@@ -8181,18 +9454,35 @@ function getTechnicianFireSystemDefinitions() {
       matchKeywords: ["fire extinguisher", "extinguisher", "9fe", "2co", "abc fire"]
     },
     {
-      id: "emergency-exit",
-      label: "Emergency Light / Exit Sign",
-      hint: "EL and exit signs",
-      scopeId: "emergency-exit",
+      id: "emergency-light",
+      label: "Emergency Light",
+      hint: "Assigned emergency lights",
       systemCheckLabel: "Circuit / Area Check",
-      fieldLabel: "EL / EX Points",
+      fieldLabel: "Emergency Light Points",
       completionLabel: "Lighting Summary",
-      matchKeywords: ["emergency light", ".el.", "exit sign", ".ex."]
+      matchKeywords: ["emergency light", ".el."]
+    },
+    {
+      id: "keluar-sign",
+      label: "Exit Sign",
+      hint: "Assigned exit signs",
+      systemCheckLabel: "Circuit / Area Check",
+      fieldLabel: "Keluar / Exit Sign Points",
+      completionLabel: "Exit Sign Summary",
+      matchKeywords: ["exit sign", "keluar sign", ".ex."]
+    },
+    {
+      id: "fire-door",
+      label: "Fire Door",
+      hint: "Assigned fire doors",
+      systemCheckLabel: "Door / Area Check",
+      fieldLabel: "Fire Door Points",
+      completionLabel: "Fire Door Summary",
+      matchKeywords: ["fire door", ".fd."]
     },
     {
       id: "other-configured",
-      label: "Other Configured Systems",
+      label: "Others",
       hint: "FI and site-specific devices",
       systemCheckLabel: "System Check",
       fieldLabel: "Configured Devices",
@@ -8278,6 +9568,13 @@ function getTechnicianFireSystemDefinitionsForDevice(device, definitions = getTe
   if (configuredIds.length) {
     const configuredDefinitions = normalDefinitions.filter((definition) => configuredIds.includes(definition.id));
     if (configuredDefinitions.length) return configuredDefinitions;
+    if (configuredIds.includes("emergency-exit")) {
+      const legacyLightingDefinition = normalDefinitions.find((definition) => {
+        return ["emergency-light", "keluar-sign"].includes(definition.id)
+          && deviceMatchesKeywords(device, definition.matchKeywords || []);
+      });
+      if (legacyLightingDefinition) return [legacyLightingDefinition];
+    }
   }
   const matches = normalDefinitions.filter((definition) => deviceMatchesTechnicianDefinition(device, definition, schedule));
   if (matches.length) return [matches[0]];
@@ -8407,7 +9704,7 @@ function getTechnicianSystemStageModel(group, schedule) {
   const prerequisitesComplete = parentStages.length > 0 && parentStages.every((item) => item.stage?.prerequisiteComplete && !item.stage?.prerequisiteFailed);
   const fieldSummary = getTechnicianDeviceSummary(fieldDevices, schedule);
   const firstParent = parentDevices[0] || null;
-  const finalReadyRun = parentStages.find((item) => item.stage?.status === "final_required")?.run || parentRuns[0] || null;
+  const finalReadyRun = parentStages.find((item) => ["final_required", "checklist_complete"].includes(item.stage?.status))?.run || parentRuns[0] || null;
 
   let systemCheck;
   if (setupIncomplete) {
@@ -8433,8 +9730,8 @@ function getTechnicianSystemStageModel(group, schedule) {
       note: prerequisiteFailed
         ? "Prerequisite has a failed/unsafe result. Correct it before field testing."
         : prerequisitesComplete
-          ? `${parentRuns.length} prerequisite record(s) complete.`
-          : `Complete ${parentRuns.map((run) => run.parentDeviceTag).filter(Boolean).join(" / ") || parentDevices.map((device) => device.id || device.tag).filter(Boolean).join(" / ") || "system prerequisite"} before field testing.`,
+          ? `${parentRuns.length} system check(s) TEST READY. Remaining panel work continues concurrently.`
+          : `Bring ${parentRuns.map((run) => run.parentDeviceTag).filter(Boolean).join(" / ") || parentDevices.map((device) => device.id || device.tag).filter(Boolean).join(" / ") || "system prerequisite"} to TEST READY before field testing.`,
       actionLabel: prerequisitesComplete ? "Review System Check" : "Open System Check",
       deviceId: firstParent?.id || firstParent?.tag || "",
       disabled: false
@@ -8458,7 +9755,7 @@ function getTechnicianSystemStageModel(group, schedule) {
     status: fieldLocked ? "locked" : fieldDevicesComplete ? "complete" : "active",
     title: `2. ${group.fieldLabel || "Field Devices"}`,
     note: fieldLocked
-      ? "Pins remain visible, but inspection is locked until the system check is completed."
+      ? "Pins remain visible, but inspection is locked until the system check reaches TEST READY."
       : `${fieldDevicesTitle}. Use the mimic pins as the main workspace.`,
     actionLabel: fieldLocked ? "View Locked Mimic" : "Open Mimic",
     disabled: false
@@ -8482,8 +9779,8 @@ function getTechnicianSystemStageModel(group, schedule) {
       disabled: true
     };
   } else if (parentDevices.length) {
-    const allComplete = parentStages.length > 0 && parentStages.every((item) => item.stage?.status === "complete");
-    const finalReady = parentStages.some((item) => item.stage?.status === "final_required");
+    const allComplete = parentStages.length > 0 && parentStages.every((item) => item.stage?.status === "final_restored");
+    const finalReady = parentStages.some((item) => ["final_required", "checklist_complete"].includes(item.stage?.status));
     completionStage = {
       status: allComplete ? "complete" : finalReady ? "active" : "locked",
       title: `3. ${group.completionLabel || "Completion"}`,
@@ -8566,7 +9863,7 @@ function getVisibleTechnicianDevicesForSystem(schedule) {
   const devicesForSchedule = getScheduledAssignedDevices(schedule);
   const systemKey = getActiveTechnicianSystemKey(schedule);
   if (!systemKey || systemKey === "all") return devicesForSchedule;
-  return devicesForSchedule.filter((device) => deviceMatchesTechnicianFireSystem(device, systemKey));
+  return devicesForSchedule.filter((device) => deviceMatchesTechnicianFireSystem(device, systemKey, schedule));
 }
 
 function getVisibleTechnicianFieldDevicesForSystem(schedule) {
@@ -8599,11 +9896,15 @@ function renderTechFireSystemButtons(schedule) {
             : group.stageModel?.parentSupplyUnconfirmed
               ? "unconfirmed"
               : "";
+          const status = getTechnicianSystemStatus(group.summary);
           return `
-          <button type="button" class="${activeKey === group.id ? "active" : ""} ${stateClass}" data-tech-system="${escapeHtml(group.id)}" data-tech-system-schedule="${escapeHtml(schedule.scheduleId)}">
-            <strong>${escapeHtml(group.label)}</strong>
-            <span>${group.summary.done}/${group.summary.total} done</span>
-            <small>${escapeHtml(group.stageModel?.setupIncomplete ? "Setup incomplete" : group.stageModel?.parentSupplyUnconfirmed ? "Parent/supply unconfirmed" : group.hint)}</small>
+          <button type="button" class="${activeKey === group.id ? "active" : ""} ${stateClass} status-${status.id}" data-tech-system="${escapeHtml(group.id)}" data-tech-system-schedule="${escapeHtml(schedule.scheduleId)}">
+            ${getTechnicianSystemIcon(group.id)}
+            <span class="tech-system-card-copy">
+              <strong>${escapeHtml(group.label)}</strong>
+              <span>${group.summary.done} / ${group.summary.total}</span>
+              <small>${escapeHtml(group.stageModel?.setupIncomplete ? "Setup incomplete" : group.stageModel?.parentSupplyUnconfirmed ? "Parent/supply unconfirmed" : status.label)}</small>
+            </span>
           </button>
         `;
         }).join("")}
@@ -8645,6 +9946,7 @@ function renderTechSystemStageCard(stage, index, schedule, group) {
 
 function renderTechSystemStagePanel(schedule = getTechMarkerScopeSchedule()) {
   if (!techSystemStagePanel) return;
+  renderTechDesktopNavigation(schedule);
   const systemKey = getActiveTechnicianSystemKey(schedule);
   if (getCurrentUserRole() !== "Technician" || !schedule || !systemKey) {
     techSystemStagePanel.classList.add("hidden");
@@ -8687,7 +9989,8 @@ function renderTechSystemStagePanel(schedule = getTechMarkerScopeSchedule()) {
         status: linkedState.status,
         sideRevisions: (linkedState.sides || []).map((side) => Number(side.record?.revision || 0)),
         localDraftStates: linkedState.definition.requiredSides.map((side) => getLinkedVerificationDraft(schedule.scheduleId, linkedState.linkedVerificationId, side.sideId)?.syncStatus || "")
-      }))
+      })),
+    jobAlerts: getSharedJobAlerts(schedule).map((alert) => ({ id: alert.alertId, status: alert.status, readings: alert.readings }))
   });
   if (techSystemStagePanel.dataset.stageSignature === stageSignature) return;
   techSystemStagePanel.dataset.stageSignature = stageSignature;
@@ -8700,14 +10003,16 @@ function renderTechSystemStagePanel(schedule = getTechMarkerScopeSchedule()) {
             ? "unconfirmed"
             : "";
         return `
-        <button type="button" class="${group.id === activeGroup.id ? "active" : ""} ${stateClass}" data-tech-stage-system="${escapeHtml(group.id)}" data-tech-stage-schedule="${escapeHtml(schedule.scheduleId)}">
-          ${escapeHtml(group.label)}
+        <button type="button" class="${group.id === activeGroup.id ? "active" : ""} ${stateClass} status-${getTechnicianSystemStatus(group.summary).id}" data-tech-stage-system="${escapeHtml(group.id)}" data-tech-stage-schedule="${escapeHtml(schedule.scheduleId)}">
+          ${getTechnicianSystemIcon(group.id)}
+          <strong>${escapeHtml(group.label)}</strong>
           <span>${group.summary.done}/${group.summary.total}</span>
         </button>
       `;
       }).join("")}
     </div>
     <div class="tech-stage-heading">
+      ${getTechnicianSystemIcon(activeGroup.id)}
       <div>
         <strong>${escapeHtml(activeGroup.label)}</strong>
         <span>System prerequisite -> field devices -> completion</span>
@@ -8717,7 +10022,7 @@ function renderTechSystemStagePanel(schedule = getTechMarkerScopeSchedule()) {
     <div class="tech-system-stages">
       ${(activeGroup.stageModel?.stages || []).map((stage, index) => renderTechSystemStageCard(stage, index, schedule, activeGroup)).join("")}
     </div>
-    ${renderTechnicianLinkedVerificationCards(schedule, activeGroup.id)}
+    ${renderTechnicianJobAlerts(schedule)}
   `;
   techSystemStagePanel.querySelectorAll("[data-tech-stage-system]").forEach((button) => {
     bindReliableTap(button, () => openTechnicianFireSystem(button.dataset.techStageSchedule, button.dataset.techStageSystem));
@@ -8790,7 +10095,10 @@ async function routeTechnicianSystemStage(schedule, systemKey = state.activeTech
     document.querySelector("#syncState").textContent = route.message;
     return route;
   }
-  await focusTechnicianSystemMimic(schedule.scheduleId, route.group.id, { scroll: options.scroll !== false });
+  await focusTechnicianSystemMimic(schedule.scheduleId, route.group.id, {
+    scroll: options.scroll !== false,
+    skipDirtyCheck: options.skipDirtyCheck === true
+  });
   document.querySelector("#syncState").textContent = route.message;
   return route;
 }
@@ -8798,6 +10106,8 @@ async function routeTechnicianSystemStage(schedule, systemKey = state.activeTech
 async function focusTechnicianSystemMimic(scheduleId, systemKey, options = {}) {
   const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
   if (!schedule) return;
+  if (options.skipDirtyCheck !== true && !confirmTechnicianNavigation()) return false;
+  clearTechnicianInspectionDirty();
   state.activeTechSystemKey = systemKey || state.activeTechSystemKey || "";
   const group = getTechnicianFireSystemGroups(schedule).find((item) => item.id === state.activeTechSystemKey);
   const target = group?.fieldDevices?.[0] || group?.parentDevices?.[0] || group?.devices?.[0] || null;
@@ -8813,6 +10123,7 @@ async function focusTechnicianSystemMimic(scheduleId, systemKey, options = {}) {
   renderMarkers();
   updateTechnicianMimicBackAction(schedule, state.activeTechSystemKey);
   setTechScreen("mimic", { scroll: options.scroll !== false, renderMarkers: false });
+  return true;
 }
 
 async function startOrResumeTechnicianSchedule(scheduleId) {
@@ -8833,6 +10144,8 @@ async function startOrResumeTechnicianSchedule(scheduleId) {
 }
 
 async function openTechnicianFireSystem(scheduleId, systemKey) {
+  if (systemKey !== state.activeTechSystemKey && !confirmTechnicianNavigation()) return false;
+  clearTechnicianInspectionDirty();
   const requestId = (state.techSystemOpenRequestId || 0) + 1;
   state.techSystemOpenRequestId = requestId;
   const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
@@ -8869,7 +10182,7 @@ async function openTechnicianFireSystem(scheduleId, systemKey) {
   state.activeTechSystemKey = targetSystemKey;
   persistTechnicianActiveContext(scheduleId, state.activeTechSystemKey, floorSelect.value);
   renderTechWorkPanel();
-  await routeTechnicianSystemStage(schedule, targetSystemKey, { scroll: true });
+  await routeTechnicianSystemStage(schedule, targetSystemKey, { scroll: true, skipDirtyCheck: true });
   return true;
 }
 
@@ -8878,17 +10191,11 @@ function renderTechWorkPanel() {
   if (!panel) return;
   const jobs = getTechnicianMaintenanceSchedules(6);
   const activeSchedule = getActiveTechnicianMaintenanceSchedule();
-  const profile = activeSchedule
-    ? { companyName: activeSchedule.companyName, siteName: activeSchedule.siteName }
-    : jobs[0]
-      ? { companyName: jobs[0].companyName, siteName: jobs[0].siteName }
-      : getCurrentSiteIdentity();
-  const frequencyPercent = Number(activeSchedule?.contractFrequencyPercent || jobs[0]?.contractFrequencyPercent || getContractFrequencyForProfile(profile));
   const badge = document.querySelector("#techContractBadge");
   if (badge) {
-    badge.textContent = frequencyPercent >= 100
-      ? "Contract: 100% full inspection"
-      : `Contract: ${frequencyPercent}% passive + 100% active`;
+    const badgeSchedule = activeSchedule || jobs[0] || null;
+    const assignedCount = badgeSchedule?.plannedDeviceIds?.length || badgeSchedule?.deviceCount || 0;
+    badge.textContent = badgeSchedule ? `${assignedCount} assigned items` : "No assigned job";
   }
   renderTechnicianFrontDeskStats(jobs, activeSchedule);
 
@@ -8905,8 +10212,8 @@ function renderTechWorkPanel() {
           <div class="tech-current-job">
             <div>
               <strong>${escapeHtml(activeSchedule.companyName)} / ${escapeHtml(activeSchedule.siteName)}</strong>
-              <span>${escapeHtml(activeSchedule.serviceType || "Maintenance / Inspection")} - ${escapeHtml(activeSchedule.date || "No date")} ${escapeHtml(activeSchedule.time || "")}</span>
-              <span>Assigned scope: ${escapeHtml(activeSchedule.scopeLabel || "Maintenance checklist")}</span>
+              <span>${escapeHtml(getTechnicianServiceDisplayLabel(activeSchedule))} - ${escapeHtml(activeSchedule.date || "No date")} ${escapeHtml(activeSchedule.time || "")}</span>
+              <span>Frozen service scope: ${activeSchedule.plannedDeviceIds?.length || activeSchedule.deviceCount || 0} assigned items</span>
               <span>Starting floor: ${escapeHtml(getTechnicianScheduleStartFloor(activeSchedule))}${floorBreakdown ? ` | ${escapeHtml(floorBreakdown)}` : ""}</span>
             </div>
             ${renderTechProgressGrid(summary)}
@@ -8960,12 +10267,12 @@ function renderTechWorkPanel() {
       <article class="tech-job-card ${isToday ? "today" : ""}">
         <div>
           <strong>${escapeHtml(schedule.companyName)} / ${escapeHtml(schedule.siteName)}</strong>
-          <span>${escapeHtml(schedule.serviceType || "Maintenance")} - ${escapeHtml(schedule.date || "No date")} ${escapeHtml(schedule.time || "")}</span>
+          <span>${escapeHtml(getTechnicianServiceDisplayLabel(schedule))} - ${escapeHtml(schedule.date || "No date")} ${escapeHtml(schedule.time || "")}</span>
         </div>
         <div class="tech-job-meta-grid">
           <span><strong>${escapeHtml(schedule.companyName || "-")}</strong>Client</span>
           <span><strong>${escapeHtml(schedule.siteName || "-")}</strong>Site</span>
-          <span><strong>${escapeHtml(schedule.scopeLabel || "Maintenance")}</strong>Job type</span>
+          <span><strong>${escapeHtml(getTechnicianServiceDisplayLabel(schedule))}</strong>Job type</span>
           <span><strong>${escapeHtml(schedule.date || "No date")} ${escapeHtml(schedule.time || "")}</strong>Date / time</span>
           <span><strong>${escapeHtml(getTechnicianScheduleStartFloor(schedule))}</strong>Starting floor</span>
           <span><strong>${plannedCount}</strong>Assigned items</span>
@@ -8994,6 +10301,7 @@ function renderTechWorkPanel() {
   list.querySelectorAll("[data-tech-start-schedule]").forEach((button) => {
     bindReliableTap(button, () => startOrResumeTechnicianSchedule(button.dataset.techStartSchedule));
   });
+  renderTechWorkflowNav();
 }
 
 function getCurrentFloorAssignedCount(schedule) {
@@ -9060,7 +10368,7 @@ function getAssignedDeviceCompletionStatus(device, schedule = getActiveTechnicia
     const completed = getCriticalSopCompleteCount(template, saved);
     const workflow = getCriticalWorkflowRunForParentDevice(device, schedule);
     const workflowState = workflow ? getCachedCriticalWorkflowRunState(workflow, schedule) : null;
-    if (workflowState?.status === "complete" || (!workflow && isCriticalSopRecordComplete(template, saved))) return "pass";
+    if (workflowState?.status === "final_restored" || (!workflow && isCriticalSopRecordComplete(template, saved))) return "pass";
     return completed > 0 ? "partial" : "pending";
   }
   const access = getDeviceCriticalAccessState(device, schedule);
@@ -9203,7 +10511,7 @@ function getAssignedDeviceFaultInfo(device, schedule = null) {
   const failedQuestions = (inspection.answers || [])
     .map((answer, index) => answer === "Fail" ? `Q${index + 1}` : "")
     .filter(Boolean);
-  const hasPhoto = Boolean(inspection.beforePhoto || inspection.beforePhotoData || inspection.afterPhoto || inspection.afterPhotoData);
+  const hasPhoto = Boolean(inspection.beforePhoto || inspection.beforePhotoData || inspection.beforePhotoEvidence || inspection.afterPhoto || inspection.afterPhotoData || inspection.afterPhotoEvidence);
   return {
     device,
     title: `${device.id || device.tag} - ${device.type || "Device"}`,
@@ -9682,7 +10990,7 @@ function renderTechAssignedItemList() {
   techAssignedItemList.innerHTML = `
     <div class="tech-item-job-summary">
       <strong>${escapeHtml(schedule.companyName)} / ${escapeHtml(schedule.siteName)}</strong>
-      <span>${escapeHtml(activeSystemLabel)} | ${escapeHtml(schedule.scopeLabel || "Maintenance")} | ${assignedDevices.length} assigned item(s) | ${escapeHtml(schedule.date || "")} ${escapeHtml(schedule.time || "")}</span>
+      <span>${escapeHtml(activeSystemLabel)} | ${assignedDevices.length} frozen assigned item(s) | ${escapeHtml(schedule.date || "")} ${escapeHtml(schedule.time || "")}</span>
       ${!isActiveSchedule ? `<span class="tech-item-warning">Press Open Checklist on any item to start this scheduled job.</span>` : ""}
     </div>
     ${renderTechProgressGrid(summary)}
@@ -10085,6 +11393,9 @@ async function resumeScheduledJob(schedule, options = {}) {
     writeStoredJson("rmtSiteProfile", state.siteProfile);
     if (floorExists(targetFloorId)) {
       setTechnicianMapFloor(targetFloorId, profile);
+    }
+    if (schedule.mimicViewMode === "original") {
+      setMimicViewMode("original");
     }
   } else {
     selectClientProfile(profile);
@@ -10788,19 +12099,30 @@ document.querySelector("#requestForm").addEventListener("submit", async (event) 
     startMissingDevicePinMode();
     return;
   }
-  const photoInput = document.querySelector("#requestPhoto");
-  const photoEvidence = await readPhotoAttachmentFiles(photoInput, "missing-device");
-  if (role === "Technician" && !existingRequest && !photoEvidence.length) {
-    document.querySelector("#syncState").textContent = "Missing device request needs at least one photo before sending to Admin.";
-    photoInput?.focus();
-    return;
-  }
   const pin = state.pendingRequestPin || existingRequest || {};
   const profile = getCurrentSiteIdentity();
   const activeSchedule = getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule();
   const now = new Date().toISOString();
   const activeSystem = getTechnicianFireSystemDefinition(state.activeTechSystemKey);
   const id = existingRequest?.id || `REQ-${Date.now()}`;
+  const photoInput = document.querySelector("#requestPhoto");
+  const photoEvidence = await readPhotoAttachmentFiles(photoInput, "missing-device", {
+    jobId: state.activeJob?.jobId || "",
+    scheduleId: activeSchedule?.scheduleId || state.activeJob?.scheduleId || "",
+    clientId: activeSchedule?.clientId || pin.companyName || profile.companyName,
+    clientName: pin.companyName || profile.companyName,
+    siteId: activeSchedule?.siteId || pin.siteName || profile.siteName,
+    siteName: pin.siteName || profile.siteName,
+    floorId: pin.floorId || floorSelect.value,
+    floorLabel: pin.floor || getFloorAsset(floorSelect.value).title,
+    deviceId: document.querySelector("#requestLabel").value.trim(),
+    locationLabel: document.querySelector("#requestLocation").value.trim()
+  });
+  if (role === "Technician" && !existingRequest && !photoEvidence.length) {
+    document.querySelector("#syncState").textContent = "Missing device request needs at least one photo before sending to Admin.";
+    photoInput?.focus();
+    return;
+  }
   const request = {
     ...(existingRequest || {}),
     id,
@@ -10869,9 +12191,7 @@ document.querySelector("#requestForm").addEventListener("submit", async (event) 
 function stripRequestPhotoDataForStorage(request = {}) {
   const clean = { ...request };
   clean.photoEvidence = (Array.isArray(request.photoEvidence) ? request.photoEvidence : []).map((photo) => {
-    const next = { ...photo };
-    delete next.dataUrl;
-    return next;
+    return stripEvidenceBinaryData(photo);
   });
   return clean;
 }
@@ -10979,14 +12299,133 @@ function normalizeLinkedVerificationClientDefinition(schedule, definition = {}) 
   };
 }
 
+function getScheduleTechnicianIdentity(schedule, deviceId, fallbackIndex = 0) {
+  const assignment = schedule?.deviceAssignments?.[deviceId] || {};
+  const technicians = Array.isArray(schedule?.technicians) ? schedule.technicians : [];
+  const fallback = technicians[fallbackIndex] || technicians[0] || {};
+  return {
+    technicianId: String(assignment.technicianId || assignment.assignedTechnicianId || fallback.technicianId || fallback.id || "").trim(),
+    technicianName: String(assignment.technicianName || assignment.assignedTechnicianName || fallback.technicianName || fallback.name || "").trim()
+  };
+}
+
+function linkedVerificationTechniciansDiffer(first = {}, second = {}) {
+  const firstId = String(first.technicianId || "").trim().toLowerCase();
+  const secondId = String(second.technicianId || "").trim().toLowerCase();
+  if (firstId && secondId) return firstId !== secondId;
+  const firstName = String(first.technicianName || "").trim().toLowerCase();
+  const secondName = String(second.technicianName || "").trim().toLowerCase();
+  return Boolean(firstName && secondName && firstName !== secondName);
+}
+
+function getPumpLinkedVerificationDefinitions(schedule) {
+  if (!schedule) return [];
+  const devices = getScheduledAssignedDevices(schedule);
+  const mfap = devices.find((device) => getCriticalSopTemplateIdForDevice(device) === "fire-alarm-tripping-sop");
+  const pumps = devices.filter((device) => getCriticalSopTemplateIdForDevice(device) === "sprinkler-hydrant-pump-sop");
+  if (!mfap || !pumps.length) return [];
+  const mfapId = mfap.id || mfap.tag;
+  const mfapTech = getScheduleTechnicianIdentity(schedule, mfapId, 1);
+  const tests = [
+    { key: "JOCKEY_MANUAL", label: "Jockey Pump Manual" },
+    { key: "DUTY_MANUAL", label: "Duty Pump Manual" },
+    { key: "STANDBY_MANUAL", label: "Standby Pump Manual" }
+  ];
+  return pumps.flatMap((pump) => {
+    const pumpId = pump.id || pump.tag;
+    const pumpTech = getScheduleTechnicianIdentity(schedule, pumpId, 0);
+    if (!linkedVerificationTechniciansDiffer(pumpTech, mfapTech)) return [];
+    return tests.map((test) => ({
+      linkedVerificationId: `${getScheduleKey(schedule)}::PUMP_MFAP::${pumpId}::${test.key}`,
+      verificationType: "FIRE_PUMP_INDICATION",
+      pumpTestKey: test.key,
+      pumpDeviceId: pumpId,
+      title: `Linked Test - ${test.label}`,
+      systemId: "pump-system",
+      systemIds: ["pump-system", "fire-alarm"],
+      definitionVersion: "pump-mfap-v1",
+      reconciliationMode: "MATCHING_RESULTS",
+      requiredSides: [
+        {
+          sideId: "PUMP_ROOM",
+          sideName: "Pump Room",
+          location: pump.location || pump.floor || "Pump Room",
+          assignedTechnicianId: pumpTech.technicianId,
+          assignedTechnicianName: pumpTech.technicianName
+        },
+        {
+          sideId: "MFAP",
+          sideName: "MFAP",
+          location: mfap.location || mfap.floor || "Main Fire Alarm Panel",
+          assignedTechnicianId: mfapTech.technicianId,
+          assignedTechnicianName: mfapTech.technicianName
+        }
+      ]
+    }));
+  });
+}
+
+function getGasReleaseLinkedVerificationDefinitions(schedule) {
+  if (!schedule) return [];
+  const devices = getScheduledAssignedDevices(schedule);
+  const mfap = devices.find((device) => getCriticalSopTemplateIdForDevice(device) === "fire-alarm-tripping-sop");
+  const gasDevices = devices.filter((device) => getCriticalSopTemplateIdForDevice(device) === "gas-discharge-sop");
+  if (!mfap || !gasDevices.length) return [];
+  const mfapId = mfap.id || mfap.tag;
+  const mfapTech = getScheduleTechnicianIdentity(schedule, mfapId, 1);
+  return gasDevices.flatMap((device) => {
+    const gasDeviceId = device.id || device.tag;
+    const gasTech = getScheduleTechnicianIdentity(schedule, gasDeviceId, 0);
+    if (!linkedVerificationTechniciansDiffer(gasTech, mfapTech)) return [];
+    return [{
+      linkedVerificationId: `${getScheduleKey(schedule)}::CO2_MFAP::${gasDeviceId}::INDICATION`,
+      verificationType: "CO2_GAS_RELEASE_INDICATION",
+      gasTestKey: "INDICATION",
+      gasDeviceId,
+      title: `Linked Test - ${gasDeviceId} Gas/CO2 Indication`,
+      systemId: "gas-release",
+      systemIds: ["gas-release", "fire-alarm"],
+      definitionVersion: "co2-mfap-v1",
+      reconciliationMode: "MATCHING_RESULTS",
+      requiredSides: [
+        {
+          sideId: "SUPPRESSION_SYSTEM_LOCATION",
+          sideName: "Suppression System Location",
+          location: device.location || device.floor || "Suppression System Location",
+          assignedTechnicianId: gasTech.technicianId,
+          assignedTechnicianName: gasTech.technicianName
+        },
+        {
+          sideId: "REMOTE_PANEL_OR_MFAP",
+          sideName: "Remote Panel / MFAP",
+          location: mfap.location || mfap.floor || "Main Fire Alarm Panel",
+          assignedTechnicianId: mfapTech.technicianId,
+          assignedTechnicianName: mfapTech.technicianName
+        }
+      ]
+    }];
+  });
+}
+
 function getScheduleLinkedVerificationDefinitions(schedule) {
   if (!schedule) return [];
   const store = getSharedStore(schedule);
   const sharedDefinitions = Object.values(store?.linkedVerificationDefinitions || {});
-  const configured = sharedDefinitions.length ? sharedDefinitions : (Array.isArray(schedule.linkedVerifications) ? schedule.linkedVerifications : []);
-  return configured
+  const configured = Array.isArray(schedule.linkedVerifications) ? schedule.linkedVerifications : [];
+  const definitions = [
+    ...sharedDefinitions,
+    ...configured,
+    ...getPumpLinkedVerificationDefinitions(schedule),
+    ...getGasReleaseLinkedVerificationDefinitions(schedule)
+  ];
+  const seen = new Set();
+  return definitions
     .map((definition) => normalizeLinkedVerificationClientDefinition(schedule, definition))
-    .filter((definition) => definition.linkedVerificationId && definition.requiredSides.length >= 2);
+    .filter((definition) => {
+      if (!definition.linkedVerificationId || definition.requiredSides.length < 2 || seen.has(definition.linkedVerificationId)) return false;
+      seen.add(definition.linkedVerificationId);
+      return true;
+    });
 }
 
 function linkedVerificationTechnicianMatches(side, userId = getCurrentUserId(), userName = getCurrentUserName()) {
@@ -11018,6 +12457,181 @@ function getLinkedVerificationSideRecord(schedule, linkedVerificationId, sideId)
     || null;
 }
 
+function linkedVerificationRecordsEquivalent(left, right) {
+  if (!left || !right) return false;
+  const evidenceSignature = (items) => JSON.stringify((Array.isArray(items) ? items : []).map((item) => ({
+    evidenceId: item?.evidenceId || "",
+    photoUrl: item?.photoUrl || item?.stampedPhotoUrl || item?.originalPhotoUrl || "",
+    name: item?.name || ""
+  })));
+  return String(left.result || "").trim().toUpperCase() === String(right.result || "").trim().toUpperCase()
+    && String(left.technicianId || "").trim().toLowerCase() === String(right.technicianId || "").trim().toLowerCase()
+    && String(left.notes || "").trim() === String(right.notes || "").trim()
+    && evidenceSignature(left.evidenceRefs) === evidenceSignature(right.evidenceRefs);
+}
+
+function reconcileLinkedVerificationConflictDrafts(scheduleId, store = {}) {
+  let changed = false;
+  Object.entries(state.linkedVerificationDrafts || {}).forEach(([key, draft]) => {
+    if (draft.scheduleId !== scheduleId || draft.syncStatus !== "CONFLICT") return;
+    const recordId = getLinkedVerificationSideRecordId(scheduleId, draft.linkedVerificationId, draft.sideId);
+    const current = store.linkedVerificationSideRecords?.[recordId];
+    if (!linkedVerificationRecordsEquivalent(draft, current)) return;
+    delete state.linkedVerificationDrafts[key];
+    changed = true;
+  });
+  if (changed) persistLinkedVerificationDrafts();
+}
+
+function getLinkedVerificationLiveState(schedule, linkedVerificationId) {
+  const store = getSharedStore(schedule) || {};
+  const recordId = `linked-live::${linkedVerificationId}`;
+  return store.linkedVerificationLiveStates?.[recordId]
+    || Object.values(store.linkedVerificationLiveStates || {}).find((record) => record.linkedVerificationId === linkedVerificationId)
+    || null;
+}
+
+function getLiveCoordinationEvents(schedule = getActiveTechnicianMaintenanceSchedule(), options = {}) {
+  const store = getSharedStore(schedule) || {};
+  const events = new Map();
+  Object.values(store.liveCoordinationEvents || {}).forEach((event) => {
+    if (event?.eventId) events.set(event.eventId, event);
+  });
+  Object.values(store.linkedVerificationLiveStates || {}).forEach((record) => {
+    if (!record?.linkedVerificationId) return;
+    const eventId = `live-event::linked::${record.linkedVerificationId}`;
+    if (events.has(eventId)) return;
+    const definition = getScheduleLinkedVerificationDefinitions(schedule).find((item) => item.linkedVerificationId === record.linkedVerificationId);
+    const sourceSide = definition?.requiredSides?.find((side) => side.sideId === record.sideId);
+    const observerSide = definition?.requiredSides?.find((side) => side.sideId !== record.sideId);
+    events.set(eventId, {
+      eventId,
+      scheduleId: getScheduleKey(schedule),
+      sourceType: "LINKED_VERIFICATION",
+      linkedVerificationId: record.linkedVerificationId,
+      linkedInspectionId: record.linkedVerificationId,
+      systemId: definition?.systemId || "",
+      deviceId: definition?.pumpDeviceId || definition?.gasDeviceId || "",
+      deviceLabel: record.equipmentLabel || definition?.title || "Linked test",
+      equipmentLabel: record.equipmentLabel || definition?.title || "Linked test",
+      location: sourceSide?.location || sourceSide?.sideName || "",
+      sourceTechnicianId: record.technicianId || "",
+      sourceTechnicianName: record.technicianName || "",
+      observerTechnicianId: observerSide?.assignedTechnicianId || "",
+      observerTechnicianName: observerSide?.assignedTechnicianName || "",
+      testType: record.testMode || "MANUAL",
+      currentState: record.currentState || "OBSERVATION_REQUIRED",
+      priority: record.priority || "MEDIUM",
+      status: record.status,
+      startedAt: record.startedAt,
+      lastUpdated: record.updatedAt,
+      endedAt: record.endedAt,
+      expiresAt: record.expiresAt,
+      revision: record.revision || 0
+    });
+  });
+  const priorityRank = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+  return [...events.values()]
+    .filter((event) => !options.activeOnly || isLiveCoordinationEventActive(event))
+    .filter((event) => !options.assignedToCurrent || liveEventObserverMatches(event))
+    .sort((left, right) => (priorityRank[String(right.priority || "LOW").toUpperCase()] || 0) - (priorityRank[String(left.priority || "LOW").toUpperCase()] || 0)
+      || Date.parse(right.lastUpdated || right.startedAt || 0) - Date.parse(left.lastUpdated || left.startedAt || 0));
+}
+
+function isLiveCoordinationEventActive(event) {
+  if (String(event?.status || "").toUpperCase() !== "ACTIVE") return false;
+  const expiresAt = Date.parse(event.expiresAt || "");
+  return !Number.isFinite(expiresAt) || expiresAt > Date.now();
+}
+
+function liveEventObserverMatches(event, userId = getCurrentUserId(), userName = getCurrentUserName()) {
+  const observerId = normalizeScopeText(event?.observerTechnicianId || "");
+  const observerName = normalizeScopeText(event?.observerTechnicianName || "");
+  if (!observerId && !observerName) return false;
+  return observerId === normalizeScopeText(userId) || observerName === normalizeScopeText(userName);
+}
+
+async function postLiveCoordinationEvent(schedule, record, expectedRevision = 0) {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(getScheduleKey(schedule))}/live-events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      expectedRevision,
+      schedule: getScheduleSnapshotForSharedApi(schedule),
+      record
+    })
+  });
+  const payload = await response.json();
+  if (response.status === 409 && payload.conflict) return { ok: false, conflict: true, payload };
+  if (!response.ok || !payload.ok) return { ok: false, forbidden: response.status === 403, reason: payload.reason || payload.error || "Unable to update live event.", payload };
+  const scheduleId = getScheduleKey(schedule);
+  const cache = ensureSharedCacheForSchedule(schedule);
+  const store = {
+    ...cache.store,
+    liveCoordinationEvents: {
+      ...(cache.store?.liveCoordinationEvents || {}),
+      [payload.record.eventId]: payload.record
+    }
+  };
+  setSharedJobCache(scheduleId, { store, progress: cache.progress }, { online: true });
+  return payload;
+}
+
+function getMfapObserverIdentity(schedule) {
+  const mfap = getScheduledAssignedDevices(schedule).find((device) => getCriticalSopTemplateIdForDevice(device) === "fire-alarm-tripping-sop");
+  if (!mfap) return null;
+  const identity = getScheduleTechnicianIdentity(schedule, mfap.id || mfap.tag, 0);
+  return { ...identity, device: mfap };
+}
+
+function isFireAlarmFieldDevice(device, schedule) {
+  return Boolean(device && !isCriticalSopDevice(device) && getPrimaryTechnicianFireSystemDefinition(device, getTechnicianFireSystemDefinitions(), schedule)?.id === "fire-alarm");
+}
+
+function getFieldDeviceLiveEventId(schedule, device) {
+  return `live-event::field::${getScheduleKey(schedule)}::${device?.id || device?.tag || ""}`;
+}
+
+async function updateFieldDeviceLiveEvent(schedule, device, status = "ACTIVE") {
+  if (!schedule || !isFireAlarmFieldDevice(device, schedule)) return { ok: true, skipped: true };
+  const observer = getMfapObserverIdentity(schedule);
+  const source = getScheduleTechnicianIdentity(schedule, device.id || device.tag, 0);
+  if (!observer || !linkedVerificationTechniciansDiffer(source, observer)) return { ok: true, skipped: true };
+  const eventId = getFieldDeviceLiveEventId(schedule, device);
+  const current = getLiveCoordinationEvents(schedule).find((event) => event.eventId === eventId);
+  if (status === "ACTIVE" && isLiveCoordinationEventActive(current)) return { ok: true, skipped: true };
+  if (status === "ACTIVE" && current?.status === "ENDED" && isChildInspectionComplete(device.id || device.tag, schedule)) return { ok: true, skipped: true };
+  try {
+    return await postLiveCoordinationEvent(schedule, {
+      eventId,
+      sourceType: "FIELD_DEVICE",
+      systemId: "fire-alarm",
+      deviceId: device.id || device.tag,
+      deviceLabel: device.id || device.tag,
+      equipmentLabel: device.type || "Fire alarm field device",
+      location: displayDeviceLocation(device.location || device.floor || ""),
+      floorId: device.floorId || "",
+      floorLabel: device.floorTitle || device.floor || "",
+      sourceTechnicianId: getCurrentUserId(),
+      sourceTechnicianName: getCurrentUserName(),
+      observerTechnicianId: observer.technicianId,
+      observerTechnicianName: observer.technicianName,
+      testType: device.type || "FIELD DEVICE",
+      currentState: status === "ACTIVE" ? "OBSERVATION_REQUIRED" : "CLOSED",
+      priority: "MEDIUM",
+      status
+    }, Number(current?.revision || 0));
+  } catch (error) {
+    return { ok: false, offline: true, reason: "Live coordination unavailable while offline.", error };
+  }
+}
+
+function isLinkedVerificationLiveActive(record) {
+  if (String(record?.status || "").toUpperCase() !== "ACTIVE") return false;
+  const expiresAt = Date.parse(record.expiresAt || "");
+  return !Number.isFinite(expiresAt) || expiresAt > Date.now();
+}
+
 function calculateClientLinkedVerificationState(schedule, definition) {
   const store = getSharedStore(schedule) || {};
   const indexed = state.linkedVerificationIndex.find((item) => item.linkedVerificationId === definition.linkedVerificationId && item.definition?.scheduleId === getScheduleKey(schedule));
@@ -11031,7 +12645,8 @@ function calculateClientLinkedVerificationState(schedule, definition) {
   const anyLocal = sides.some((side) => side.draft);
   const conflict = store.linkedVerificationConflicts?.[definition.linkedVerificationId];
   let status = "NOT_STARTED";
-  if (conflict?.unresolved || indexed?.status === "MISMATCH_REVIEW_REQUIRED" || sides.some((side) => side.draft?.syncStatus === "CONFLICT")) {
+  const unresolvedLocalConflict = sides.some((side) => side.draft?.syncStatus === "CONFLICT" && !linkedVerificationRecordsEquivalent(side.draft, side.record));
+  if (conflict?.unresolved || indexed?.status === "MISMATCH_REVIEW_REQUIRED" || unresolvedLocalConflict) {
     status = "MISMATCH_REVIEW_REQUIRED";
   } else if (syncedComplete.length === sides.length) {
     const results = new Set(syncedComplete.map((side) => String(side.record.result).trim().toUpperCase()));
@@ -11058,6 +12673,34 @@ function replaceLinkedVerificationIndexForSchedule(scheduleId, entries = []) {
     ...state.linkedVerificationIndex.filter((item) => item.definition?.scheduleId !== scheduleId && item.scheduleId !== scheduleId),
     ...entries
   ];
+}
+
+function getTechnicianSystemIcon(systemKey) {
+  const paths = {
+    "fire-alarm": '<rect x="4" y="3" width="16" height="18" rx="2"></rect><circle cx="9" cy="9" r="1.5"></circle><circle cx="15" cy="9" r="1.5"></circle><path d="M8 15h8M8 18h5"></path>',
+    pump: '<path d="M3 12h4m10 0h4M7 8v8m10-8v8"></path><circle cx="12" cy="12" r="5"></circle><path d="M10 9.5 15 12l-5 2.5z"></path>',
+    "hose-reel": '<circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="4"></circle><path d="M12 8v8m-4-4h8M18 17l3 3"></path>',
+    "pump-system": '<path d="M5 4v7h14V4M8 11v4m8-4v4M4 18h16"></path><path d="M9 7h6m-3-3v6"></path>',
+    "gas-release": '<path d="M9 3h6v3l2 2v12H7V8l2-2z"></path><path d="M9 10h6m-3 3v4"></path>',
+    "wet-chemical": '<path d="M8 3h8v4l2 3v10H6V10l2-3z"></path><path d="M9 14h6m-3-3v6"></path>',
+    extinguisher: '<path d="M9 5h6l2 3v12H7V8z"></path><path d="M10 5V3h5m0 0 3 2m-1 2c3 0 4 2 4 4"></path>',
+    "emergency-light": '<path d="M7 18h10M9 18v-5h6v5M8 10h8l-2-5h-4z"></path><path d="M4 5 2 3m18 2 2-2M3 11H1m22 0h-2"></path>',
+    "keluar-sign": '<path d="M4 4h10v16H4zM14 12h7m-3-3 3 3-3 3"></path><circle cx="9" cy="8" r="1"></circle><path d="m9 9-2 4m2-4 3 3m-5 1-1 4m6-5 2 4"></path>',
+    "fire-door": '<path d="M5 3h14v18H5zM8 6h8v15H8z"></path><circle cx="14" cy="13" r="1"></circle>',
+    "other-configured": '<rect x="4" y="4" width="6" height="6" rx="1"></rect><rect x="14" y="4" width="6" height="6" rx="1"></rect><rect x="4" y="14" width="6" height="6" rx="1"></rect><rect x="14" y="14" width="6" height="6" rx="1"></rect>'
+  };
+  const body = paths[systemKey] || paths["other-configured"];
+  return `<span class="tech-system-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</svg></span>`;
+}
+
+function getTechnicianSystemStatus(summary = {}) {
+  const total = Number(summary.total || 0);
+  const done = Number(summary.done || 0);
+  const fail = Number(summary.fail || 0);
+  if (fail > 0) return { id: "fault", label: `${fail} fault${fail === 1 ? "" : "s"}` };
+  if (total > 0 && done >= total) return { id: "complete", label: "Complete" };
+  if (done > 0) return { id: "pending", label: "In progress" };
+  return { id: "not-started", label: "Not started" };
 }
 
 async function loadLinkedVerificationIndex({ render = false } = {}) {
@@ -11145,6 +12788,63 @@ async function postLinkedVerificationSide(schedule, record, expectedRevision) {
     };
   }
   return payload;
+}
+
+async function postLinkedVerificationLiveState(schedule, record, expectedRevision) {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(getScheduleKey(schedule))}/linked-verification-live`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      expectedRevision,
+      schedule: getScheduleSnapshotForSharedApi(schedule),
+      record
+    })
+  });
+  const payload = await response.json();
+  if (response.status === 409 && payload.conflict) return { ok: false, conflict: true, payload };
+  if (!response.ok || !payload.ok) {
+    return {
+      ok: false,
+      forbidden: response.status === 403,
+      reason: payload.reason || payload.error || "Unable to update the linked live test.",
+      payload
+    };
+  }
+  return payload;
+}
+
+async function saveLinkedVerificationLiveState(schedule, definition, side, status, options = {}) {
+  if (!schedule || !definition || !side || !linkedVerificationTechnicianMatches(side)) {
+    return { ok: false, forbidden: true, reason: "This live test side is assigned to another technician." };
+  }
+  const current = getLinkedVerificationLiveState(schedule, definition.linkedVerificationId);
+  try {
+    const payload = await postLinkedVerificationLiveState(schedule, {
+      linkedVerificationId: definition.linkedVerificationId,
+      sideId: side.sideId,
+      technicianId: getCurrentUserId(),
+      technicianName: getCurrentUserName(),
+      equipmentLabel: definition.title,
+      testMode: definition.pumpTestKey || definition.gasTestKey || "MANUAL",
+      priority: options.priority || (definition.gasTestKey ? "LOW" : "MEDIUM"),
+      currentState: options.currentState || (status === "ACTIVE" ? "OBSERVATION_REQUIRED" : "CLOSED"),
+      status
+    }, Number(current?.revision || 0));
+    if (!payload.ok) return payload;
+    const scheduleId = getScheduleKey(schedule);
+    const cache = ensureSharedCacheForSchedule(schedule);
+    const store = {
+      ...cache.store,
+      linkedVerificationLiveStates: {
+        ...(cache.store?.linkedVerificationLiveStates || {}),
+        [payload.record.recordId]: payload.record
+      }
+    };
+    setSharedJobCache(scheduleId, { store, progress: cache.progress }, { online: true });
+    return payload;
+  } catch (error) {
+    return { ok: false, offline: true, reason: "Connection is required to broadcast a live linked test.", error };
+  }
 }
 
 async function saveLinkedVerificationSide(schedule, definition, side, values = {}) {
@@ -11235,6 +12935,9 @@ async function syncLinkedVerificationDrafts() {
     }
   }
   if (synced) await loadLinkedVerificationIndex();
+  if (synced && state.activeCriticalSopId === "fire-alarm-tripping-sop" && !criticalSopPanel?.classList.contains("hidden")) {
+    renderCriticalSopPreservingScroll();
+  }
   return { synced, conflicts, remaining: Object.keys(state.linkedVerificationDrafts || {}).length };
 }
 
@@ -13203,13 +14906,22 @@ function getReportEvidenceRefs(record = {}) {
   ].filter(Boolean);
   const seen = new Set();
   return [...refs, ...named].map((item) => {
+    const displayPhotoUrl = String(item?.stampedPhotoUrl || item?.photoUrl || "");
     const ref = {
       type: String(item?.type || "evidence"),
       name: String(item?.name || item?.filename || "Evidence"),
-      photoUrl: String(item?.photoUrl || ""),
+      evidenceId: String(item?.evidenceId || ""),
+      originalEvidenceId: String(item?.originalEvidenceId || ""),
+      stampedEvidenceId: String(item?.stampedEvidenceId || ""),
+      originalPhotoUrl: String(item?.originalPhotoUrl || ""),
+      stampedPhotoUrl: String(item?.stampedPhotoUrl || ""),
+      photoUrl: displayPhotoUrl,
+      capturedAtUtc: String(item?.capturedAtUtc || item?.capturedAt || ""),
+      technicianName: String(item?.technicianName || item?.capturedBy || ""),
+      stampVersion: String(item?.stampVersion || ""),
       savedToPc: Boolean(item?.savedToPc)
     };
-    const key = `${ref.type}::${ref.name}::${ref.photoUrl}`;
+    const key = ref.evidenceId || `${ref.type}::${ref.name}::${ref.photoUrl}`;
     if (seen.has(key)) return null;
     seen.add(key);
     return ref;
@@ -13568,7 +15280,7 @@ function buildReportSnapshot(schedule, options = {}) {
 
 function renderReportEvidenceReferences(refs = []) {
   if (!refs.length) return `<span class="report-muted">No evidence reference</span>`;
-  return `<ul class="report-evidence-list">${refs.map((ref) => `<li>${escapeHtml(ref.type)}: ${escapeHtml(ref.name)}${ref.photoUrl ? ` <span>${escapeHtml(ref.photoUrl)}</span>` : ""}</li>`).join("")}</ul>`;
+  return `<ul class="report-evidence-list">${refs.map((ref) => `<li>${ref.photoUrl ? `<img src="${escapeHtml(ref.photoUrl)}" alt="${escapeHtml(ref.type)} evidence">` : ""}<span><b>${escapeHtml(ref.type)}:</b> ${escapeHtml(ref.name)}${ref.stampedEvidenceId ? " (stamped display)" : ""}</span></li>`).join("")}</ul>`;
 }
 
 function renderReportSnapshot(snapshot) {
@@ -13820,6 +15532,8 @@ function buildSharedInspectionRecord(device, inspection, schedule) {
   const scheduleId = getScheduleKey(schedule);
   const deviceId = device.id || device.tag;
   const checklistQuestions = device.questions || getChecklistQuestions(device.type);
+  const systemId = inspection.systemId || getActiveTechnicianSystemKey(schedule) || "";
+  const systemDefinition = getTechnicianFireSystemDefinition(systemId);
   return {
     recordId: getInspectionRecordId(scheduleId, deviceId),
     jobId: state.activeJob?.jobId || `JOB-${scheduleId}`,
@@ -13828,8 +15542,13 @@ function buildSharedInspectionRecord(device, inspection, schedule) {
     checklistItemId: deviceId,
     checklistTemplateId: device.type || "Device Checklist",
     checklistQuestionCount: checklistQuestions.length,
+    clientId: inspection.clientId || schedule?.clientId || schedule?.companyName || "",
     companyName: state.activeJob?.companyName || schedule?.companyName || "",
+    siteId: inspection.siteId || schedule?.siteId || schedule?.siteName || "",
     siteName: state.activeJob?.siteName || schedule?.siteName || "",
+    systemId,
+    systemName: inspection.systemName || systemDefinition?.label || "",
+    floorId: inspection.floorId || device.floorId || "",
     floor: device.floor || device.floorTitle || "",
     location: displayDeviceLocation(device.location || ""),
     deviceType: device.type || "",
@@ -13843,8 +15562,8 @@ function buildSharedInspectionRecord(device, inspection, schedule) {
     beforePhoto: inspection.beforePhoto || "",
     afterPhoto: inspection.afterPhoto || "",
     evidenceRefs: [
-      inspection.beforePhoto ? { type: "before", name: inspection.beforePhoto } : null,
-      inspection.afterPhoto ? { type: "after", name: inspection.afterPhoto } : null
+      inspection.beforePhotoEvidence ? { ...inspection.beforePhotoEvidence, type: "before" } : inspection.beforePhoto ? { type: "before", name: inspection.beforePhoto } : null,
+      inspection.afterPhotoEvidence ? { ...inspection.afterPhotoEvidence, type: "after" } : inspection.afterPhoto ? { type: "after", name: inspection.afterPhoto } : null
     ].filter(Boolean),
     inspectedAt: inspection.inspectedAt || new Date().toISOString(),
     checklistStartedAt: inspection.checklistStartedAt || "",
@@ -14414,7 +16133,7 @@ function buildInspectionRunRedFlags(devicesForRun, inspections, criticalSops) {
   const missingEvidence = devicesForRun
     .filter((device) => {
       const inspection = inspections[device.id];
-      return inspection?.status === "fail" && !inspection.beforePhoto && !inspection.beforePhotoData && !inspection.afterPhoto && !inspection.afterPhotoData;
+      return inspection?.status === "fail" && !inspection.beforePhoto && !inspection.beforePhotoData && !inspection.beforePhotoEvidence && !inspection.afterPhoto && !inspection.afterPhotoData && !inspection.afterPhotoEvidence;
     })
     .map((device) => ({
       priority: "Evidence",
@@ -14747,10 +16466,6 @@ function sopStepNeedsRemark(step) {
   return Boolean(step.requiresRemark || (step.critical && !step.tickOnly));
 }
 
-function sopStepShowsRemark(step) {
-  return Boolean(step.optionalRemark || sopStepNeedsRemark(step));
-}
-
 function isFinalSopStep(template, index) {
   return Boolean(template?.steps?.length && index === template.steps.length - 1);
 }
@@ -14794,28 +16509,347 @@ function getSopStepExisting(templateId, index) {
   return state.criticalSops[storageKey]?.steps?.[index] || state.criticalSops[templateId]?.steps?.[index] || {};
 }
 
+function getPumpConfigurationKey(schedule = getActiveTechnicianMaintenanceSchedule(), device = state.activeCriticalDevice) {
+  if (!schedule || !device) return "";
+  return [schedule.companyName || schedule.clientId, schedule.siteName || schedule.siteId, device.id || device.tag]
+    .map((value) => normalizeScopeText(value).replace(/[^a-z0-9]+/g, "-"))
+    .filter(Boolean)
+    .join("::");
+}
+
+function getPumpConfiguration(schedule = getActiveTechnicianMaintenanceSchedule(), device = state.activeCriticalDevice) {
+  const key = getPumpConfigurationKey(schedule, device);
+  return key ? state.pumpConfigurations[key] || null : null;
+}
+
+function persistPumpConfigurations() {
+  writeStoredJson("rmtPumpConfigurations", state.pumpConfigurations || {});
+}
+
+async function loadPumpConfiguration(schedule = getActiveTechnicianMaintenanceSchedule(), device = state.activeCriticalDevice) {
+  const key = getPumpConfigurationKey(schedule, device);
+  if (!key || state.pumpConfigurationLoadingKey === key) return getPumpConfiguration(schedule, device);
+  state.pumpConfigurationLoadingKey = key;
+  try {
+    const query = new URLSearchParams({
+      companyName: schedule.companyName || schedule.clientId || "",
+      siteName: schedule.siteName || schedule.siteId || "",
+      pumpDeviceId: device.id || device.tag || ""
+    });
+    const response = await fetch(`/api/pump-configurations?${query}`, { cache: "no-store" });
+    const payload = await response.json();
+    if (response.ok && payload.ok && payload.configuration) {
+      state.pumpConfigurations[key] = payload.configuration;
+      persistPumpConfigurations();
+    }
+  } catch (error) {
+    console.warn("Pump configuration server unavailable", error);
+  } finally {
+    state.pumpConfigurationLoadingKey = "";
+  }
+  return getPumpConfiguration(schedule, device);
+}
+
+async function savePumpConfigurationRecord(configuration, schedule = getActiveTechnicianMaintenanceSchedule(), device = state.activeCriticalDevice) {
+  const key = getPumpConfigurationKey(schedule, device);
+  if (!key) return { ok: false, invalid: true, reason: "Pump configuration identity is unavailable." };
+  const current = state.pumpConfigurations[key] || null;
+  try {
+    const response = await fetch("/api/pump-configurations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expectedRevision: Number(current?.revision || 0),
+        configuration: {
+          ...(current || {}),
+          ...configuration,
+          configurationKey: key,
+          companyName: schedule.companyName || schedule.clientId || "",
+          siteName: schedule.siteName || schedule.siteId || "",
+          pumpDeviceId: device.id || device.tag || "",
+          updatedBy: getCurrentUserName(),
+          technicianId: getCurrentUserId()
+        }
+      })
+    });
+    const payload = await response.json();
+    if (response.status === 409 && payload.conflict) return { ok: false, conflict: true, current: payload.current };
+    if (!response.ok || !payload.ok) return { ok: false, invalid: true, reason: payload.reason || payload.error || "Unable to save pump configuration." };
+    state.pumpConfigurations[key] = payload.configuration;
+    state.pumpConfigurationEditKey = "";
+    persistPumpConfigurations();
+    return { ok: true, configuration: payload.configuration };
+  } catch (error) {
+    state.pumpConfigurations[key] = {
+      ...(current || {}),
+      ...configuration,
+      configurationKey: key,
+      syncStatus: "LOCAL_DRAFT",
+      unsynced: true,
+      updatedBy: getCurrentUserName(),
+      updatedAt: new Date().toISOString()
+    };
+    persistPumpConfigurations();
+    return { ok: true, offline: true, configuration: state.pumpConfigurations[key] };
+  }
+}
+
+function getPumpConfigurationValues(step, schedule = getActiveTechnicianMaintenanceSchedule(), device = state.activeCriticalDevice) {
+  const configuration = getPumpConfiguration(schedule, device) || {};
+  if (step?.configurationKey === "waterStorage") return configuration.waterStorage || {};
+  if (step?.configurationKey === "standbyPump") return { standbyType: configuration.standbyType || "" };
+  return {};
+}
+
+function isSprinklerPumpDevice(device = state.activeCriticalDevice) {
+  const text = normalizeScopeText(`${device?.id || device?.tag || ""} ${device?.type || ""}`);
+  return text.includes("sprinkler") || text.includes("spp");
+}
+
+function calculateTankStorageCapacity(fieldValues = {}) {
+  const lengthFt = Number(fieldValues.tankLengthFt);
+  const widthFt = Number(fieldValues.tankWidthFt);
+  const heightFt = Number(fieldValues.tankHeightFt);
+  if (![lengthFt, widthFt, heightFt].every((value) => Number.isFinite(value) && value > 0)) return null;
+  const cubicFeet = lengthFt * widthFt * heightFt;
+  return {
+    lengthFt,
+    widthFt,
+    heightFt,
+    cubicFeet: Number(cubicFeet.toFixed(3)),
+    capacityGallons: Number((cubicFeet * 6.25).toFixed(2))
+  };
+}
+
+function applySopDerivedFieldValues(step, fieldValues = {}) {
+  const values = { ...fieldValues };
+  if (!step?.tankCapacityCalculation || values.capacityMethod !== "Calculate from dimensions") return values;
+  const calculation = calculateTankStorageCapacity(values);
+  if (!calculation) {
+    delete values.capacity;
+    delete values.capacityUnit;
+    delete values.capacityGallons;
+    return values;
+  }
+  values.capacity = String(calculation.capacityGallons);
+  values.capacityUnit = "gal";
+  values.capacityGallons = String(calculation.capacityGallons);
+  return values;
+}
+
+function isSopFieldVisible(field, fieldValues = {}) {
+  if (!field?.when) return true;
+  return (field.when.values || []).includes(fieldValues[field.when.fieldId]);
+}
+
+function getEffectiveSopFields(step, saved = {}, device = state.activeCriticalDevice, fieldValues = {}) {
+  let fields = Array.isArray(step?.fields) ? step.fields : [];
+  if (step?.variants) {
+    const standby = getSavedSopStandbyConfiguration({ steps: [] }, saved) || getPumpConfiguration()?.standbyType || "";
+    fields = step.variants[standby] || [];
+  }
+  if (step?.manualStopForSprinkler && isSprinklerPumpDevice(device)) {
+    fields = fields.filter((field) => field.id !== "cutOutPsi").concat({
+      id: "manualStop",
+      label: "Cut-Out",
+      kind: "display",
+      value: "MANUAL STOP"
+    });
+  }
+  return fields.filter((field) => isSopFieldVisible(field, fieldValues));
+}
+
+function getSopFieldDomValue(index, field, existingValues = {}) {
+  if (field.kind === "single-choice") {
+    return document.querySelector(`[name="sop-field-${index}-${field.id}"]:checked`)?.value?.trim?.()
+      ?? existingValues[field.id]
+      ?? field.value
+      ?? "";
+  }
+  const input = document.querySelector(`[name="sop-field-${index}-${field.id}"]`);
+  return input?.value?.trim?.() ?? existingValues[field.id] ?? field.value ?? "";
+}
+
+function getSopFieldRemarkDomValue(index, field, existingRemarks = {}) {
+  const input = document.querySelector(`[name="sop-field-remark-${index}-${field.id}"]`);
+  return input?.value?.trim?.() ?? existingRemarks[field.id] ?? "";
+}
+
+function getSopFieldValues(step, index, existingStep = {}, saved = {}) {
+  const configurationValues = getPumpConfigurationValues(step);
+  const seedValues = { ...configurationValues, ...(existingStep.fieldValues || {}) };
+  if (step?.variants && !seedValues.coolingType && getPumpConfiguration()?.dieselCoolingType) {
+    seedValues.coolingType = getPumpConfiguration().dieselCoolingType;
+  }
+  if (step?.configurationKey === "standbyPump" && configurationValues.standbyType) {
+    seedValues.standbyType = configurationValues.standbyType;
+  }
+  const allFields = [
+    ...(Array.isArray(step?.fields) ? step.fields : []),
+    ...Object.values(step?.variants || {}).flat()
+  ];
+  const values = { ...seedValues };
+  allFields.forEach((field) => {
+    values[field.id] = getSopFieldDomValue(index, field, values);
+  });
+  return applySopDerivedFieldValues(step, values);
+}
+
+function getSopFieldRemarks(step, index, existingStep = {}) {
+  const allFields = [
+    ...(Array.isArray(step?.fields) ? step.fields : []),
+    ...Object.values(step?.variants || {}).flat()
+  ];
+  return Object.fromEntries(allFields.map((field) => [field.id, getSopFieldRemarkDomValue(index, field, existingStep.fieldRemarks || {})]));
+}
+
+function getSopLinkedVerificationAutoState(step, schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const verificationTypes = Array.isArray(step?.autoResultFromLinkedVerifications)
+    ? step.autoResultFromLinkedVerifications
+    : [];
+  if (!schedule || !verificationTypes.length) return { applicable: false, choice: "", message: "" };
+  const definitions = getScheduleLinkedVerificationDefinitions(schedule)
+    .filter((definition) => verificationTypes.includes(definition.verificationType));
+  const states = definitions.map((definition) => calculateClientLinkedVerificationState(schedule, definition));
+  const details = verificationTypes.map((verificationType) => {
+    const typeStates = states.filter((state) => state.definition.verificationType === verificationType);
+    const label = verificationType === "FIRE_PUMP_INDICATION" ? "Pump" : "CO2";
+    const results = typeStates.flatMap((state) => state.sides.map((side) => String(side.record?.result || "").trim().toUpperCase()));
+    const failed = typeStates.some((state) => state.status === "MISMATCH_REVIEW_REQUIRED")
+      || results.some((result) => ["FAIL", "FAILED", "FAULT", "NOT_CONFIRMED"].includes(result));
+    if (failed) return { verificationType, label, status: "FAIL" };
+    if (!typeStates.length || typeStates.some((state) => state.status !== "VERIFIED")) {
+      return { verificationType, label, status: "PENDING" };
+    }
+    return { verificationType, label, status: "PASS" };
+  });
+  const overall = details.some((item) => item.status === "FAIL")
+    ? "FAIL"
+    : details.every((item) => item.status === "PASS")
+      ? "PASS"
+      : "PENDING";
+  const message = overall === "PASS"
+    ? "Authoritative Pump and CO2 linked verifications are complete."
+    : overall === "FAIL"
+      ? "A linked verification failed or requires mismatch review."
+      : "Awaiting required linked verification and sync.";
+  return {
+    applicable: true,
+    choice: overall === "PASS" ? "Pass" : overall === "FAIL" ? "Fail" : "",
+    overall,
+    details,
+    message,
+    source: "Linked Verification"
+  };
+}
+
 function getSopStepDomState(step, index, templateId) {
   const existingStep = getSopStepExisting(templateId, index);
   const photoInput = document.querySelector(`input[name="sop-photo-${index}"]`);
   const demoPhotoInput = document.querySelector(`input[name="sop-photo-demo-${index}"]`);
+  const linkedAutoResult = getSopLinkedVerificationAutoState(step);
+  const configurationValues = getPumpConfigurationValues(step);
+  const fieldValues = getSopFieldValues(step, index, existingStep);
+  const fieldRemarks = getSopFieldRemarks(step, index, existingStep);
   return {
     confirmed: Boolean(document.querySelector(`input[name="sop-confirm-${index}"]`)?.checked),
     title: step.title,
     critical: Boolean(step.critical),
-    choice: document.querySelector(`select[name="sop-choice-${index}"]`)?.value || existingStep.choice || "",
+    choice: linkedAutoResult.applicable
+      ? linkedAutoResult.choice
+      : document.querySelector(`input[name="sop-choice-${index}"]:checked`)?.value
+        || document.querySelector(`select[name="sop-choice-${index}"]`)?.value
+        || (step.configurationKey === "standbyPump" ? configurationValues.standbyType : "")
+        || existingStep.choice
+        || "",
     reading: document.querySelector(`input[name="sop-reading-${index}"]`)?.value.trim() || existingStep.reading || "",
     remark: document.querySelector(`input[name="sop-remark-${index}"]`)?.value.trim() || existingStep.remark || "",
     photo: photoInput?.files?.[0]?.name || demoPhotoInput?.value.trim() || existingStep.photo || "",
-    supervisor: document.querySelector(`input[name="sop-supervisor-${index}"]`)?.value.trim() || existingStep.supervisor || ""
+    supervisor: document.querySelector(`input[name="sop-supervisor-${index}"]`)?.value.trim() || existingStep.supervisor || "",
+    recordedBy: existingStep.recordedBy || (step.captureTechnician ? getCurrentUserName() : ""),
+    fieldValues,
+    fieldRemarks,
+    autoResult: linkedAutoResult.applicable ? linkedAutoResult : null
   };
+}
+
+function getSopStepRenderState(step, index, templateId, saved = {}) {
+  const existingStep = saved.steps?.[index] || getSopStepExisting(templateId, index) || {};
+  const linkedAutoResult = getSopLinkedVerificationAutoState(step);
+  const configurationValues = getPumpConfigurationValues(step);
+  return {
+    ...existingStep,
+    choice: linkedAutoResult.applicable
+      ? linkedAutoResult.choice
+      : (step.configurationKey === "standbyPump" ? configurationValues.standbyType : "") || existingStep.choice || "",
+    fieldValues: applySopDerivedFieldValues(step, {
+      ...configurationValues,
+      ...(step?.variants && getPumpConfiguration()?.dieselCoolingType ? { coolingType: getPumpConfiguration().dieselCoolingType } : {}),
+      ...(existingStep.fieldValues || {})
+    }),
+    autoResult: linkedAutoResult.applicable ? linkedAutoResult : null
+  };
+}
+
+function getSavedSopStandbyConfiguration(template, saved = {}) {
+  const steps = template?.steps?.length ? template.steps : criticalSopTemplates.find((item) => item.id === "sprinkler-hydrant-pump-sop")?.steps || [];
+  const configIndex = steps.findIndex((step) => step.configurationKey === "standbyPump" || step.lockChoiceAfterSave);
+  return getPumpConfiguration()?.standbyType || (configIndex >= 0 ? saved.steps?.[configIndex]?.choice || "" : "");
+}
+
+function sopValueMatches(value, options = []) {
+  const normalized = normalizeScopeText(value);
+  return options.some((option) => normalizeScopeText(option) === normalized);
+}
+
+function sopStepChoiceNeedsRemark(step, stepState = {}) {
+  return Array.isArray(step?.remarkOnChoices) && sopValueMatches(stepState.choice, step.remarkOnChoices);
+}
+
+function sopStepChoiceNeedsPhoto(step, stepState = {}) {
+  return Array.isArray(step?.photoOnChoices) && sopValueMatches(stepState.choice, step.photoOnChoices);
+}
+
+function sopStepFieldFailureNeedsPhoto(step, stepState = {}) {
+  if (!step?.requiresPhotoOnFieldFailure) return false;
+  const fields = getEffectiveSopFields(step, { steps: {} }, state.activeCriticalDevice, stepState.fieldValues || {});
+  return fields.some((field) => Array.isArray(field.requiresRemarkOn) && sopValueMatches(stepState.fieldValues?.[field.id], field.requiresRemarkOn));
+}
+
+function sopStepRequiresPhoto(step, stepState = {}) {
+  return Boolean(step?.requiresPhoto || sopStepChoiceNeedsPhoto(step, stepState) || sopStepFieldFailureNeedsPhoto(step, stepState));
 }
 
 function getMissingSopRequirements(step, stepState, template = null, index = -1, saved = {}, options = {}) {
   const missing = [];
   if (step.requiresChoice && !stepState.choice) missing.push(step.choiceLabel || "choice");
   if (step.requiresReading && !stepState.reading) missing.push(step.readingLabel || "reading");
-  if (sopStepNeedsRemark(step) && !stepState.remark) missing.push("remark");
-  if (step.requiresPhoto && !stepState.photo) missing.push("photo");
+  if (step.requiresReading && step.readingType === "number" && stepState.reading && !Number.isFinite(Number(stepState.reading))) {
+    missing.push(`valid ${step.readingLabel || "number"}`);
+  }
+  if ((sopStepNeedsRemark(step) || sopStepChoiceNeedsRemark(step, stepState)) && !stepState.remark) missing.push("remark");
+  const fieldValues = stepState.fieldValues || {};
+  const fieldRemarks = stepState.fieldRemarks || {};
+  const effectiveFields = getEffectiveSopFields(step, saved, state.activeCriticalDevice, fieldValues);
+  if (step.variants && !effectiveFields.length) missing.push("standby pump type configuration");
+  effectiveFields.forEach((field) => {
+    const value = field.kind === "display" ? field.value : fieldValues[field.id];
+    if (field.required && !String(value ?? "").trim()) missing.push(field.label || field.id);
+    if (field.kind === "number" && String(value ?? "").trim() && !Number.isFinite(Number(value))) {
+      missing.push(`valid ${field.label || field.id}`);
+    }
+    if (Array.isArray(field.requiresRemarkOn) && sopValueMatches(value, field.requiresRemarkOn) && !String(fieldRemarks[field.id] || "").trim()) {
+      missing.push(`${field.label || field.id} remark`);
+    }
+  });
+  if (step.phaseSupplyValidation) {
+    const phaseState = getPumpPhaseSupplyState(stepState);
+    if (phaseState.hasReadings && phaseState.abnormal) {
+      missing.push("R-Y / Y-B / B-R readings within 376-440 V");
+      if (!String(stepState.remark || "").trim()) missing.push("phase supply acknowledgement remark");
+    }
+  }
+  if (sopStepRequiresPhoto(step, stepState) && !stepState.photo) missing.push("photo");
   if (step.requiresSupervisor && !stepState.supervisor) missing.push("supervisor");
   if (template && isFinalSopStep(template, index)) {
     const evidence = options.useDomEvidence ? getCriticalSopEvidenceDomState(saved) : saved;
@@ -14835,8 +16869,10 @@ function sopRequirementBadges(step) {
   if (step.requiresChoice) badges.push(step.choiceLabel || "Choice");
   if (step.requiresReading) badges.push(step.readingLabel || "Reading");
   if (sopStepNeedsRemark(step)) badges.push("Remark");
-  if (step.requiresPhoto) badges.push("Photo");
+  if (step.requiresPhoto || step.requiresPhotoOnFieldFailure || step.photoOnChoices?.length) badges.push(step.requiresPhoto ? "Photo" : "Photo on fail");
+  if (step.fields?.length || step.variants) badges.push("Structured readings");
   if (step.requiresSupervisor) badges.push("Supervisor");
+  if (step.captureTechnician) badges.push("Recorded by technician");
   if (!badges.length) badges.push("Confirm");
   return badges.map((badge) => `<span>${escapeHtml(badge)}</span>`).join("");
 }
@@ -14855,7 +16891,7 @@ function getCriticalSopStepStageBlock(template, activeDevice, index, saved = {})
 
 function renderCriticalWorkflowStageBanner(run, stage) {
   if (!run || !stage) return "";
-  const className = stage.status === "complete"
+  const className = stage.status === "final_restored"
     ? "complete"
     : stage.prerequisiteFailed
       ? "blocked"
@@ -14866,8 +16902,252 @@ function renderCriticalWorkflowStageBanner(run, stage) {
     <div class="critical-workflow-stage ${className}">
       <strong>${escapeHtml(run.label)} Sequence</strong>
       <span>${escapeHtml(stage.stageLabel)}</span>
-      <small>Prerequisite: ${stage.prerequisiteComplete ? "Complete" : "Pending"} | Linked devices: ${stage.childCompleteCount}/${stage.childTotal} | Final restoration: ${stage.finalComplete ? "Complete" : "Pending"}</small>
+      <small>Test readiness: ${stage.testReady ? "READY" : "NOT READY"} | MFAP checklist: ${stage.checklistComplete ? "Complete" : "In progress"} | Linked devices: ${stage.childCompleteCount}/${stage.childTotal} | Final restoration: ${stage.finalComplete ? "Complete" : "Pending"}</small>
     </div>
+  `;
+}
+
+function getPumpConfigurationEditToken(step, schedule = getActiveTechnicianMaintenanceSchedule(), device = state.activeCriticalDevice) {
+  return `${getPumpConfigurationKey(schedule, device)}::${step?.configurationKey || ""}`;
+}
+
+function isPumpConfigurationEditing(step) {
+  return Boolean(step?.configurationKey && state.pumpConfigurationEditKey === getPumpConfigurationEditToken(step));
+}
+
+function pumpConfigurationNeedsSetupUpgrade(step, configuration = getPumpConfiguration()) {
+  if (step?.configurationKey !== "waterStorage" || !configuration?.waterStorage) return false;
+  const water = configuration.waterStorage;
+  return !water.capacityMethod || (water.capacityMethod === "Calculate from dimensions" && !water.capacityGallons);
+}
+
+function renderPumpConfigurationSummary(step, stepState) {
+  if (!step?.configurationKey) return "";
+  const configuration = getPumpConfiguration();
+  if (!configuration || isPumpConfigurationEditing(step)) return "";
+  const needsSetupUpgrade = pumpConfigurationNeedsSetupUpgrade(step, configuration);
+  const values = step.configurationKey === "waterStorage"
+    ? configuration.waterStorage || {}
+    : { standbyType: configuration.standbyType || "" };
+  const dimensionSummary = values.tankLengthFt && values.tankWidthFt && values.tankHeightFt
+    ? `${values.tankLengthFt} × ${values.tankWidthFt} × ${values.tankHeightFt} ft | `
+    : "";
+  const summary = step.configurationKey === "waterStorage"
+    ? `${values.tankType || "Not configured"}${values.tankTypeOther ? ` - ${values.tankTypeOther}` : ""} | ${dimensionSummary}${values.capacity || "-"} ${values.capacityUnit || ""}`
+    : values.standbyType || "Not configured";
+  return `
+    <div class="sop-configuration-summary">
+      <div><span>Saved site / pump configuration</span><strong>${escapeHtml(summary)}</strong></div>
+      <button type="button" class="secondary" data-change-pump-config="${escapeHtml(step.configurationKey)}">${needsSetupUpgrade ? "Complete Tank Setup" : "Change"}</button>
+      ${needsSetupUpgrade ? `<small>Existing capacity is preserved. Complete the new dimension or known-capacity setup to create the next revision.</small>` : ""}
+      ${configuration.unsynced ? `<small>Local draft - server sync required before this becomes authoritative.</small>` : ""}
+    </div>
+  `;
+}
+
+function renderSopStructuredField(field, index, stepState, disabled, configurationLocked) {
+  if (field.configuration && configurationLocked) return "";
+  const value = stepState.fieldValues?.[field.id] ?? field.value ?? "";
+  const remark = stepState.fieldRemarks?.[field.id] || "";
+  const needsRemark = Array.isArray(field.requiresRemarkOn) && sopValueMatches(value, field.requiresRemarkOn);
+  if (field.kind === "display") {
+    return `<div class="sop-auto-result complete"><span>${escapeHtml(field.label)}</span><strong>${escapeHtml(field.value || "")}</strong></div>`;
+  }
+  if (field.kind === "single-choice") {
+    return `
+      <fieldset class="sop-single-choice">
+        <legend>${escapeHtml(field.label)}${field.required ? " *" : ""}</legend>
+        <div>
+          ${(field.choices || []).map((choice) => `
+            <label><input type="radio" name="sop-field-${index}-${escapeHtml(field.id)}" value="${escapeHtml(choice)}" ${value === choice ? "checked" : ""} ${disabled ? "disabled" : ""}><span>${escapeHtml(choice)}</span></label>
+          `).join("")}
+        </div>
+      </fieldset>`;
+  }
+  const control = field.kind === "choice"
+    ? `<select name="sop-field-${index}-${escapeHtml(field.id)}" ${disabled ? "disabled" : ""}>
+        <option value="">Select</option>
+        ${(field.choices || []).map((choice) => `<option value="${escapeHtml(choice)}" ${value === choice ? "selected" : ""}>${escapeHtml(choice)}</option>`).join("")}
+      </select>`
+    : `<span class="sop-reading-control"><input name="sop-field-${index}-${escapeHtml(field.id)}" type="${field.kind === "number" ? "number" : "text"}" ${field.kind === "number" ? `inputmode="decimal" step="${escapeHtml(field.step || "any")}"` : ""} value="${escapeHtml(value)}" ${disabled ? "disabled" : ""}>${field.unit ? `<strong>${escapeHtml(field.unit)}</strong>` : ""}</span>`;
+  return `
+    <label class="sop-structured-field">
+      ${escapeHtml(field.label)}${field.required ? " *" : ""}
+      ${control}
+    </label>
+    ${needsRemark ? `<label class="sop-field-failure">${escapeHtml(field.label)} Remark *<input name="sop-field-remark-${index}-${escapeHtml(field.id)}" value="${escapeHtml(remark)}" placeholder="Describe the failed condition" ${disabled ? "disabled" : ""}></label>` : ""}
+  `;
+}
+
+function renderSopDerivedFieldSummary(step, stepState) {
+  if (!step?.tankCapacityCalculation || stepState.fieldValues?.capacityMethod !== "Calculate from dimensions") return "";
+  const calculation = calculateTankStorageCapacity(stepState.fieldValues);
+  if (!calculation) {
+    return `<div class="sop-auto-result waiting"><span>Calculated Capacity</span><strong>Enter all three positive dimensions</strong></div>`;
+  }
+  return `<div class="sop-auto-result complete"><span>Tank Size · Read-only</span><strong>${escapeHtml(calculation.lengthFt)} × ${escapeHtml(calculation.widthFt)} × ${escapeHtml(calculation.heightFt)} ft</strong><small>Calculated Storage: ${escapeHtml(calculation.capacityGallons.toLocaleString("en-US", { maximumFractionDigits: 2 }))} gal</small></div>`;
+}
+
+function renderSopValidationNotice(step, stepState) {
+  if (!step?.phaseSupplyValidation) return "";
+  const phaseState = getPumpPhaseSupplyState(stepState);
+  if (!phaseState.hasReadings || !phaseState.abnormal) return "";
+  const readings = Object.entries(phaseState.readings).map(([key, value]) => `${key}: ${value || "missing"} V`).join(" | ");
+  return `<div class="sop-auto-result fault"><span>PHASE SUPPLY ABNORMAL</span><strong>${escapeHtml(readings)}</strong><small>Each phase-to-phase reading must be within 376-440 V. Raw readings are retained; acknowledge the condition in remarks before saving. Step 6 and later pump tests remain locked.</small></div>`;
+}
+
+function renderSopLinkedSummary(autoResult) {
+  if (!autoResult?.applicable) return "";
+  return `
+    <div class="sop-linked-summary">
+      ${(autoResult.details || []).map((item) => `<div class="${escapeHtml(item.status.toLowerCase())}"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.status)}</strong></div>`).join("")}
+      <div class="overall ${escapeHtml(String(autoResult.overall || "PENDING").toLowerCase())}"><span>Overall</span><strong>${escapeHtml(autoResult.overall || "PENDING")}</strong></div>
+      <small>Source: ${escapeHtml(autoResult.source || "Linked Verification")}</small>
+    </div>
+  `;
+}
+
+function isPumpStagedSop(template) {
+  return template?.id === "sprinkler-hydrant-pump-sop" && getCurrentUserRole() === "Technician";
+}
+
+function getTechnicianSopStageDefinitions(template) {
+  if (getCurrentUserRole() !== "Technician") return [];
+  return TECHNICIAN_SOP_STAGE_DEFINITIONS[template?.id] || [];
+}
+
+function isTechnicianStagedSop(template) {
+  return getTechnicianSopStageDefinitions(template).length > 0;
+}
+
+function getTechnicianSopStageForStep(template, index) {
+  return getTechnicianSopStageDefinitions(template).find((stage) => stage.stepIndexes.includes(index)) || null;
+}
+
+function getPumpSopStageForStep(index) {
+  return PUMP_SOP_STAGE_DEFINITIONS.find((stage) => stage.stepIndexes.includes(index)) || null;
+}
+
+function sopStepHasFault(step, stepState = {}) {
+  const negativeChoices = new Set(["fail", "insufficient", "partially open", "closed", "some closed"]);
+  if (negativeChoices.has(normalizeScopeText(stepState.choice))) return true;
+  if (Object.values(stepState.fieldValues || {}).some((value) => normalizeScopeText(value) === "fail")) return true;
+  if (step.phaseSupplyValidation && getPumpPhaseSupplyState(stepState).abnormal) return true;
+  return stepState.autoResult?.overall === "FAIL";
+}
+
+function getPumpSopStageStates(template, saved, device = state.activeCriticalDevice) {
+  let previousComplete = true;
+  const definitions = getTechnicianSopStageDefinitions(template);
+  return definitions.map((definition, stageIndex) => {
+    const stepStates = definition.stepIndexes.map((index) => {
+      const step = template.steps[index];
+      const stepState = getSopStepRenderState(step, index, template.id, saved);
+      const stageBlock = getCriticalSopStepStageBlock(template, device, index, saved);
+      return {
+        index,
+        step,
+        stepState,
+        complete: isSopStepComplete(step, stepState, template, index, saved) && !stageBlock.blocked,
+        fault: sopStepHasFault(step, stepState)
+      };
+    });
+    const completeCount = stepStates.filter((item) => item.complete).length;
+    const faultCount = stepStates.filter((item) => item.fault).length;
+    const complete = completeCount === stepStates.length;
+    const accessible = previousComplete;
+    const result = {
+      ...definition,
+      stageIndex,
+      completeCount,
+      totalCount: stepStates.length,
+      faultCount,
+      complete,
+      accessible,
+      stepStates
+    };
+    previousComplete = previousComplete && complete;
+    return result;
+  });
+}
+
+function getActivePumpSopStage(storageKey, stages) {
+  if (state.pumpSopStageSelection && state.pumpSopStageSelection !== state.sopStageSelection) {
+    state.sopStageSelection = state.pumpSopStageSelection;
+  }
+  state.sopStageSelection = state.sopStageSelection || {};
+  state.pumpSopStageSelection = state.sopStageSelection;
+  const selectedId = state.sopStageSelection?.[storageKey] || "";
+  const selected = stages.find((stage) => stage.id === selectedId && stage.accessible);
+  if (selected) return selected;
+  return stages.find((stage) => stage.accessible && !stage.complete)
+    || [...stages].reverse().find((stage) => stage.accessible)
+    || stages[0];
+}
+
+function getPumpSopStageStatus(stage, activeStage) {
+  if (stage.id === activeStage?.id) return "active";
+  if (!stage.accessible) return "locked";
+  if (stage.faultCount) return "fault";
+  if (stage.complete) return "complete";
+  return "ready";
+}
+
+function renderPumpSopStageNavigator(stages, activeStage, saved = {}) {
+  const completedStages = stages.filter((stage) => stage.complete).length;
+  const totalFaults = stages.reduce((sum, stage) => sum + stage.faultCount, 0);
+  const syncStatus = saved.syncStatus === "synced"
+    ? "Synced"
+    : saved.syncStatus === "draft" || saved.unsynced
+      ? "Pending sync"
+      : saved.syncStatus === "conflict"
+        ? "Sync problem"
+        : "Not saved";
+  return `
+    <section class="pump-sop-stage-shell" data-active-pump-stage="${escapeHtml(activeStage?.id || "")}">
+      <header class="pump-sop-context">
+        <div>
+          <span>${escapeHtml(state.activeCriticalDevice?.siteName || state.siteProfile?.siteName || "Current site")}</span>
+          <strong>${escapeHtml(state.activeCriticalDevice?.type || "System")} · Stage ${(activeStage?.stageIndex ?? 0) + 1} of ${stages.length}</strong>
+          <small>${escapeHtml(activeStage?.label || "System checklist")} · ${completedStages}/${stages.length} complete</small>
+        </div>
+        <span class="pump-sop-sync ${escapeHtml(normalizeScopeText(syncStatus))}">${escapeHtml(syncStatus)}</span>
+      </header>
+      <div class="pump-sop-stage-progress" aria-label="${completedStages} of ${stages.length} Pump stages complete"><span style="width:${Math.round((completedStages / Math.max(stages.length, 1)) * 100)}%"></span></div>
+      <button type="button" class="secondary pump-sop-open-drawer" data-pump-open-stage-drawer>Stages</button>
+      ${totalFaults ? `<div class="pump-sop-fault-summary"><strong>${totalFaults} fault${totalFaults === 1 ? "" : "s"} recorded</strong><span>Open the marked stage to review the saved result.</span></div>` : ""}
+      <div class="pump-sop-stage-content">
+  `;
+}
+
+function renderSopChoiceControl(step, index, stepState, disabled, usePumpChoiceButtons) {
+  if (!step.requiresChoice) return "";
+  if (usePumpChoiceButtons && !step.changeableConfiguration && !step.autoResult?.applicable) {
+    return `
+      <fieldset class="sop-choice-buttons">
+        <legend>${escapeHtml(step.choiceLabel || "Result")}</legend>
+        <div>
+          ${(step.choices || ["Pass", "Fail", "N/A"]).map((choice) => `
+            <label class="choice-${escapeHtml(normalizeScopeText(choice))}">
+              <input type="radio" name="sop-choice-${index}" value="${escapeHtml(choice)}" ${stepState.choice === choice ? "checked" : ""} ${disabled ? "disabled" : ""}>
+              <span>${escapeHtml(choice.toUpperCase())}</span>
+            </label>
+          `).join("")}
+        </div>
+      </fieldset>
+    `;
+  }
+  return `
+    <label>
+      ${escapeHtml(step.choiceLabel || "Result")}
+      <select name="sop-choice-${index}" ${(disabled || (step.lockChoiceAfterSave && Boolean(stepState.choice))) ? "disabled" : ""}>
+        <option value="">Select before confirming</option>
+        ${(step.choices || ["Pass", "Fail", "N/A"]).map((choice) => `
+          <option value="${escapeHtml(choice)}" ${stepState.choice === choice ? "selected" : ""}>${escapeHtml(choice)}</option>
+        `).join("")}
+      </select>
+      ${step.lockChoiceAfterSave && stepState.choice ? `<small class="auto-fill-note">Locked for this job/system · ${escapeHtml(stepState.choice)}</small>` : ""}
+    </label>
   `;
 }
 
@@ -14886,6 +17166,14 @@ function renderCriticalSop() {
   const activeSchedule = getActiveTechnicianMaintenanceSchedule();
   const workflowRun = activeDevice ? getCriticalWorkflowRunForParentDevice(activeDevice, activeSchedule) : null;
   const workflowStage = workflowRun ? getCriticalWorkflowRunState(workflowRun, activeSchedule) : null;
+  const isMfapWorkspace = activeTemplate.id === "fire-alarm-tripping-sop" && getCurrentUserRole() === "Technician";
+  const isStagedWorkspace = isTechnicianStagedSop(activeTemplate);
+  const sopStages = isStagedWorkspace ? getPumpSopStageStates(activeTemplate, saved, activeDevice) : [];
+  const activeSopStage = isStagedWorkspace ? getActivePumpSopStage(storageKey, sopStages) : null;
+  criticalSopPanel?.classList.toggle("pump-staged-active", isStagedWorkspace);
+  criticalSopPanel?.classList.toggle("technician-staged-active", isStagedWorkspace);
+  document.querySelector("#saveCriticalSopBtn")?.classList.toggle("hidden", getCurrentUserRole() === "Technician");
+  if (isMfapWorkspace) initializeMfapPendingUiState(activeSchedule);
   const heading = document.querySelector("#criticalSopPanel h2");
   if (heading) {
     heading.textContent = activeDevice
@@ -14924,14 +17212,34 @@ function renderCriticalSop() {
     ` : ""}
     ${getCurrentUserRole() === "Technician" && activeSchedule && state.activeTechSystemKey ? `
       <div class="tech-critical-actions">
+        <button type="button" class="secondary" data-tech-critical-dashboard>Back to Dashboard</button>
+        <button type="button" class="secondary" data-tech-critical-system-list>Back to System List</button>
         <button type="button" class="secondary" data-tech-critical-view-mimic>View Mimic</button>
         <span>Open the current system mimic for location reference. Locked pins still require this System Check.</span>
       </div>
     ` : ""}
+    ${isMfapWorkspace ? `
+      <div data-critical-job-alerts>${renderTechnicianJobAlerts(activeSchedule)}</div>
+      <div class="mfap-workspace-navigation" data-mfap-workspace-navigation>
+        <div class="mfap-workspace-tabs" role="tablist" aria-label="MFAP workspace views">
+          <button type="button" role="tab" data-mfap-workspace-tab="checklist">CHECKLIST</button>
+          <button type="button" role="tab" data-mfap-workspace-tab="live">LIVE INDICATIONS (<span data-mfap-pending-count>${getMfapActiveLiveEvents(activeSchedule).length}</span>)</button>
+        </div>
+        <div class="mfap-new-indication-alert hidden" data-mfap-new-indication-alert role="status">
+          <div><strong>NEW INDICATION TEST</strong><span data-mfap-new-indication-title></span></div>
+          <button type="button" data-mfap-view-new-indication>VIEW</button>
+        </div>
+      </div>
+      <section class="mfap-live-indications-view ${state.activeMfapWorkspaceTab === "live" ? "" : "hidden"}" data-mfap-live-view role="tabpanel">
+        <div data-critical-linked-prompt>${renderCriticalSopLiveLinkedPrompt(activeSchedule)}</div>
+      </section>
+      <section class="mfap-checklist-view ${state.activeMfapWorkspaceTab === "live" ? "hidden" : ""}" data-mfap-checklist-view role="tabpanel">
+    ` : `<div data-critical-linked-prompt>${renderCriticalSopLiveLinkedPrompt(activeSchedule)}</div>`}
     <div class="critical-warning danger">
       <strong>${escapeHtml(activeTemplate.title)}</strong>
       <span>${escapeHtml(activeTemplate.danger)}</span>
     </div>
+    ${activeTemplate.id === "gas-discharge-sop" && getCurrentUserRole() === "Technician" ? renderGasLiveCoordinationStart(activeSchedule) : ""}
     ${renderCriticalWorkflowStageBanner(workflowRun, workflowStage)}
     ${activeTemplate.requiresBeforeAfterPhotos ? `
       <div class="critical-evidence-card">
@@ -14964,29 +17272,42 @@ function renderCriticalSop() {
         ${evidenceMissing.length ? `<p class="locked-note">Required before final confirmation: ${escapeHtml(evidenceMissing.join(", "))}.</p>` : ""}
       </div>
     ` : ""}
-    <div class="sop-progress">
-      <strong>${getCriticalSopCompleteCount(activeTemplate, saved)}/${activeTemplate.steps.length}</strong>
-      <span>${activeTemplate.fastTickMode ? "Tick each step in order. Final confirmation needs the photos above and supervisor name." : "completed in order. Next step stays locked until required evidence is recorded."}</span>
-    </div>
+    ${isStagedWorkspace ? renderPumpSopStageNavigator(sopStages, activeSopStage, saved) : `
+      <div class="sop-progress">
+        <strong>${getCriticalSopCompleteCount(activeTemplate, saved)}/${activeTemplate.steps.length}</strong>
+        <span>${activeTemplate.fastTickMode ? "Tick each step in order. Final confirmation needs the photos above and supervisor name." : "completed in order. Next step stays locked until required evidence is recorded."}</span>
+      </div>
+    `}
     ${activeTemplate.steps.map((step, index) => {
-      const stepState = saved.steps?.[index] || {};
+      const stepState = getSopStepRenderState(step, index, activeTemplate.id, saved);
       const stageBlock = getCriticalSopStepStageBlock(activeTemplate, activeDevice, index, saved);
       const isComplete = isSopStepComplete(step, stepState, activeTemplate, index, saved) && !stageBlock.blocked;
       const disabled = locked || stageBlock.blocked;
       const missing = getMissingSopRequirements(step, stepState, activeTemplate, index, saved);
+      const pumpConfiguration = step.configurationKey ? getPumpConfiguration(activeSchedule, activeDevice) : null;
+      const configurationLocked = Boolean(pumpConfiguration && !pumpConfigurationNeedsSetupUpgrade(step, pumpConfiguration) && !isPumpConfigurationEditing(step));
+      const effectiveFields = getEffectiveSopFields(step, saved, activeDevice, stepState.fieldValues || {});
       const statusText = stageBlock.blocked ? "Final restoration locked" : disabled ? "Locked" : isComplete ? "Completed" : (missing.length ? `Need ${missing.join(", ")}` : "Ready to confirm");
+      const pumpStage = isStagedWorkspace ? getTechnicianSopStageForStep(activeTemplate, index) : null;
+      const pumpStepHidden = Boolean(pumpStage && pumpStage.id !== activeSopStage?.id);
+      const pumpStepExpansionKey = `${storageKey}::${index}`;
+      const pumpStepExpanded = state.pumpSopExpandedStepKey === pumpStepExpansionKey;
+      const pumpStepCollapsed = Boolean(pumpStage && (isComplete || disabled) && !pumpStepExpanded);
+      const remarkRequired = sopStepNeedsRemark(step) || sopStepChoiceNeedsRemark(step, stepState) || Boolean(step.phaseSupplyValidation && getPumpPhaseSupplyState(stepState).abnormal);
+      const remarkVisible = remarkRequired || Boolean(String(stepState.remark || "").trim());
       if (!isComplete) locked = true;
       return `
-        <fieldset class="sop-step ${step.critical ? "critical" : ""} ${disabled ? "locked" : ""} ${isComplete ? "complete" : ""}">
+        <fieldset class="sop-step ${step.critical ? "critical" : ""} ${disabled ? "locked" : ""} ${isComplete ? "complete" : ""} ${pumpStepHidden ? "pump-sop-step-hidden" : ""} ${pumpStepCollapsed ? "pump-sop-step-collapsed" : ""}" ${pumpStage ? `data-pump-sop-step-stage="${escapeHtml(pumpStage.id)}"` : ""}>
           <legend>Step ${index + 1}</legend>
           <div class="sop-step-head">
             <span class="sop-status ${isComplete ? "complete" : ""}">${escapeHtml(statusText)}</span>
             <div class="sop-requirements">${sopRequirementBadges(step)}</div>
+            ${pumpStage && isComplete ? `<button type="button" class="secondary pump-sop-step-toggle" data-pump-sop-step-toggle="${index}">${pumpStepExpanded ? "Close" : "Review"}</button>` : ""}
           </div>
           ${step.noConfirm ? `
             <div class="sop-confirm no-checkbox">
               <strong>${escapeHtml(step.title)}</strong>
-              <span>Select the result below to complete this step.</span>
+              <span>${step.optionalRemark && !step.requiresChoice && !step.requiresReading ? "Optional entry. You can continue without filling it." : "Complete the required value below to continue."}</span>
             </div>
           ` : `
             <label class="sop-confirm">
@@ -14994,32 +17315,45 @@ function renderCriticalSop() {
               <strong>${escapeHtml(step.title)}</strong>
             </label>
           `}
-          <p>${escapeHtml(step.detail)}</p>
+          ${isStagedWorkspace ? `
+            <details class="sop-how-to">
+              <summary>How to check</summary>
+              <p>${escapeHtml(step.detail)}</p>
+            </details>
+          ` : `<p>${escapeHtml(step.detail)}</p>`}
           <div class="sop-grid">
-            ${step.requiresChoice ? `
-              <label>
-                ${escapeHtml(step.choiceLabel || "Result")}
-                <select name="sop-choice-${index}" ${disabled ? "disabled" : ""}>
-                  <option value="">Select before confirming</option>
-                  ${(step.choices || ["Pass", "Fail", "N/A"]).map((choice) => `
-                    <option value="${escapeHtml(choice)}" ${stepState.choice === choice ? "selected" : ""}>${escapeHtml(choice)}</option>
-                  `).join("")}
-                </select>
-              </label>
-            ` : ""}
+            ${step.readOnlyLinkedSummary && stepState.autoResult?.applicable ? renderSopLinkedSummary(stepState.autoResult) : step.requiresChoice && stepState.autoResult?.applicable ? `
+              <div class="sop-auto-result ${stepState.choice ? "complete" : "waiting"}">
+                <span>${escapeHtml(step.choiceLabel || "Result")} · Read-only</span>
+                <strong>${escapeHtml(stepState.choice || "Awaiting linked verification")}</strong>
+                <small>${escapeHtml(stepState.autoResult.message)}</small>
+              </div>
+            ` : step.requiresChoice && !(step.configurationKey === "standbyPump" && configurationLocked)
+              ? renderSopChoiceControl(step, index, stepState, disabled, isStagedWorkspace)
+              : ""}
+            ${renderPumpConfigurationSummary(step, stepState)}
+            ${effectiveFields.map((field) => renderSopStructuredField(field, index, stepState, disabled, configurationLocked)).join("")}
+            ${renderSopDerivedFieldSummary(step, stepState)}
+            ${renderSopValidationNotice(step, stepState)}
+            ${step.linkedPumpTestKey || step.linkedGasTestKey ? `<div data-sop-inline-linked-step="${index}">${renderSopStepLinkedVerification(step, activeSchedule, activeDevice)}</div>` : ""}
             ${step.requiresReading ? `
               <label>
                 ${escapeHtml(step.readingLabel || "Reading / Value")}
-                <input name="sop-reading-${index}" value="${escapeHtml(stepState.reading || "")}" placeholder="${escapeHtml(step.readingPlaceholder || "Example: 26.8V / 120 PSI / 28 sec")}" ${disabled ? "disabled" : ""}>
+                <span class="sop-reading-control">
+                  <input name="sop-reading-${index}" type="${step.readingType === "number" ? "number" : "text"}" ${step.readingType === "number" ? `inputmode="decimal" step="${escapeHtml(step.readingStep || "any")}"` : ""} value="${escapeHtml(stepState.reading || "")}" placeholder="${escapeHtml(step.readingPlaceholder || "Example: 26.8V / 120 PSI / 28 sec")}" ${disabled ? "disabled" : ""}>
+                  ${step.readingUnit ? `<strong>${escapeHtml(step.readingUnit)}</strong>` : ""}
+                </span>
               </label>
             ` : ""}
-            ${sopStepShowsRemark(step) ? `
-              <label>
-                ${step.optionalRemark && !sopStepNeedsRemark(step) ? "Optional Remark" : "Remark / Confirmation Detail"}
-                <input name="sop-remark-${index}" value="${escapeHtml(stepState.remark || "")}" placeholder="${step.optionalRemark && !sopStepNeedsRemark(step) ? "Only fill if panel was changed" : "Who confirmed / what was checked"}" ${disabled ? "disabled" : ""}>
+            ${step.usesStandbyConfiguration ? `<div class="sop-auto-result complete"><span>Configured standby · Read-only</span><strong>${escapeHtml(getSavedSopStandbyConfiguration(activeTemplate, saved) || "Not configured")}</strong><small>Auto-filled from the saved standby setup for this job/system.</small></div>` : ""}
+            ${step.optionalRemark && !remarkRequired && !remarkVisible ? `<button type="button" class="secondary sop-remark-toggle" data-sop-remark-toggle="${index}" ${disabled ? "disabled" : ""}>Add Remarks</button>` : ""}
+            ${remarkVisible ? `
+              <label data-sop-remark-field="${index}">
+                ${remarkRequired ? "Remarks *" : "Optional Remark"}
+                <input name="sop-remark-${index}" value="${escapeHtml(stepState.remark || "")}" placeholder="${remarkRequired ? "Describe the observation or failed condition" : "Optional additional observation"}" ${disabled ? "disabled" : ""}>
               </label>
             ` : ""}
-            ${step.requiresPhoto ? `
+            ${sopStepRequiresPhoto(step, stepState) ? `
               <label>
                 Required Photo
                 <input name="sop-photo-${index}" type="file" accept="image/*" ${disabled ? "disabled" : ""}>
@@ -15034,26 +17368,81 @@ function renderCriticalSop() {
                 <input name="sop-supervisor-${index}" value="${escapeHtml(stepState.supervisor || "")}" placeholder="Supervisor name / PIN" ${disabled ? "disabled" : ""}>
               </label>
             ` : ""}
+            ${step.captureTechnician ? `
+              <label>
+                Confirmed By
+                <input value="${escapeHtml(stepState.recordedBy || getCurrentUserName())}" readonly aria-readonly="true">
+                <small class="auto-fill-note">Read-only · Auto-filled from logged-in Technician</small>
+              </label>
+            ` : ""}
           </div>
           ${stageBlock.blocked ? `<p class="locked-note">${escapeHtml(stageBlock.reason)}</p>` : disabled ? `<p class="locked-note">Complete previous step first.</p>` : ""}
           ${!disabled && !isComplete && missing.length ? `<p class="locked-note">Required before confirm: ${escapeHtml(missing.join(", "))}.</p>` : ""}
         </fieldset>
       `;
     }).join("")}
-    <label>
-      Overall SOP Remarks
-      <textarea id="criticalSopRemarks" rows="4" placeholder="Final safety note, abnormal condition, client instruction.">${escapeHtml(saved.generalRemarks || "")}</textarea>
-    </label>
-    <div class="form-bottom-actions">
-      <button id="saveCriticalSopBottomBtn" type="button">Save Critical SOP</button>
-      <button id="saveCriticalSopNextBtn" type="button">Save Critical SOP & Next Item</button>
-    </div>
+    ${isStagedWorkspace ? "</div></section>" : ""}
+    ${!isStagedWorkspace || activeSopStage?.stageIndex === sopStages.length - 1 ? `
+      <label>
+        Overall SOP Remarks
+        <textarea id="criticalSopRemarks" rows="4" placeholder="Final safety note, abnormal condition, client instruction.">${escapeHtml(saved.generalRemarks || "")}</textarea>
+      </label>
+    ` : ""}
+    ${getCurrentUserRole() === "Technician" ? `
+      <div class="pump-sop-sticky-actions">
+        <button type="button" class="secondary" data-pump-sop-back>BACK</button>
+        <span>${saved.syncStatus === "synced" ? "Saved and synced" : saved.unsynced ? "Saved locally · pending sync" : "Complete the current stage"}</span>
+        <button id="saveCriticalSopBottomBtn" type="button">SAVE & NEXT</button>
+      </div>
+    ` : `
+      <div class="form-bottom-actions">
+        <button id="saveCriticalSopBottomBtn" type="button">Save Critical SOP</button>
+        <button id="saveCriticalSopNextBtn" type="button">Save Critical SOP & Next Item</button>
+      </div>
+    `}
+    ${isMfapWorkspace ? "</section>" : ""}
   `;
 
-  document.querySelector("#saveCriticalSopBottomBtn")?.addEventListener("click", () => saveCriticalSop(true));
+  if (isStagedWorkspace) {
+    form.dataset.activePumpStage = activeSopStage?.id || "";
+  } else {
+    delete form.dataset.activePumpStage;
+  }
+  document.querySelector("#saveCriticalSopBottomBtn")?.addEventListener("click", isStagedWorkspace ? savePumpSopStageAndAdvance : saveCriticalSopAndOpenNext);
   document.querySelector("#saveCriticalSopNextBtn")?.addEventListener("click", saveCriticalSopAndOpenNext);
+  form.querySelectorAll("[data-pump-sop-stage]").forEach((button) => {
+    bindReliableTap(button, () => {
+      if (button.disabled) return;
+      state.sopStageSelection = state.sopStageSelection || state.pumpSopStageSelection || {};
+      state.pumpSopStageSelection = state.sopStageSelection;
+      state.sopStageSelection[storageKey] = button.dataset.pumpSopStage;
+      renderCriticalSopPreservingScroll();
+      requestAnimationFrame(() => document.querySelector(".pump-sop-stage-content")?.scrollIntoView({ block: "start", behavior: "smooth" }));
+    });
+  });
+  form.querySelectorAll("[data-pump-open-stage-drawer]").forEach((button) => {
+    bindReliableTap(button, () => setTechSystemDrawerOpen(true));
+  });
+  form.querySelectorAll("[data-pump-sop-step-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const expansionKey = `${storageKey}::${button.dataset.pumpSopStepToggle}`;
+      state.pumpSopExpandedStepKey = state.pumpSopExpandedStepKey === expansionKey ? "" : expansionKey;
+      renderCriticalSopPreservingScroll();
+    });
+  });
+  form.querySelector("[data-pump-sop-back]")?.addEventListener("click", () => openPreviousPumpSopStage(storageKey, sopStages, activeSopStage));
   form.querySelectorAll("[data-tech-critical-view-mimic]").forEach((button) => {
     bindReliableTap(button, () => openCurrentTechnicianMimic({ scroll: true }));
+  });
+  form.querySelectorAll("[data-tech-critical-system-list]").forEach((button) => {
+    bindReliableTap(button, showTechnicianSystemList);
+  });
+  form.querySelectorAll("[data-tech-critical-dashboard]").forEach((button) => {
+    bindReliableTap(button, () => {
+      if (!confirmTechnicianNavigation()) return;
+      clearTechnicianInspectionDirty();
+      setTechScreen("jobs", { scroll: true, skipDirtyCheck: true });
+    });
   });
 
   form.querySelectorAll("input[type='checkbox']").forEach((checkbox) => {
@@ -15074,6 +17463,50 @@ function renderCriticalSop() {
 
   form.querySelectorAll("select[name^='sop-choice-']").forEach((select) => {
     select.addEventListener("change", async () => {
+      await saveCriticalSop(false);
+      renderCriticalSopPreservingScroll();
+    });
+  });
+
+  form.querySelectorAll("input[type='radio'][name^='sop-choice-']").forEach((radio) => {
+    radio.addEventListener("change", async () => {
+      await saveCriticalSop(false);
+      renderCriticalSopPreservingScroll();
+    });
+  });
+
+  form.querySelectorAll("[data-change-pump-config]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const step = activeTemplate.steps.find((item) => item.configurationKey === button.dataset.changePumpConfig);
+      if (!step) return;
+      state.pumpConfigurationEditKey = getPumpConfigurationEditToken(step, activeSchedule, activeDevice);
+      renderCriticalSopPreservingScroll();
+      document.querySelector("#syncState").textContent = "Configuration change opened. Saving will create a revisioned update.";
+    });
+  });
+
+  form.querySelectorAll("[data-sop-remark-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = button.dataset.sopRemarkToggle;
+      const field = document.createElement("label");
+      field.dataset.sopRemarkField = index;
+      field.innerHTML = `Optional Remark<input name="sop-remark-${escapeHtml(index)}" placeholder="Optional additional observation">`;
+      button.replaceWith(field);
+      field.querySelector("input")?.focus();
+    });
+  });
+
+  bindCriticalSopLinkedPromptControls(form.querySelector("[data-critical-linked-prompt]"), activeSchedule);
+  form.querySelectorAll("[data-linked-live-toggle]").forEach((button) => {
+    bindReliableTap(button, () => handleLinkedLiveToggle(button, activeSchedule));
+  });
+  form.querySelectorAll("[data-gas-live-start]").forEach((button) => {
+    bindReliableTap(button, () => handleGasLiveStart(button, activeSchedule));
+  });
+  if (isMfapWorkspace) bindMfapWorkspaceNavigation(activeSchedule);
+
+  form.querySelectorAll("input[name^='sop-reading-'], input[name^='sop-remark-'], input[name^='sop-field-'], select[name^='sop-field-']").forEach((input) => {
+    input.addEventListener("change", async () => {
       await saveCriticalSop(false);
       renderCriticalSopPreservingScroll();
     });
@@ -15116,6 +17549,222 @@ function renderCriticalSop() {
       document.querySelector("#syncState").textContent = `${input.id === "criticalBeforePhoto" ? "Before" : "After"} photo recorded`;
     });
   });
+  if (activeTemplate.id === "fire-alarm-tripping-sop") {
+    form.dataset.linkedAutoSignature = getFapLinkedAutoResultSignature(activeSchedule);
+  } else {
+    delete form.dataset.linkedAutoSignature;
+  }
+  renderTechDesktopNavigation(activeSchedule);
+}
+
+function openPreviousPumpSopStage(storageKey, stages, activeStage) {
+  const currentIndex = stages.findIndex((stage) => stage.id === activeStage?.id);
+  if (currentIndex <= 0) {
+    openCurrentTechnicianMimic({ scroll: true });
+    return;
+  }
+  state.sopStageSelection = state.sopStageSelection || state.pumpSopStageSelection || {};
+  state.pumpSopStageSelection = state.sopStageSelection;
+  state.sopStageSelection[storageKey] = stages[currentIndex - 1].id;
+  renderCriticalSopPreservingScroll();
+  requestAnimationFrame(() => document.querySelector(".pump-sop-stage-content")?.scrollIntoView({ block: "start", behavior: "smooth" }));
+}
+
+async function savePumpSopStageAndAdvance() {
+  const template = criticalSopTemplates.find((item) => item.id === state.activeCriticalSopId);
+  if (!isTechnicianStagedSop(template)) return saveCriticalSop(true);
+  const storageKey = getCriticalSopStorageKey(template.id);
+  const form = document.querySelector("#criticalSopForm");
+  const currentStageId = form?.dataset.activePumpStage || "";
+  const result = await saveCriticalSop(false);
+  if (!result?.ok) return result;
+  const saved = state.criticalSops[storageKey] || { steps: {} };
+  const stages = getPumpSopStageStates(template, saved, state.activeCriticalDevice);
+  const currentStage = stages.find((stage) => stage.id === currentStageId) || stages[0];
+  if (!currentStage?.complete) {
+    state.sopStageSelection = state.sopStageSelection || state.pumpSopStageSelection || {};
+    state.pumpSopStageSelection = state.sopStageSelection;
+    state.sopStageSelection[storageKey] = currentStage?.id || "";
+    renderCriticalSopPreservingScroll();
+    document.querySelector("#syncState").textContent = `${currentStage?.label || "Current stage"} saved. Complete its required checks before continuing.`;
+    return { ...result, stageComplete: false };
+  }
+  const nextStage = stages.find((stage) => stage.stageIndex > currentStage.stageIndex && stage.accessible && !stage.complete);
+  state.sopStageSelection = state.sopStageSelection || state.pumpSopStageSelection || {};
+  state.pumpSopStageSelection = state.sopStageSelection;
+  if (nextStage) {
+    state.sopStageSelection[storageKey] = nextStage.id;
+  } else {
+    delete state.sopStageSelection[storageKey];
+    if (isCriticalSopRecordComplete(template, saved)) {
+      return saveCriticalSopAndOpenNext();
+    }
+  }
+  renderCriticalSop();
+  requestAnimationFrame(() => document.querySelector(".pump-sop-stage-content")?.scrollIntoView({ block: "start", behavior: "smooth" }));
+  document.querySelector("#syncState").textContent = nextStage
+    ? `${currentStage.label} saved. Continue with ${nextStage.label}.`
+    : `${template.title} stages complete. Review restoration and complete the item.`;
+  return { ...result, stageComplete: true, nextStageId: nextStage?.id || "" };
+}
+
+function getPumpPhaseSupplyState(stepRecord = {}) {
+  const values = stepRecord.fieldValues || {};
+  const readings = {
+    "R-Y": String(values.phaseRy ?? "").trim(),
+    "Y-B": String(values.phaseYb ?? "").trim(),
+    "B-R": String(values.phaseBr ?? "").trim()
+  };
+  const hasReadings = Object.values(readings).some(Boolean);
+  const numericValues = Object.values(readings).map((value) => Number(value));
+  const abnormal = hasReadings && Object.values(readings).some((value, index) => {
+    const numeric = numericValues[index];
+    return !value || !Number.isFinite(numeric) || numeric < 376 || numeric > 440;
+  });
+  return { readings, values: numericValues, hasReadings, abnormal, minimumVoltage: 376, maximumVoltage: 440 };
+}
+
+function buildPumpPhaseSupplyAlert(stepRecord = {}, schedule = getActiveTechnicianMaintenanceSchedule(), device = state.activeCriticalDevice) {
+  const phaseState = getPumpPhaseSupplyState(stepRecord);
+  if (!phaseState.hasReadings || !phaseState.abnormal) return null;
+  const scheduleId = getScheduleKey(schedule);
+  const pumpId = device?.id || device?.tag || "pump";
+  return {
+    alertId: `phase-supply::${scheduleId}::${pumpId}`,
+    type: "PHASE_SUPPLY_ABNORMAL",
+    severity: "critical",
+    status: "ACTIVE",
+    title: "PUMP ROOM - PHASE SUPPLY ABNORMAL",
+    source: "Shared same-job Pump Step 5 alert",
+    location: device?.location || device?.floor || "Pump Room",
+    readings: phaseState.readings,
+    scheduleId,
+    deviceId: pumpId,
+    detectedBy: getCurrentUserName(),
+    detectedAt: new Date().toISOString()
+  };
+}
+
+function getSharedJobAlerts(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  if (!schedule) return [];
+  const store = getSharedStore(schedule) || {};
+  const shared = Object.values(store.criticalSopRecords || {}).flatMap((record) => record.jobAlerts || []);
+  const local = Object.values(state.criticalSops || {}).flatMap((record) => record.jobAlerts || []);
+  const alerts = new Map();
+  [...shared, ...local].forEach((alert) => {
+    if (alert?.alertId && alert.status === "ACTIVE") alerts.set(alert.alertId, alert);
+  });
+  return [...alerts.values()];
+}
+
+function renderTechnicianJobAlerts(schedule) {
+  const alerts = getSharedJobAlerts(schedule);
+  if (!alerts.length) return "";
+  return `<section class="tech-job-alerts" aria-label="Same job alerts">
+    ${alerts.map((alert) => `<article>
+      <strong>${escapeHtml(alert.title)}</strong>
+      <span>${escapeHtml(alert.location)}</span>
+      <small>${Object.entries(alert.readings || {}).map(([key, value]) => `${escapeHtml(key)}: ${escapeHtml(value || "missing")} V`).join(" | ")}</small>
+      <em>${escapeHtml(alert.source)}</em>
+    </article>`).join("")}
+  </section>`;
+}
+
+function getPumpConfigurationCandidate(saved = {}) {
+  const waterStep = saved.steps?.[2] || {};
+  const standbyStep = saved.steps?.[7] || {};
+  const standbyManualStep = saved.steps?.[10] || {};
+  const water = waterStep.fieldValues || {};
+  return {
+    waterStorage: water.tankType && water.capacity && water.capacityUnit ? {
+      tankType: water.tankType,
+      tankTypeOther: water.tankTypeOther || "",
+      capacityMethod: water.capacityMethod || "Use known capacity",
+      tankLengthFt: water.tankLengthFt || "",
+      tankWidthFt: water.tankWidthFt || "",
+      tankHeightFt: water.tankHeightFt || "",
+      capacity: water.capacity,
+      capacityUnit: water.capacityUnit,
+      capacityGallons: water.capacityGallons || ""
+    } : null,
+    standbyType: standbyStep.choice || "",
+    dieselCoolingType: standbyManualStep.fieldValues?.coolingType || ""
+  };
+}
+
+async function savePumpConfigurationFromSop(template, saved, schedule, device) {
+  if (template?.id !== "sprinkler-hydrant-pump-sop") return { ok: true, skipped: true };
+  const current = getPumpConfiguration(schedule, device) || {};
+  const candidate = getPumpConfigurationCandidate(saved);
+  const waterStep = template.steps.find((step) => step.configurationKey === "waterStorage");
+  const standbyStep = template.steps.find((step) => step.configurationKey === "standbyPump");
+  const waterEditable = !current.waterStorage || !current.waterStorage.capacityMethod || state.pumpConfigurationEditKey === getPumpConfigurationEditToken(waterStep, schedule, device);
+  const standbyEditable = !current.standbyType || state.pumpConfigurationEditKey === getPumpConfigurationEditToken(standbyStep, schedule, device);
+  const next = {
+    ...current,
+    waterStorage: waterEditable && candidate.waterStorage ? candidate.waterStorage : current.waterStorage || null,
+    standbyType: standbyEditable && candidate.standbyType ? candidate.standbyType : current.standbyType || "",
+    dieselCoolingType: candidate.dieselCoolingType || current.dieselCoolingType || ""
+  };
+  const comparable = (value) => JSON.stringify({
+    waterStorage: value?.waterStorage || null,
+    standbyType: value?.standbyType || "",
+    dieselCoolingType: value?.dieselCoolingType || ""
+  });
+  if (comparable(current) === comparable(next)) return { ok: true, unchanged: true, configuration: current };
+  return savePumpConfigurationRecord(next, schedule, device);
+}
+
+async function syncPumpManualLinkedVerifications(template, saved, schedule, device) {
+  if (template?.id !== "sprinkler-hydrant-pump-sop" || !schedule || !device) return [];
+  const definitions = getScheduleLinkedVerificationDefinitions(schedule);
+  const results = [];
+  for (const [index, step] of template.steps.entries()) {
+    if (!step.linkedPumpTestKey) continue;
+    const stepRecord = saved.steps?.[index] || {};
+    const localResult = stepRecord.choice || stepRecord.fieldValues?.manualResult || "";
+    if (!localResult) continue;
+    const definition = definitions.find((item) => item.pumpTestKey === step.linkedPumpTestKey && item.pumpDeviceId === (device.id || device.tag));
+    const side = definition?.requiredSides.find((item) => item.sideId === "PUMP_ROOM");
+    if (!definition || !side || !linkedVerificationTechnicianMatches(side)) continue;
+    const normalizedResult = normalizeScopeText(localResult) === "pass" ? "CONFIRMED" : "NOT_CONFIRMED";
+    const result = await saveLinkedVerificationSide(schedule, definition, side, {
+      result: normalizedResult,
+      notes: stepRecord.remark || stepRecord.fieldRemarks?.manualResult || "",
+      submissionId: `${getScheduleKey(schedule)}::${definition.linkedVerificationId}::PUMP_ROOM::${normalizedResult}`
+    });
+    results.push(result);
+    if (result.ok && isLinkedVerificationLiveActive(getLinkedVerificationLiveState(schedule, definition.linkedVerificationId))) {
+      await saveLinkedVerificationLiveState(schedule, definition, side, "ENDED");
+    }
+  }
+  return results;
+}
+
+async function syncGasReleaseLinkedVerification(template, saved, schedule, device) {
+  if (template?.id !== "gas-discharge-sop" || !schedule || !device) return [];
+  const definitions = getScheduleLinkedVerificationDefinitions(schedule);
+  const results = [];
+  for (const [index, step] of template.steps.entries()) {
+    if (!step.linkedGasTestKey) continue;
+    const stepRecord = saved.steps?.[index] || {};
+    const localResult = stepRecord.choice || stepRecord.fieldValues?.result || (stepRecord.confirmed ? "Pass" : "");
+    if (!localResult) continue;
+    const definition = definitions.find((item) => item.gasTestKey === step.linkedGasTestKey && item.gasDeviceId === (device.id || device.tag));
+    const side = definition?.requiredSides.find((item) => item.sideId === "SUPPRESSION_SYSTEM_LOCATION");
+    if (!definition || !side || !linkedVerificationTechnicianMatches(side)) continue;
+    const normalizedResult = ["pass", "confirmed"].includes(normalizeScopeText(localResult)) ? "CONFIRMED" : "NOT_CONFIRMED";
+    const result = await saveLinkedVerificationSide(schedule, definition, side, {
+      result: normalizedResult,
+      notes: stepRecord.remark || "",
+      submissionId: `${getScheduleKey(schedule)}::${definition.linkedVerificationId}::SUPPRESSION_SYSTEM_LOCATION::${normalizedResult}`
+    });
+    results.push(result);
+    if (result.ok && isLinkedVerificationLiveActive(getLinkedVerificationLiveState(schedule, definition.linkedVerificationId))) {
+      await saveLinkedVerificationLiveState(schedule, definition, side, "ENDED");
+    }
+  }
+  return results;
 }
 
 async function saveCriticalSop(showMessage = true) {
@@ -15167,11 +17816,22 @@ async function saveCriticalSop(showMessage = true) {
     filledBy: getCurrentUserName(),
     filledRole: getCurrentUserRole(),
     evidenceAt: evidence.beforePhoto || evidence.afterPhoto ? now : evidence.evidenceAt,
-    generalRemarks: document.querySelector("#criticalSopRemarks")?.value.trim() || "",
+    generalRemarks: document.querySelector("#criticalSopRemarks")?.value.trim() ?? previous.generalRemarks ?? "",
     savedAt: now,
     savedBy: getCurrentUserName()
   };
   const savedRecord = state.criticalSops[storageKey];
+  if (template.id === "sprinkler-hydrant-pump-sop") {
+    const phaseAlert = buildPumpPhaseSupplyAlert(savedRecord.steps?.[4], activeSchedule, state.activeCriticalDevice);
+    savedRecord.jobAlerts = phaseAlert ? [phaseAlert] : [];
+    const configurationSave = await savePumpConfigurationFromSop(template, savedRecord, activeSchedule, state.activeCriticalDevice);
+    if (configurationSave.conflict) {
+      document.querySelector("#syncState").textContent = "Pump configuration changed on another device. Reload before changing it.";
+      return { ok: false, conflict: true, configurationConflict: true };
+    }
+    savedRecord.pumpConfiguration = configurationSave.configuration || getPumpConfiguration(activeSchedule, state.activeCriticalDevice) || null;
+    savedRecord.pumpConfigurationSyncStatus = configurationSave.offline ? "LOCAL_DRAFT" : "SYNCED";
+  }
   const complete = getCriticalSopCompleteCount(template, savedRecord);
   const criticalComplete = isCriticalSopRecordComplete(template, savedRecord);
   if (workflowRun) {
@@ -15222,6 +17882,14 @@ async function saveCriticalSop(showMessage = true) {
     savedRecord.syncStatus = "synced";
     savedRecord.sharedRevision = Number(sharedSave.record?.revision || savedRecord.sharedRevision || 0);
   }
+  if (template.id === "sprinkler-hydrant-pump-sop") {
+    const linkedResults = await syncPumpManualLinkedVerifications(template, savedRecord, activeSchedule, state.activeCriticalDevice);
+    savedRecord.linkedVerificationStatuses = linkedResults.map((result) => result.linkedVerification?.status || (result.offline ? "LOCAL_COMPLETE_AWAITING_SYNC" : "PENDING"));
+  }
+  if (template.id === "gas-discharge-sop") {
+    const linkedResults = await syncGasReleaseLinkedVerification(template, savedRecord, activeSchedule, state.activeCriticalDevice);
+    savedRecord.linkedVerificationStatuses = linkedResults.map((result) => result.linkedVerification?.status || (result.offline ? "LOCAL_COMPLETE_AWAITING_SYNC" : "PENDING"));
+  }
   invalidateRuntimeCaches();
   writeStoredJson("rmtCriticalSops", state.criticalSops);
   addJobEvent("Critical SOP saved", template.title);
@@ -15234,6 +17902,7 @@ async function saveCriticalSop(showMessage = true) {
   }
   syncActiveJobProgressToSchedule();
   persistActiveJob();
+  clearTechnicianInspectionDirty();
   renderTechAssignedItemList();
   renderTechFaultPanel();
   if (showMessage) {

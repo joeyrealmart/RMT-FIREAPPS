@@ -1,9 +1,10 @@
-const { existsSync, writeFileSync } = require("node:fs");
+const { existsSync, readFileSync, writeFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { tmpdir } = require("node:os");
 const { chromium } = require("C:/Users/Joey/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright");
 
 const APP_URL = process.env.APP_URL || "http://127.0.0.1:8026/?fresh=20260902-tech-final-v1";
+const SCHEDULE_PATH = join(__dirname, "..", "outputs", "rmt-fire-local-data", "schedules", "service-schedules.json");
 const EDGE_PATHS = [
   "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
   "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
@@ -65,8 +66,9 @@ async function seedFinalV1Fixture(page) {
       makeDevice("QA.FINAL.HD.1", "Heat Detector", 64, 52),
       makeDevice("QA.FINAL.HD.2", "Heat Detector", 74, 58)
     ];
+    const scheduleId = `QA-FINAL-V1-${Date.now()}`;
     const schedule = {
-      scheduleId: `QA-FINAL-V1-${Date.now()}`,
+      scheduleId,
       status: "Scheduled",
       clientSource: "qa",
       companyName: profile.companyName,
@@ -89,6 +91,28 @@ async function seedFinalV1Fixture(page) {
       activeCount: 1,
       passiveCount: 6,
       plannedFloorCounts: [{ floorId: floor.id, floorTitle: floor.title, count: devices.length }],
+      linkedVerifications: [
+        {
+          linkedVerificationId: `${scheduleId}::PUMP`,
+          verificationType: "FIRE_PUMP_INDICATION",
+          title: "QA Pump Indication",
+          reconciliationMode: "MATCHING_RESULTS",
+          requiredSides: [
+            { sideId: "PUMP_ROOM", sideName: "Pump Room", assignedTechnicianId: "tech@rmtfire.local", assignedTechnicianName: "Demo Technician" },
+            { sideId: "MFAP", sideName: "MFAP", assignedTechnicianId: "tech2@rmtfire.local", assignedTechnicianName: "Tech 2" }
+          ]
+        },
+        {
+          linkedVerificationId: `${scheduleId}::CO2`,
+          verificationType: "CO2_GAS_RELEASE_INDICATION",
+          title: "QA CO2 Indication",
+          reconciliationMode: "MATCHING_RESULTS",
+          requiredSides: [
+            { sideId: "SUPPRESSION_SYSTEM_LOCATION", sideName: "Suppression", assignedTechnicianId: "tech@rmtfire.local", assignedTechnicianName: "Demo Technician" },
+            { sideId: "REMOTE_PANEL_OR_MFAP", sideName: "Remote Panel", assignedTechnicianId: "tech2@rmtfire.local", assignedTechnicianName: "Tech 2" }
+          ]
+        }
+      ],
       notes: "QA only: technician final V1 functions"
     };
     state.siteProfile = profile;
@@ -194,6 +218,30 @@ async function completeQaSharedJob(page, fixture) {
   await page.evaluate(async ({ scheduleId, mfap }) => {
     const schedule = state.schedules.find((item) => item.scheduleId === scheduleId);
     await requestSharedJobState(schedule, { migrate: false, apply: true });
+    for (const definition of schedule.linkedVerifications || []) {
+      for (const side of definition.requiredSides || []) {
+        const response = await fetch(`/api/jobs/${encodeURIComponent(scheduleId)}/linked-verification-sides`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            schedule: getScheduleSnapshotForSharedApi(schedule),
+            expectedRevision: 0,
+            record: {
+              linkedVerificationId: definition.linkedVerificationId,
+              sideId: side.sideId,
+              technicianId: side.assignedTechnicianId,
+              technicianName: side.assignedTechnicianName,
+              status: "COMPLETE",
+              result: "CONFIRMED",
+              submissionId: `${definition.linkedVerificationId}::${side.sideId}::qa-complete`,
+              localCompletedAt: new Date().toISOString()
+            }
+          })
+        });
+        if (!response.ok) throw new Error(`Unable to seed linked verification ${definition.linkedVerificationId}/${side.sideId}`);
+      }
+    }
+    await requestSharedJobState(schedule, { migrate: false, apply: true });
     const devices = getScheduledAssignedDevices(schedule);
     for (const device of devices.filter((item) => item.tag !== mfap)) {
       state.inspections[device.id] = {
@@ -218,10 +266,15 @@ async function completeQaSharedJob(page, fixture) {
         title: step.title,
         confirmed: true,
         choice: step.choices?.[0] || step.options?.[0] || "Pass",
-        reading: "26V",
+        reading: step.requiresReading ? (step.readingType === "number" ? "26.7" : "QA completed") : "",
         remark: "QA completed",
         photo: step.requiresPhoto ? "qa-step-photo.jpg" : "",
-        supervisor: step.requiresSupervisor ? "QA Supervisor" : ""
+        supervisor: step.requiresSupervisor ? "QA Supervisor" : "",
+        fieldValues: Object.fromEntries((step.fields || []).map((field) => [
+          field.id,
+          field.kind === "number" ? "1" : field.choices?.[0] || "QA value"
+        ])),
+        fieldRemarks: {}
       };
     });
     const record = {
@@ -261,6 +314,7 @@ async function completeQaSharedJob(page, fixture) {
 }
 
 (async () => {
+  const scheduleSnapshot = readFileSync(SCHEDULE_PATH, "utf8");
   const executablePath = EDGE_PATHS.find((item) => existsSync(item));
   const browser = await chromium.launch({ headless: true, executablePath });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -470,11 +524,12 @@ async function completeQaSharedJob(page, fixture) {
     await page.waitForFunction(() => state.schedules[0]?.status === "Completed" && state.schedules[0]?.reportSubmissionStatus === "APPROVED_BY_ADMIN", null, { timeout: 15000 });
 
     console.log("PASS qa-tech-final-v1-functions");
-    await browser.close();
   } catch (error) {
-    await browser.close();
     console.error("FAIL qa-tech-final-v1-functions");
     console.error(error);
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    await browser.close();
+    writeFileSync(SCHEDULE_PATH, scheduleSnapshot, "utf8");
   }
 })();
