@@ -65,15 +65,24 @@ async function prepareSop(page, deviceTag, templateId, systemKey) {
 async function seedFapToStep4(page) {
   await page.evaluate(() => {
     const key = getCriticalSopStorageKey("fire-alarm-tripping-sop");
+    const template = getCriticalSopTemplate("fire-alarm-tripping-sop");
+    const stage = getTechnicianSopStageForStep(template, 3);
     state.criticalSops[key] = {
       templateId: "fire-alarm-tripping-sop",
       deviceTag: state.activeCriticalDevice.tag,
       steps: {
         0: { confirmed: true, remark: "Client informed" },
         1: { confirmed: true, reading: "Panel normal" },
-        2: { confirmed: true, photo: "qa-before.jpg" }
+        2: {
+          confirmed: true,
+          photo: "qa-before.jpg",
+          photoEvidence: { evidenceId: "qa-fap-before", originalDataUrl: "data:image/png;base64,AA==" }
+        }
       }
     };
+    state.sopStageSelection = state.sopStageSelection || state.pumpSopStageSelection || {};
+    state.pumpSopStageSelection = state.sopStageSelection;
+    state.sopStageSelection[key] = stage.id;
     renderCriticalSop();
   });
 }

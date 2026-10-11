@@ -463,22 +463,22 @@ const criticalSopTemplates = [
     requiresBeforeAfterPhotos: true,
     fastTickMode: true,
     steps: [
-      { title: "Client / FM informed", detail: "Confirm responsible person knows the test scope, affected room, and no actual discharge will be performed.", tickOnly: true },
-      { title: "Protected room clear", detail: "Confirm the protected room is safe to test and no one is inside the discharge area.", tickOnly: true },
-      { title: "Before photo taken", detail: "Take the required before photo in the evidence box above before touching isolation or actuator wiring.", tickOnly: true },
-      { title: "Check panel power, battery and charger", detail: "Record AC power, standby battery and charger condition before alarm simulation.", requiresReading: true, readingLabel: "Power / Battery / Charger", readingPlaceholder: "Example: AC normal / battery 26.8V / charger normal" },
-      { title: "Isolate gas discharge switch", detail: "Set gas discharge / isolate switch to safe test condition.", critical: true, tickOnly: true },
-      { title: "Remove discharge cable safely", detail: "Remove discharge cable safely. Do not short circuit. Confirm cable is protected.", critical: true, tickOnly: true },
-      { title: "Remove pyrocharge / solenoid head", detail: "Remove actuator, pyrocharge or solenoid head where applicable before alarm simulation.", critical: true, tickOnly: true },
-      { title: "Confirm discharge path isolated", detail: "Senior technician confirms the system cannot physically discharge before alarm testing continues.", critical: true, tickOnly: true },
-      { title: "Trigger first-zone alarm test", detail: "Activate first detection zone and confirm panel indication / first stage alarm.", tickOnly: true },
-      { title: "Trigger second-zone alarm test", detail: "Activate second detection zone and confirm pre-discharge sequence.", tickOnly: true },
-      { title: "Observe discharge delay", detail: "Observe the delay timer / countdown according to site design. Do not allow actual discharge.", requiresReading: true, readingLabel: "Discharge Delay", readingPlaceholder: "Example: 28 seconds" },
-      { title: "Confirm alarms and indications", detail: "Confirm bell, strobe / flashing light, warning sign and panel indication operate.", critical: true, tickOnly: true, linkedGasTestKey: "INDICATION" },
-      { title: "Confirm trip outputs only", detail: "Confirm fan, fire curtain, shutdown or other tripping output operates only under safe test condition.", critical: true, tickOnly: true },
-      { title: "Reset panel and wait safe delay", detail: "Reset panel to normal and wait at least 10 seconds before reconnection.", tickOnly: true },
-      { title: "Reconnect and restore normal", detail: "Reconnect discharge cable / actuator and remove isolation only after the panel is normal and discharge risk is clear.", critical: true, tickOnly: true },
-      { title: "Final supervisor normal confirmation", detail: "Supervisor confirms after photo was taken and no fault, isolate, alarm or disabled output remains.", critical: true, tickOnly: true, requiresSupervisor: true }
+      { id: "gas-client-informed", title: "Client / FM informed", detail: "Confirm responsible person knows the test scope, affected room, and no actual discharge will be performed.", tickOnly: true },
+      { id: "gas-room-clear", title: "Protected room clear", detail: "Confirm the protected room is safe to test and no one is inside the discharge area.", tickOnly: true },
+      { id: "gas-before-photo", title: "Before photo taken", detail: "Take the required before photo in the evidence box above before touching isolation or actuator wiring.", tickOnly: true },
+      { id: "gas-panel-power", title: "Check panel power, battery and charger", detail: "Record AC power, standby battery and charger condition before alarm simulation.", requiresReading: true, readingLabel: "Power / Battery / Charger", readingPlaceholder: "Example: AC normal / battery 26.8V / charger normal" },
+      { id: "gas-isolate-switch", title: "Isolate gas discharge switch", detail: "Set gas discharge / isolate switch to safe test condition.", critical: true, tickOnly: true },
+      { id: "gas-remove-discharge-cable", title: "Remove discharge cable safely", detail: "Remove discharge cable safely. Do not short circuit. Confirm cable is protected.", critical: true, tickOnly: true },
+      { id: "gas-remove-actuator", title: "Remove pyrocharge / solenoid head", detail: "Remove actuator, pyrocharge or solenoid head where applicable before alarm simulation.", critical: true, tickOnly: true },
+      { id: "gas-confirm-isolated", title: "Confirm discharge path isolated", detail: "Senior technician confirms the system cannot physically discharge before alarm testing continues.", critical: true, tickOnly: true },
+      { id: "gas-first-zone", title: "Trigger first-zone alarm test", detail: "Activate first detection zone and confirm panel indication / first stage alarm.", tickOnly: true },
+      { id: "gas-second-zone", title: "Trigger second-zone alarm test", detail: "Activate second detection zone and confirm pre-discharge sequence.", tickOnly: true },
+      { id: "gas-discharge-delay", title: "Observe discharge delay", detail: "Observe the delay timer / countdown according to site design. Do not allow actual discharge.", requiresReading: true, readingLabel: "Discharge Delay", readingPlaceholder: "Example: 28 seconds" },
+      { id: "gas-mfap-indication", title: "Confirm alarms and indications", detail: "Confirm bell, strobe / flashing light, warning sign and panel indication operate.", critical: true, tickOnly: true, linkedGasTestKey: "INDICATION" },
+      { id: "gas-trip-outputs", title: "Confirm trip outputs only", detail: "Confirm fan, fire curtain, shutdown or other tripping output operates only under safe test condition.", critical: true, tickOnly: true },
+      { id: "gas-reset-safe-delay", title: "Reset panel and wait safe delay", detail: "Reset panel to normal and wait at least 10 seconds before reconnection.", tickOnly: true },
+      { id: "gas-restore-normal", title: "Reconnect and restore normal", detail: "Reconnect discharge cable / actuator and remove isolation only after the panel is normal and discharge risk is clear.", critical: true, tickOnly: true },
+      { id: "gas-final-confirmation", title: "Final supervisor normal confirmation", detail: "Supervisor confirms after photo was taken and no fault, isolate, alarm or disabled output remains.", critical: true, tickOnly: true, requiresSupervisor: true }
     ]
   },
   {
@@ -3300,6 +3300,33 @@ function refreshActiveFapLinkedAutoResult(schedule = getActiveTechnicianMaintena
   form.dataset.linkedAutoSignature = signature;
 }
 
+function getGasLinkedProgressSignature(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  if (!schedule || state.activeCriticalSopId !== "gas-discharge-sop") return "";
+  const template = getCriticalSopTemplate("gas-discharge-sop");
+  const step = template?.steps.find((item) => item.linkedGasTestKey);
+  const linked = step ? getSopStepLinkedVerificationState(step, schedule, state.activeCriticalDevice) : null;
+  return JSON.stringify({
+    status: linked?.linkedState?.status || "",
+    sides: linked?.linkedState?.sides?.map((side) => ({
+      sideId: side.sideId,
+      result: side.record?.result || "",
+      revision: Number(side.record?.revision || 0)
+    })) || []
+  });
+}
+
+function refreshActiveGasLinkedProgress(schedule = getActiveTechnicianMaintenanceSchedule()) {
+  const form = document.querySelector("#criticalSopForm");
+  if (!schedule || !form || state.activeCriticalSopId !== "gas-discharge-sop" || criticalSopPanel?.classList.contains("hidden")) return;
+  const signature = getGasLinkedProgressSignature(schedule);
+  if (form.dataset.gasLinkedSignature === signature) return;
+  const focused = document.activeElement;
+  if (focused && focused !== document.body && form.contains(focused)) return;
+  renderCriticalSopPreservingScroll();
+  const nextForm = document.querySelector("#criticalSopForm");
+  if (nextForm) nextForm.dataset.gasLinkedSignature = signature;
+}
+
 async function handleLinkedVerificationSideSave(button, schedule) {
   const linkedVerificationId = button.dataset.linkedEventId;
   const sideId = button.dataset.linkedSaveSide;
@@ -3414,6 +3441,7 @@ async function refreshActiveTechnicianSharedState() {
     renderActiveCriticalSopLinkedPrompt(schedule);
     refreshActiveFapLinkedAutoResult(schedule);
     refreshActiveSopStepLinkedVerifications(schedule);
+    refreshActiveGasLinkedProgress(schedule);
     renderPumpDrawerStages(schedule);
   } catch (error) {
     console.warn("Technician shared-state refresh unavailable", error);
@@ -4423,6 +4451,7 @@ function createCriticalSopTemplateSnapshot(template) {
     fastTickMode: Boolean(template.fastTickMode),
     steps: (template.steps || []).map((step, index) => ({
       index,
+      stepId: step.id || undefined,
       title: step.title,
       detail: step.detail,
       critical: Boolean(step.critical),
@@ -4469,6 +4498,60 @@ function createCriticalSopTemplateSnapshot(template) {
 function getCriticalSopTemplateVersion(template) {
   const snapshot = createCriticalSopTemplateSnapshot(template);
   return snapshot ? `sop-${hashText(JSON.stringify(stableJsonValue(snapshot)))}` : "sop-unknown";
+}
+
+function getCriticalSopStepIdentity(step = {}) {
+  return String(step.stepId || step.id || step.title || "").trim().toLowerCase();
+}
+
+function criticalSopStepsMatch(legacyStep = {}, currentStep = {}) {
+  const legacyId = String(legacyStep.stepId || legacyStep.id || "").trim().toLowerCase();
+  const currentId = String(currentStep.stepId || currentStep.id || "").trim().toLowerCase();
+  if (legacyId && currentId && legacyId === currentId) return true;
+  const legacyTitle = String(legacyStep.title || "").trim().toLowerCase();
+  const currentTitle = String(currentStep.title || "").trim().toLowerCase();
+  return Boolean(legacyTitle && currentTitle && legacyTitle === currentTitle);
+}
+
+function normalizeCriticalSopRecordForTemplate(record = {}, template = null) {
+  if (!record || !template || record.templateId && record.templateId !== template.id) return record;
+  if (template.id !== "gas-discharge-sop") return record;
+  const currentVersion = getCriticalSopTemplateVersion(template);
+  const currentSnapshot = createCriticalSopTemplateSnapshot(template);
+  if (record.templateVersion === currentVersion && record.templateSnapshot?.id === template.id) return record;
+  if (!record.templateVersion && !record.templateSnapshot && !Object.keys(record.steps || {}).length) {
+    return { ...record, templateId: template.id, templateVersion: currentVersion, templateSnapshot: currentSnapshot, steps: {} };
+  }
+
+  const legacySteps = { ...(record.steps || {}) };
+  const legacySnapshotSteps = Array.isArray(record.templateSnapshot?.steps) ? record.templateSnapshot.steps : [];
+  const nextSteps = {};
+  const mappedLegacyIndexes = [];
+  legacySnapshotSteps.forEach((legacyStep, legacyIndex) => {
+    if (!getCriticalSopStepIdentity(legacyStep) || !legacySteps[legacyIndex]) return;
+    const currentIndex = currentSnapshot.steps.findIndex((step) => criticalSopStepsMatch(legacyStep, step));
+    if (currentIndex < 0) return;
+    nextSteps[currentIndex] = legacySteps[legacyIndex];
+    mappedLegacyIndexes.push(legacyIndex);
+  });
+
+  return {
+    ...record,
+    templateVersion: currentVersion,
+    templateSnapshot: currentSnapshot,
+    steps: nextSteps,
+    legacySopMigration: {
+      fromVersion: record.templateVersion || "legacy-unversioned",
+      toVersion: currentVersion,
+      mappedStepCount: mappedLegacyIndexes.length,
+      preservedStepCount: Object.keys(legacySteps).length,
+      mode: legacySnapshotSteps.length ? "STEP_IDENTITY" : "PRESERVED_NOT_APPLIED"
+    },
+    legacySteps: {
+      ...(record.legacySteps || {}),
+      [record.templateVersion || "legacy-unversioned"]: legacySteps
+    }
+  };
 }
 
 function getCriticalDependencyConfigKey(schedule) {
@@ -5332,6 +5415,7 @@ const PHOTO_EVIDENCE_STAMP_VERSION = "rmt-photo-stamp-v1";
 const pendingInspectionPhotoEvidence = { before: null, after: null };
 const pendingCriticalSopPhotoEvidence = { overall: {}, steps: {} };
 const criticalSopEvidenceProcessingKeys = new Set();
+let criticalSopPrimaryActionInFlight = false;
 const photoEvidenceFileCache = new WeakMap();
 const DEMO_CRITICAL_EVIDENCE_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR42mNkYPj/n4GBgYGJAQoAHgQCAZ7dV1AAAAAASUVORK5CYII=";
 
@@ -5851,9 +5935,11 @@ function applySharedRecordsToLocalState(store, schedule = null) {
   });
   Object.values(store.criticalSopRecords || {}).forEach((record) => {
     const key = getCriticalSopStorageKey(record.templateId, record.parentDeviceId || record.deviceId || record.deviceTag);
+    const template = getCriticalSopTemplate(record.templateId);
+    const normalizedRecord = normalizeCriticalSopRecordForTemplate(record, template);
     state.criticalSops[key] = {
       ...(state.criticalSops[key] || {}),
-      ...record,
+      ...normalizedRecord,
       sharedRecordId: record.recordId || "",
       sharedRevision: Number(record.revision || 0),
       syncStatus: "synced"
@@ -17009,6 +17095,20 @@ function sopStepRequiresPhoto(step, stepState = {}) {
   return Boolean(step?.requiresPhoto || sopStepChoiceNeedsPhoto(step, stepState) || sopStepFieldFailureNeedsPhoto(step, stepState));
 }
 
+function getGasLinkedStepRequirement(step) {
+  if (!step?.linkedGasTestKey) return null;
+  if (getCurrentUserRole() !== "Technician") return null;
+  const linked = getSopStepLinkedVerificationState(step);
+  if (!linked) {
+    return { complete: false, mismatch: false, message: "configured MFAP linked verification" };
+  }
+  if (linked.linkedState.status === "VERIFIED") return { complete: true, mismatch: false, message: "" };
+  if (linked.linkedState.status === "MISMATCH_REVIEW_REQUIRED") {
+    return { complete: false, mismatch: true, message: "MFAP indication mismatch / fault" };
+  }
+  return { complete: false, mismatch: false, message: "MFAP linked verification" };
+}
+
 function getMissingSopRequirements(step, stepState, template = null, index = -1, saved = {}, options = {}) {
   const missing = [];
   if (step.requiresChoice && !stepState.choice) missing.push(step.choiceLabel || "choice");
@@ -17041,6 +17141,8 @@ function getMissingSopRequirements(step, stepState, template = null, index = -1,
   if (sopStepHasFault(step, stepState)) missing.push("safe / normal result before progression");
   if (sopStepRequiresPhoto(step, stepState) && !hasRetainedPhotoEvidence(stepState.photoEvidence)) missing.push("photo");
   if (step.requiresSupervisor && !stepState.supervisor) missing.push("supervisor");
+  const linkedRequirement = options.ignoreLinkedVerification ? null : getGasLinkedStepRequirement(step);
+  if (linkedRequirement && !linkedRequirement.complete) missing.push(linkedRequirement.message);
   if (template && isFinalSopStep(template, index)) {
     const evidence = options.useDomEvidence ? getCriticalSopEvidenceDomState(saved) : saved;
     missing.push(...getMissingCriticalSopEvidence(template, evidence));
@@ -17230,6 +17332,7 @@ function sopStepHasFault(step, stepState = {}) {
   if (fields.some((field) => Array.isArray(field.requiresRemarkOn) && sopValueMatches(stepState.fieldValues?.[field.id], field.requiresRemarkOn))) return true;
   if (Object.values(stepState.fieldValues || {}).some((value) => negativeChoices.has(normalizeScopeText(value)))) return true;
   if (step.phaseSupplyValidation && getPumpPhaseSupplyState(stepState).abnormal) return true;
+  if (step.linkedGasTestKey && getGasLinkedStepRequirement(step)?.mismatch) return true;
   return normalizeScopeText(stepState.autoResult?.overall) === "fail";
 }
 
@@ -17356,7 +17459,9 @@ function renderCriticalSop() {
   const activeTemplate = criticalSopTemplates.find((template) => template.id === state.activeCriticalSopId) || criticalSopTemplates[0];
   state.activeCriticalSopId = activeTemplate.id;
   const storageKey = getCriticalSopStorageKey(activeTemplate.id);
-  const saved = state.criticalSops[storageKey] || state.criticalSops[activeTemplate.id] || { steps: {}, generalRemarks: "" };
+  const rawSaved = state.criticalSops[storageKey] || state.criticalSops[activeTemplate.id] || { templateId: activeTemplate.id, steps: {}, generalRemarks: "" };
+  const saved = normalizeCriticalSopRecordForTemplate(rawSaved, activeTemplate);
+  if (saved !== rawSaved) state.criticalSops[storageKey] = saved;
   const evidence = getCriticalSopEvidenceDomState(saved);
   const evidenceMissing = getMissingCriticalSopEvidence(activeTemplate, evidence);
   const activeDevice = state.activeCriticalDevice;
@@ -17439,7 +17544,6 @@ function renderCriticalSop() {
       <strong>${escapeHtml(activeTemplate.title)}</strong>
       <span>${escapeHtml(activeTemplate.danger)}</span>
     </div>
-    ${activeTemplate.id === "gas-discharge-sop" && getCurrentUserRole() === "Technician" ? renderGasLiveCoordinationStart(activeSchedule) : ""}
     ${renderCriticalWorkflowStageBanner(workflowRun, workflowStage)}
     ${activeTemplate.requiresBeforeAfterPhotos ? `
       <div class="critical-evidence-card">
@@ -17500,7 +17604,7 @@ function renderCriticalSop() {
       const remarkVisible = sopStepShowsRemark(activeTemplate.steps[index], stepState, activeTemplate.id, index);
       if (!isComplete) locked = true;
       return `
-        <fieldset class="sop-step ${step.critical ? "critical" : ""} ${disabled ? "locked" : ""} ${isComplete ? "complete" : ""} ${pumpStepHidden ? "pump-sop-step-hidden" : ""} ${pumpStepCollapsed ? "pump-sop-step-collapsed" : ""}" ${pumpStage ? `data-pump-sop-step-stage="${escapeHtml(pumpStage.id)}"` : ""}>
+        <fieldset class="sop-step ${step.critical ? "critical" : ""} ${disabled ? "locked" : ""} ${isComplete ? "complete" : ""} ${pumpStepHidden ? "pump-sop-step-hidden" : ""} ${pumpStepCollapsed ? "pump-sop-step-collapsed" : ""}" data-sop-step-index="${index}" ${pumpStage ? `data-pump-sop-step-stage="${escapeHtml(pumpStage.id)}"` : ""}>
           <legend>Step ${index + 1}</legend>
           <div class="sop-step-head">
             <span class="sop-status ${isComplete ? "complete" : ""}">${escapeHtml(statusText)}</span>
@@ -17514,7 +17618,7 @@ function renderCriticalSop() {
             </div>
           ` : `
             <label class="sop-confirm">
-              <input type="checkbox" name="sop-confirm-${index}" ${isComplete ? "checked" : ""} ${disabled ? "disabled" : ""}>
+              <input type="checkbox" name="sop-confirm-${index}" ${isComplete || (step.linkedGasTestKey && stepState.confirmed) ? "checked" : ""} ${disabled ? "disabled" : ""}>
               <strong>${escapeHtml(step.title)}</strong>
             </label>
           `}
@@ -17609,7 +17713,10 @@ function renderCriticalSop() {
   } else {
     delete form.dataset.activePumpStage;
   }
-  document.querySelector("#saveCriticalSopBottomBtn")?.addEventListener("click", isStagedWorkspace ? savePumpSopStageAndAdvance : saveCriticalSopAndOpenNext);
+  const primarySaveButton = document.querySelector("#saveCriticalSopBottomBtn");
+  if (primarySaveButton) {
+    bindReliableTap(primarySaveButton, () => runCriticalSopPrimaryAction(primarySaveButton, isStagedWorkspace ? savePumpSopStageAndAdvance : saveCriticalSopAndOpenNext));
+  }
   document.querySelector("#saveCriticalSopNextBtn")?.addEventListener("click", saveCriticalSopAndOpenNext);
   form.querySelectorAll("[data-pump-sop-stage]").forEach((button) => {
     bindReliableTap(button, () => {
@@ -17651,10 +17758,18 @@ function renderCriticalSop() {
       const index = Number(checkbox.name.replace("sop-confirm-", ""));
       const step = activeTemplate.steps[index];
       const stepState = getSopStepDomState(step, index, activeTemplate.id);
-      const missing = getMissingSopRequirements(step, stepState, activeTemplate, index, saved, { useDomEvidence: true });
+      const explicitGasSave = activeTemplate.id === "gas-discharge-sop" && getCurrentUserRole() === "Technician";
+      const missing = getMissingSopRequirements(step, stepState, activeTemplate, index, saved, {
+        useDomEvidence: true,
+        ignoreLinkedVerification: explicitGasSave
+      });
       if (checkbox.checked && missing.length) {
         checkbox.checked = false;
         document.querySelector("#syncState").textContent = `Cannot confirm Step ${index + 1}: missing ${missing.join(", ")}`;
+        return;
+      }
+      if (explicitGasSave) {
+        document.querySelector("#syncState").textContent = `Step ${index + 1} ready. Press SAVE & NEXT once.`;
         return;
       }
       await saveCriticalSop(false);
@@ -17664,6 +17779,7 @@ function renderCriticalSop() {
 
   form.querySelectorAll("select[name^='sop-choice-']").forEach((select) => {
     select.addEventListener("change", async () => {
+      if (activeTemplate.id === "gas-discharge-sop" && getCurrentUserRole() === "Technician") return;
       await saveCriticalSop(false);
       renderCriticalSopPreservingScroll();
     });
@@ -17671,6 +17787,7 @@ function renderCriticalSop() {
 
   form.querySelectorAll("input[type='radio'][name^='sop-choice-']").forEach((radio) => {
     radio.addEventListener("change", async () => {
+      if (activeTemplate.id === "gas-discharge-sop" && getCurrentUserRole() === "Technician") return;
       await saveCriticalSop(false);
       renderCriticalSopPreservingScroll();
     });
@@ -17710,6 +17827,10 @@ function renderCriticalSop() {
 
   form.querySelectorAll("input[name^='sop-reading-'], input[name^='sop-remark-'], input[name^='sop-field-'], select[name^='sop-field-']").forEach((input) => {
     input.addEventListener("change", async () => {
+      if (activeTemplate.id === "gas-discharge-sop" && getCurrentUserRole() === "Technician") {
+        document.querySelector("#syncState").textContent = "Entry ready. Press SAVE & NEXT once.";
+        return;
+      }
       await saveCriticalSop(false);
       renderCriticalSopPreservingScroll();
     });
@@ -17791,7 +17912,32 @@ function renderCriticalSop() {
   } else {
     delete form.dataset.linkedAutoSignature;
   }
+  if (activeTemplate.id === "gas-discharge-sop") {
+    form.dataset.gasLinkedSignature = getGasLinkedProgressSignature(activeSchedule);
+  } else {
+    delete form.dataset.gasLinkedSignature;
+  }
   renderTechDesktopNavigation(activeSchedule);
+}
+
+async function runCriticalSopPrimaryAction(button, action) {
+  if (criticalSopPrimaryActionInFlight) return { ok: false, busy: true };
+  criticalSopPrimaryActionInFlight = true;
+  const originalText = button?.textContent || "SAVE & NEXT";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "SAVING...";
+  }
+  document.querySelector("#syncState").textContent = "Saving critical checklist...";
+  try {
+    return await action();
+  } finally {
+    criticalSopPrimaryActionInFlight = false;
+    if (button?.isConnected) {
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
 }
 
 function openPreviousPumpSopStage(storageKey, stages, activeStage) {
@@ -17819,11 +17965,18 @@ async function savePumpSopStageAndAdvance() {
   const stages = getPumpSopStageStates(template, saved, state.activeCriticalDevice);
   const currentStage = stages.find((stage) => stage.id === currentStageId) || stages[0];
   if (!currentStage?.complete) {
+    const isGasSop = template.id === "gas-discharge-sop";
+    const nextIncomplete = isGasSop ? currentStage?.stepStates.find((item) => !item.complete) : null;
     state.sopStageSelection = state.sopStageSelection || state.pumpSopStageSelection || {};
     state.pumpSopStageSelection = state.sopStageSelection;
     state.sopStageSelection[storageKey] = currentStage?.id || "";
     renderCriticalSopPreservingScroll();
-    document.querySelector("#syncState").textContent = `${currentStage?.label || "Current stage"} saved. Complete its required checks before continuing.`;
+    if (nextIncomplete) {
+      requestAnimationFrame(() => document.querySelector(`[data-sop-step-index="${nextIncomplete.index}"]`)?.scrollIntoView({ block: "center", behavior: "auto" }));
+    }
+    document.querySelector("#syncState").textContent = nextIncomplete
+      ? `Saved. Continue with Step ${nextIncomplete.index + 1}: ${nextIncomplete.step.title}.`
+      : `${currentStage?.label || "Current stage"} saved. Complete its required checks before continuing.`;
     return { ...result, stageComplete: false };
   }
   const nextStage = stages.find((stage) => stage.stageIndex > currentStage.stageIndex && stage.accessible && !stage.complete);
@@ -17997,7 +18150,9 @@ async function syncGasReleaseLinkedVerification(template, saved, schedule, devic
       submissionId: `${getScheduleKey(schedule)}::${definition.linkedVerificationId}::SUPPRESSION_SYSTEM_LOCATION::${normalizedResult}`
     });
     results.push(result);
-    if (result.ok && isLinkedVerificationLiveActive(getLinkedVerificationLiveState(schedule, definition.linkedVerificationId))) {
+    if (result.ok
+      && ["VERIFIED", "MISMATCH_REVIEW_REQUIRED"].includes(result.linkedVerification?.status)
+      && isLinkedVerificationLiveActive(getLinkedVerificationLiveState(schedule, definition.linkedVerificationId))) {
       await saveLinkedVerificationLiveState(schedule, definition, side, "ENDED");
     }
   }
@@ -18027,21 +18182,26 @@ async function saveCriticalSop(showMessage = true) {
   template.steps.forEach((step, index) => {
     const stepState = getSopStepDomState(step, index, template.id);
     const missing = getMissingSopRequirements(step, stepState, template, index, evidence);
+    const storageMissing = step.linkedGasTestKey
+      ? getMissingSopRequirements(step, stepState, template, index, evidence, { ignoreLinkedVerification: true })
+      : missing;
     const stageBlock = getCriticalSopStepStageBlock(template, state.activeCriticalDevice, index, evidence);
     steps[index] = {
       ...stepState,
       confirmed: stageBlock.blocked
         ? false
         : step.noConfirm
-          ? !missing.length
-          : Boolean(stepState.confirmed && !missing.length)
+          ? !storageMissing.length
+          : Boolean(stepState.confirmed && !storageMissing.length)
     };
   });
 
   state.criticalSops[storageKey] = {
     templateId: template.id,
-    templateVersion: previous.templateVersion || workflowRun?.templateVersion || getCriticalSopTemplateVersion(template),
-    templateSnapshot: previous.templateSnapshot || workflowRun?.templateSnapshot || createCriticalSopTemplateSnapshot(template),
+    templateVersion: getCriticalSopTemplateVersion(template),
+    templateSnapshot: createCriticalSopTemplateSnapshot(template),
+    legacySopMigration: previous.legacySopMigration || null,
+    legacySteps: previous.legacySteps || {},
     workflowId: workflowRun?.workflowId || "",
     dependencyDefinitionId: workflowRun?.definitionId || "",
     title: template.title,

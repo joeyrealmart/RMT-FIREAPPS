@@ -1,0 +1,206 @@
+{
+  "pass": true,
+  "scheduleId": "DEMO-WETEX-RETEST-20260924",
+  "templateStepCount": 16,
+  "firstStage": "gas-preparation",
+  "firstVisibleSteps": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "legacyMigration": {
+    "step0": false,
+    "step8": true,
+    "mode": "STEP_IDENTITY"
+  },
+  "missingDefinitionRequirement": {
+    "complete": false,
+    "mismatch": false,
+    "message": "configured MFAP linked verification"
+  },
+  "repeatedAwaitingSave": {
+    "confirmed": true,
+    "checked": true
+  },
+  "mfapAttention": {
+    "audio": 1,
+    "vibrate": 1
+  },
+  "activeEventCountBeforeMfap": 1,
+  "negativeMfapResult": {
+    "complete": false,
+    "status": "MISMATCH_REVIEW_REQUIRED"
+  },
+  "linkedStatus": "VERIFIED",
+  "finalRecord": {
+    "complete": true,
+    "beforeMode": "DEMO_TEST",
+    "afterMode": "DEMO_TEST",
+    "stepCount": 16,
+    "migration": null
+  },
+  "progression": [
+    {
+      "step": 1,
+      "label": "Client / FM informed",
+      "stage": "Preparation",
+      "input": "confirm",
+      "save": "PASS",
+      "next": "gas-preparation",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 2,
+      "label": "Protected room clear",
+      "stage": "Preparation",
+      "input": "confirm",
+      "save": "PASS",
+      "next": "gas-preparation",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 3,
+      "label": "Before photo taken",
+      "stage": "Preparation",
+      "input": "confirm",
+      "save": "PASS",
+      "next": "gas-preparation",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 4,
+      "label": "Check panel power, battery and charger",
+      "stage": "Preparation",
+      "input": "reading + confirm",
+      "save": "PASS",
+      "next": "gas-isolation",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 5,
+      "label": "Isolate gas discharge switch",
+      "stage": "Safe Isolation",
+      "input": "confirm",
+      "save": "PASS",
+      "next": "gas-isolation",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 6,
+      "label": "Remove discharge cable safely",
+      "stage": "Safe Isolation",
+      "input": "confirm",
+      "save": "PASS",
+      "next": "gas-isolation",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 7,
+      "label": "Remove pyrocharge / solenoid head",
+      "stage": "Safe Isolation",
+      "input": "confirm",
+      "save": "PASS",
+      "next": "gas-isolation",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 8,
+      "label": "Confirm discharge path isolated",
+      "stage": "Safe Isolation",
+      "input": "confirm",
+      "save": "PASS",
+      "next": "gas-detection",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 9,
+      "label": "Trigger first-zone alarm test",
+      "stage": "Detection Sequence",
+      "input": "confirm",
+      "save": "PASS",
+      "next": "gas-detection",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 10,
+      "label": "Trigger second-zone alarm test",
+      "stage": "Detection Sequence",
+      "input": "confirm",
+      "save": "PASS",
+      "next": "gas-detection",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 11,
+      "label": "Observe discharge delay",
+      "stage": "Detection Sequence",
+      "input": "reading + confirm",
+      "save": "PASS",
+      "next": "gas-indication",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 12,
+      "label": "Confirm alarms and indications",
+      "stage": "Indications / Outputs",
+      "input": "field confirmation + linked MFAP",
+      "save": "PASS",
+      "next": "MFAP verified → Step 13",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 13,
+      "label": "Confirm trip outputs only",
+      "stage": "Indications / Outputs",
+      "input": "confirm",
+      "save": "PASS",
+      "next": "gas-restore",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 14,
+      "label": "Reset panel and wait safe delay",
+      "stage": "Restore / Complete",
+      "input": "confirm",
+      "save": "PASS",
+      "next": "gas-restore",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 15,
+      "label": "Reconnect and restore normal",
+      "stage": "Restore / Complete",
+      "input": "confirm",
+      "save": "PASS",
+      "next": "gas-restore",
+      "reopen": "PASS",
+      "result": "PASS"
+    },
+    {
+      "step": 16,
+      "label": "Final supervisor normal confirmation",
+      "stage": "Restore / Complete",
+      "input": "supervisor + confirm",
+      "save": "PASS",
+      "next": "gas-restore",
+      "reopen": "PASS",
+      "result": "PASS"
+    }
+  ],
+  "consoleErrors": []
+}

@@ -7198,6 +7198,14 @@ button.admin-record-row.active {
   border: 1px solid #f59e0b;
   border-radius: 7px;
   background: #fffbeb;
+  animation: rmt-live-pulse 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mfap-new-indication-alert,
+  .mfap-live-event.pending {
+    animation: none;
+  }
 }
 
 .mfap-new-indication-alert > div {
