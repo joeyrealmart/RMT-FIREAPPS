@@ -269,6 +269,7 @@ async function completeQaSharedJob(page, fixture) {
         reading: step.requiresReading ? (step.readingType === "number" ? "26.7" : "QA completed") : "",
         remark: "QA completed",
         photo: step.requiresPhoto ? "qa-step-photo.jpg" : "",
+        photoEvidence: step.requiresPhoto ? { evidenceId: `qa-final-mfap-${index}`, originalDataUrl: "data:image/png;base64,AA==" } : null,
         supervisor: step.requiresSupervisor ? "QA Supervisor" : "",
         fieldValues: Object.fromEntries((step.fields || []).map((field) => [
           field.id,

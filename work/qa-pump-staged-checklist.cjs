@@ -117,7 +117,7 @@ async function measure(page) {
         deviceTag: state.activeCriticalDevice.tag,
         steps: {
           0: { confirmed: true, remark: "Client informed" },
-          1: { confirmed: true, photo: "qa-panel-before.jpg" }
+          1: { confirmed: true, photo: "qa-panel-before.jpg", photoEvidence: { evidenceId: "qa-panel-before", originalDataUrl: "data:image/png;base64,AA==" } }
         }
       };
       renderCriticalSop();
@@ -144,9 +144,9 @@ async function measure(page) {
       record.steps = {
         ...record.steps,
         2: { choice: "Sufficient", fieldValues: { tankType: "RCC / Concrete Tank", capacityMethod: "Calculate from dimensions", tankLengthFt: "10", tankWidthFt: "8", tankHeightFt: "6" } },
-        3: { confirmed: true, choice: "Fully Open", remark: "Valves confirmed open", photo: "qa-valves.jpg", recordedBy: "Demo Technician" },
+        3: { confirmed: true, choice: "Fully Open", remark: "Valves confirmed open", photo: "qa-valves.jpg", photoEvidence: { evidenceId: "qa-valves", originalDataUrl: "data:image/png;base64,AA==" }, recordedBy: "Demo Technician" },
         4: { fieldValues: { phaseRy: "415", phaseYb: "415", phaseBr: "415" } },
-        5: { choice: "Fail", remark: "Pilot lamp not operating", photo: "qa-pilot-fault.jpg" },
+        5: { choice: "Fail", remark: "Pilot lamp not operating", photo: "qa-pilot-fault.jpg", photoEvidence: { evidenceId: "qa-pilot-fault", originalDataUrl: "data:image/png;base64,AA==" } },
         6: {},
         7: { choice: "Electrical" }
       };
@@ -158,13 +158,14 @@ async function measure(page) {
       };
     });
     assert(faultStage.rows[1].includes("1 fault"), `Fault stage summary is missing: ${JSON.stringify(faultStage.rows)}`);
-    assert(faultStage.collapsedChecks >= 5, `Completed checks did not collapse inside the Pump stage: ${JSON.stringify(faultStage)}`);
-    await page.locator('[data-pump-sop-step-toggle="5"]').click();
+    assert(faultStage.collapsedChecks >= 4, `Completed checks did not collapse inside the Pump stage: ${JSON.stringify(faultStage)}`);
     const faultDisclosure = await page.evaluate(() => ({
       faultRemarkVisible: Boolean(document.querySelector('input[name="sop-remark-5"]')?.getClientRects().length),
-      faultPhotoVisible: Boolean(document.querySelector('input[name="sop-photo-5"]')?.getClientRects().length)
+      faultPhotoVisible: Boolean(document.querySelector('input[name="sop-photo-5"]')?.getClientRects().length),
+      finalStageLocked: document.querySelector('[data-pump-drawer-stage="pump-restore-complete"]')?.classList.contains("locked")
     }));
     assert(faultDisclosure.faultRemarkVisible && faultDisclosure.faultPhotoVisible, `FAULT review did not reveal its required details: ${JSON.stringify(faultDisclosure)}`);
+    assert(faultDisclosure.finalStageLocked, "An unsafe Pump result must keep later stages locked.");
     await page.screenshot({ path: path.join(OUTPUT_DIR, "03-fault-expanded.png"), fullPage: true });
 
     const finalRestore = await page.evaluate(() => {

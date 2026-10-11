@@ -3933,11 +3933,19 @@ function syncTechnicianChecklistExceptionState() {
   if (getCurrentUserRole() !== "Technician" || !questionList) return;
   const questionCards = [...questionList.querySelectorAll(".question")];
   let hasFailedQuestion = false;
+  let hasNotApplicableQuestion = false;
   questionCards.forEach((card) => {
     const failed = card.querySelector('input[value="Fail"]:checked');
+    const notApplicable = card.querySelector('input[value="N/A"]:checked');
     card.classList.toggle("question-failed", Boolean(failed));
+    card.classList.toggle("question-not-applicable", Boolean(notApplicable));
     hasFailedQuestion = hasFailedQuestion || Boolean(failed);
+    hasNotApplicableQuestion = hasNotApplicableQuestion || Boolean(notApplicable);
   });
+  if (hasNotApplicableQuestion) {
+    workspace.classList.add("tech-remarks-entry-active");
+    document.querySelector("#toggleInspectionRemarksBtn")?.setAttribute("aria-expanded", "true");
+  }
   if (hasFailedQuestion) {
     workspace.classList.add("tech-fault-entry-active");
     workspace.classList.remove("tech-remarks-entry-active");
@@ -4063,7 +4071,7 @@ async function selectDevice(id, options = {}) {
   document.querySelector("#deviceLocation").textContent = displayDeviceLocation(device.location);
   renderTechnicianInspectionContext(device, getActiveTechnicianMaintenanceSchedule() || getTechMarkerScopeSchedule());
   document.querySelector("#notes").value = saved.notes || "";
-  document.querySelector("#actionTaken").value = "";
+  document.querySelector("#actionTaken").value = saved.action || "";
   document.querySelector("#beforePhoto").value = "";
   document.querySelector("#afterPhoto").value = "";
   pendingInspectionPhotoEvidence.before = null;
@@ -4078,7 +4086,7 @@ async function selectDevice(id, options = {}) {
 
   questionList.innerHTML = "";
   device.questions.forEach((question, index) => {
-    const value = saved.answers?.[index] || "Pass";
+    const value = saved.answers?.[index] || "";
     const card = document.createElement("div");
     card.className = "question tech-checklist-question";
     card.innerHTML = `
@@ -4414,7 +4422,9 @@ function createCriticalSopTemplateSnapshot(template) {
       requiresReading: Boolean(step.requiresReading),
       requiresRemark: Boolean(step.requiresRemark),
       requiresPhoto: Boolean(step.requiresPhoto),
+      requiresPhotoOnFieldFailure: Boolean(step.requiresPhotoOnFieldFailure),
       requiresSupervisor: Boolean(step.requiresSupervisor),
+      phaseSupplyValidation: Boolean(step.phaseSupplyValidation),
       captureTechnician: Boolean(step.captureTechnician),
       lockChoiceAfterSave: Boolean(step.lockChoiceAfterSave),
       usesStandbyConfiguration: Boolean(step.usesStandbyConfiguration),
@@ -4424,7 +4434,22 @@ function createCriticalSopTemplateSnapshot(template) {
       readingStep: step.readingStep || "",
       readingUnit: step.readingUnit || "",
       autoResultFromLinkedVerifications: step.autoResultFromLinkedVerifications || [],
-      choices: step.choices || []
+      linkedPumpTestKey: step.linkedPumpTestKey || "",
+      linkedGasTestKey: step.linkedGasTestKey || "",
+      choices: step.choices || [],
+      remarkOnChoices: step.remarkOnChoices || [],
+      photoOnChoices: step.photoOnChoices || [],
+      fields: (step.fields || []).map((field) => ({
+        id: field.id,
+        label: field.label,
+        kind: field.kind,
+        required: Boolean(field.required),
+        choices: field.choices || [],
+        requiresRemarkOn: field.requiresRemarkOn || [],
+        when: field.when || null,
+        configuration: Boolean(field.configuration)
+      })),
+      variants: step.variants || null
     }))
   };
 }
@@ -5084,14 +5109,37 @@ async function saveInspection(forcedStatus, options = {}) {
     }
   }
 
+  if (checklistForm.dataset.saving === "true") {
+    document.querySelector("#syncState").textContent = "Save already in progress.";
+    return;
+  }
   const answers = device.questions.map((_, index) => {
-    return checklistForm.querySelector(`input[name="q${index}"]:checked`)?.value || "N/A";
+    return checklistForm.querySelector(`input[name="q${index}"]:checked`)?.value || "";
   });
+  const firstMissingAnswer = answers.findIndex((answer) => !answer);
+  if (firstMissingAnswer >= 0) {
+    document.querySelector("#syncState").textContent = `Answer checklist item ${firstMissingAnswer + 1} before saving.`;
+    checklistForm.querySelector(`input[name="q${firstMissingAnswer}"]`)?.focus();
+    return;
+  }
+  if (forcedStatus === "fail" && !answers.includes("Fail")) {
+    document.querySelector("#syncState").textContent = "Select FAULT on the applicable checklist item before saving a fault.";
+    checklistForm.querySelector('input[value="Fail"]')?.focus();
+    return;
+  }
   const beforeFile = document.querySelector("#beforePhoto").files[0];
   const afterFile = document.querySelector("#afterPhoto").files[0];
-  const status = forcedStatus || (answers.includes("Fail") ? "fail" : "pass");
+  const status = answers.includes("Fail") ? "fail" : answers.includes("N/A") ? "n/a" : "pass";
   const notesValue = document.querySelector("#notes").value.trim();
   const actionValue = document.querySelector("#actionTaken").value.trim();
+  if (answers.includes("N/A") && !notesValue) {
+    workspace.classList.add("tech-remarks-entry-active");
+    document.querySelector("#toggleInspectionRemarksBtn")?.setAttribute("aria-expanded", "true");
+    document.querySelector("#syncState").textContent = "N/A needs a remark explaining why the check is not applicable.";
+    document.querySelector("#notes")?.focus();
+    return;
+  }
+  checklistForm.dataset.saving = "true";
   const previousInspection = state.inspections[device.id] || {};
   const photoContext = getPhotoEvidenceContext({ deviceId: device.id, floorId: device.floorId, locationLabel: displayDeviceLocation(device.location || device.floor || "") });
   const beforePhotoEvidence = beforeFile
@@ -5105,6 +5153,8 @@ async function saveInspection(forcedStatus, options = {}) {
   const hasFaultPhoto = Boolean(
     beforeFile
     || afterFile
+    || pendingInspectionPhotoEvidence.before
+    || pendingInspectionPhotoEvidence.after
     || previousInspection.beforePhoto
     || previousInspection.beforePhotoData
     || previousInspection.beforePhotoEvidence
@@ -5116,11 +5166,13 @@ async function saveInspection(forcedStatus, options = {}) {
     if (!notesValue) {
       document.querySelector("#syncState").textContent = "FAULT needs a defect description before saving.";
       document.querySelector("#notes")?.focus();
+      delete checklistForm.dataset.saving;
       return;
     }
     if (!hasFaultPhoto) {
       document.querySelector("#syncState").textContent = "FAULT needs at least one photo evidence before saving.";
       document.querySelector("#beforePhoto")?.focus();
+      delete checklistForm.dataset.saving;
       return;
     }
   }
@@ -5185,6 +5237,7 @@ async function saveInspection(forcedStatus, options = {}) {
     updateSummary();
     renderDiagnosticsPanel();
     document.querySelector("#syncState").textContent = `${device.id} was updated by another phone. Reload the item before saving.`;
+    delete checklistForm.dataset.saving;
     return;
   }
   if (sharedSave.offline) {
@@ -5221,7 +5274,10 @@ async function saveInspection(forcedStatus, options = {}) {
     renderTechFaultPanel();
     if (options.openNextAssignedItem) {
       const openedNext = await openNextAssignedItemAfter(device.id);
-      if (openedNext) return;
+      if (openedNext) {
+        delete checklistForm.dataset.saving;
+        return;
+      }
     }
     workspace.classList.remove("tech-fault-entry-active");
     workspace.classList.remove("tech-remarks-entry-active");
@@ -5233,6 +5289,7 @@ async function saveInspection(forcedStatus, options = {}) {
     setTechScreen("mimic", { scroll: true, renderMarkers: false });
     requestAnimationFrame(() => centerMapOnDeviceMarker(device.id));
     document.querySelector("#syncState").textContent = `${device.id} ${status.toUpperCase()} saved. Back on mimic.`;
+    delete checklistForm.dataset.saving;
     return;
   }
   renderMarkers();
@@ -5247,6 +5304,7 @@ async function saveInspection(forcedStatus, options = {}) {
       ? "Saved locally"
       : "Saved to shared job record";
   document.querySelector("#syncState").textContent = inspectionSaved ? sharedMessage : `${sharedMessage} without embedded photo data`;
+  delete checklistForm.dataset.saving;
 }
 
 function readFileData(file) {
@@ -5260,6 +5318,7 @@ function readFileData(file) {
 
 const PHOTO_EVIDENCE_STAMP_VERSION = "rmt-photo-stamp-v1";
 const pendingInspectionPhotoEvidence = { before: null, after: null };
+const pendingCriticalSopPhotoEvidence = { overall: {}, steps: {} };
 const photoEvidenceFileCache = new WeakMap();
 
 function createEvidenceId(prefix = "EVD") {
@@ -5838,7 +5897,7 @@ function calculateLocalSharedProgress(store = null) {
     const inspection = store.inspectionRecords?.[getInspectionRecordId(store.scheduleId, deviceId)]
       || Object.values(store.inspectionRecords || {}).find((record) => record.deviceId === deviceId);
     const status = String(sop?.status || inspection?.status || "pending").toLowerCase();
-    if (status === "pass" || status === "done" || status === "completed") {
+    if (status === "pass" || status === "done" || status === "completed" || status === "n/a" || status === "na") {
       summary.pass += 1;
       summary.done += 1;
     } else if (status === "fail" || status === "fault") {
@@ -11787,6 +11846,8 @@ function isAnnualCoverageInspectionComplete(record = null) {
     || status === "fail"
     || status === "failed"
     || status === "fault"
+    || status === "n/a"
+    || status === "na"
     || status === "done"
     || status === "completed";
 }
@@ -15631,8 +15692,11 @@ function buildSharedCriticalSopRecord(record, schedule) {
     technicianRole: getCurrentUserRole(),
     status: record.workflowStatus === "complete" || record.finalRestorationComplete ? "pass" : getCriticalSopCompleteCount(getCriticalSopTemplate(record.templateId), record) > 0 ? "partial" : "pending",
     evidenceRefs: [
-      record.beforePhoto ? { type: "before", name: record.beforePhoto } : null,
-      record.afterPhoto ? { type: "after", name: record.afterPhoto } : null
+      record.beforePhotoEvidence ? { ...record.beforePhotoEvidence, type: "before", name: record.beforePhoto || record.beforePhotoEvidence.originalFileName || "Before photo" } : null,
+      record.afterPhotoEvidence ? { ...record.afterPhotoEvidence, type: "after", name: record.afterPhoto || record.afterPhotoEvidence.originalFileName || "After photo" } : null,
+      ...Object.entries(record.steps || {}).map(([index, step]) => step?.photoEvidence
+        ? { ...step.photoEvidence, type: "step", stepIndex: Number(index), name: step.photo || step.photoEvidence.originalFileName || `Step ${Number(index) + 1} photo` }
+        : null)
     ].filter(Boolean)
   };
 }
@@ -15669,6 +15733,12 @@ async function saveSharedCriticalSopRecord(record, schedule) {
           };
         }
         return { ok: false, conflict: true, current, payload };
+      }
+      if (response.status === 403) {
+        return { ok: false, forbidden: true, reason: payload.reason || payload.error || "This technician is not assigned to this critical item." };
+      }
+      if (response.status === 400 || response.status === 422) {
+        return { ok: false, invalid: true, reason: payload.reason || payload.error || "The server rejected this critical checklist record." };
       }
       if (!response.ok || !payload.ok) throw new Error(payload.error || "Unable to save shared critical SOP record");
       updateSharedCacheWithRecord(schedule, "criticalSopRecords", payload.record, payload.progress);
@@ -16466,6 +16536,29 @@ function sopStepNeedsRemark(step) {
   return Boolean(step.requiresRemark || (step.critical && !step.tickOnly));
 }
 
+function getCriticalSopEvidenceKey(templateId = state.activeCriticalSopId, index = "overall") {
+  return `${getCriticalSopStorageKey(templateId)}::${index}`;
+}
+
+function hasRetainedPhotoEvidence(evidence = null) {
+  if (!evidence?.evidenceId) return false;
+  return Boolean(
+    evidence.originalDataUrl
+    || evidence.stampedDataUrl
+    || evidence.dataUrl
+    || evidence.originalPhotoUrl
+    || evidence.stampedPhotoUrl
+    || evidence.photoUrl
+  );
+}
+
+function sopStepShowsRemark(step, stepState = {}, templateId = state.activeCriticalSopId, index = -1) {
+  if (sopStepNeedsRemark(step) || sopStepChoiceNeedsRemark(step, stepState)) return true;
+  if (step.phaseSupplyValidation && getPumpPhaseSupplyState(stepState).abnormal) return true;
+  if (String(stepState.remark || "").trim()) return true;
+  return Boolean(state.sopRemarkVisibility?.[getCriticalSopEvidenceKey(templateId, index)]);
+}
+
 function isFinalSopStep(template, index) {
   return Boolean(template?.steps?.length && index === template.steps.length - 1);
 }
@@ -16473,11 +16566,15 @@ function isFinalSopStep(template, index) {
 function getCriticalSopEvidenceDomState(saved = {}) {
   const beforePhotoInput = document.querySelector("#criticalBeforePhoto");
   const afterPhotoInput = document.querySelector("#criticalAfterPhoto");
-  const beforeDemoInput = document.querySelector("#criticalBeforePhotoDemo");
-  const afterDemoInput = document.querySelector("#criticalAfterPhotoDemo");
+  const key = getCriticalSopEvidenceKey();
+  const pending = pendingCriticalSopPhotoEvidence.overall[key] || {};
+  const beforePhotoEvidence = pending.before || saved.beforePhotoEvidence || null;
+  const afterPhotoEvidence = pending.after || saved.afterPhotoEvidence || null;
   return {
-    beforePhoto: beforePhotoInput?.files?.[0]?.name || beforeDemoInput?.value.trim() || saved.beforePhoto || "",
-    afterPhoto: afterPhotoInput?.files?.[0]?.name || afterDemoInput?.value.trim() || saved.afterPhoto || "",
+    beforePhoto: beforePhotoInput?.files?.[0]?.name || beforePhotoEvidence?.originalFileName || saved.beforePhoto || "",
+    afterPhoto: afterPhotoInput?.files?.[0]?.name || afterPhotoEvidence?.originalFileName || saved.afterPhoto || "",
+    beforePhotoEvidence,
+    afterPhotoEvidence,
     filledBy: saved.filledBy || saved.savedBy || getCurrentUserName(),
     filledRole: saved.filledRole || getCurrentUserRole(),
     evidenceAt: saved.evidenceAt || saved.savedAt || ""
@@ -16486,8 +16583,8 @@ function getCriticalSopEvidenceDomState(saved = {}) {
 
 function getMissingCriticalSopEvidence(template, record = {}) {
   const missing = [];
-  if (template?.requiresBeforeAfterPhotos && !record.beforePhoto) missing.push("before photo");
-  if (template?.requiresBeforeAfterPhotos && !record.afterPhoto) missing.push("after photo");
+  if (template?.requiresBeforeAfterPhotos && !hasRetainedPhotoEvidence(record.beforePhotoEvidence)) missing.push("before photo");
+  if (template?.requiresBeforeAfterPhotos && !hasRetainedPhotoEvidence(record.afterPhotoEvidence)) missing.push("after photo");
   return missing;
 }
 
@@ -16500,6 +16597,9 @@ function getCriticalSopCompleteCount(template, saved = {}) {
 
 function isCriticalSopRecordComplete(template, saved = {}) {
   if (!template) return false;
+  if (Array.isArray(saved.linkedVerificationStatuses) && saved.linkedVerificationStatuses.some((status) => normalizeScopeText(status) !== "verified")) {
+    return false;
+  }
   return getCriticalSopCompleteCount(template, saved) === template.steps.length
     && getMissingCriticalSopEvidence(template, saved).length === 0;
 }
@@ -16746,7 +16846,7 @@ function getSopLinkedVerificationAutoState(step, schedule = getActiveTechnicianM
 function getSopStepDomState(step, index, templateId) {
   const existingStep = getSopStepExisting(templateId, index);
   const photoInput = document.querySelector(`input[name="sop-photo-${index}"]`);
-  const demoPhotoInput = document.querySelector(`input[name="sop-photo-demo-${index}"]`);
+  const pendingPhotoEvidence = pendingCriticalSopPhotoEvidence.steps[getCriticalSopEvidenceKey(templateId, index)] || null;
   const linkedAutoResult = getSopLinkedVerificationAutoState(step);
   const configurationValues = getPumpConfigurationValues(step);
   const fieldValues = getSopFieldValues(step, index, existingStep);
@@ -16764,7 +16864,8 @@ function getSopStepDomState(step, index, templateId) {
         || "",
     reading: document.querySelector(`input[name="sop-reading-${index}"]`)?.value.trim() || existingStep.reading || "",
     remark: document.querySelector(`input[name="sop-remark-${index}"]`)?.value.trim() || existingStep.remark || "",
-    photo: photoInput?.files?.[0]?.name || demoPhotoInput?.value.trim() || existingStep.photo || "",
+    photo: photoInput?.files?.[0]?.name || pendingPhotoEvidence?.originalFileName || existingStep.photo || "",
+    photoEvidence: pendingPhotoEvidence || existingStep.photoEvidence || null,
     supervisor: document.querySelector(`input[name="sop-supervisor-${index}"]`)?.value.trim() || existingStep.supervisor || "",
     recordedBy: existingStep.recordedBy || (step.captureTechnician ? getCurrentUserName() : ""),
     fieldValues,
@@ -16779,6 +16880,7 @@ function getSopStepRenderState(step, index, templateId, saved = {}) {
   const configurationValues = getPumpConfigurationValues(step);
   return {
     ...existingStep,
+    photoEvidence: pendingCriticalSopPhotoEvidence.steps[getCriticalSopEvidenceKey(templateId, index)] || existingStep.photoEvidence || null,
     choice: linkedAutoResult.applicable
       ? linkedAutoResult.choice
       : (step.configurationKey === "standbyPump" ? configurationValues.standbyType : "") || existingStep.choice || "",
@@ -16849,7 +16951,8 @@ function getMissingSopRequirements(step, stepState, template = null, index = -1,
       if (!String(stepState.remark || "").trim()) missing.push("phase supply acknowledgement remark");
     }
   }
-  if (sopStepRequiresPhoto(step, stepState) && !stepState.photo) missing.push("photo");
+  if (sopStepHasFault(step, stepState)) missing.push("safe / normal result before progression");
+  if (sopStepRequiresPhoto(step, stepState) && !hasRetainedPhotoEvidence(stepState.photoEvidence)) missing.push("photo");
   if (step.requiresSupervisor && !stepState.supervisor) missing.push("supervisor");
   if (template && isFinalSopStep(template, index)) {
     const evidence = options.useDomEvidence ? getCriticalSopEvidenceDomState(saved) : saved;
@@ -16860,6 +16963,7 @@ function getMissingSopRequirements(step, stepState, template = null, index = -1,
 
 function isSopStepComplete(step, stepState, template = null, index = -1, saved = {}, options = {}) {
   const missing = getMissingSopRequirements(step, stepState, template, index, saved, options);
+  if (sopStepHasFault(step, stepState)) return false;
   if (step.noConfirm) return missing.length === 0;
   return Boolean(stepState?.confirmed) && missing.length === 0;
 }
@@ -17029,11 +17133,17 @@ function getPumpSopStageForStep(index) {
 }
 
 function sopStepHasFault(step, stepState = {}) {
-  const negativeChoices = new Set(["fail", "insufficient", "partially open", "closed", "some closed"]);
+  const negativeChoices = new Set([
+    "fail", "failed", "fault", "insufficient", "partially open", "closed", "some closed",
+    "weak", "low", "abnormal", "need attention", "needs attention", "not confirmed",
+    "no indication", "not received", "mismatch"
+  ]);
   if (negativeChoices.has(normalizeScopeText(stepState.choice))) return true;
-  if (Object.values(stepState.fieldValues || {}).some((value) => normalizeScopeText(value) === "fail")) return true;
+  const fields = getEffectiveSopFields(step, { steps: {} }, state.activeCriticalDevice, stepState.fieldValues || {});
+  if (fields.some((field) => Array.isArray(field.requiresRemarkOn) && sopValueMatches(stepState.fieldValues?.[field.id], field.requiresRemarkOn))) return true;
+  if (Object.values(stepState.fieldValues || {}).some((value) => negativeChoices.has(normalizeScopeText(value)))) return true;
   if (step.phaseSupplyValidation && getPumpPhaseSupplyState(stepState).abnormal) return true;
-  return stepState.autoResult?.overall === "FAIL";
+  return normalizeScopeText(stepState.autoResult?.overall) === "fail";
 }
 
 function getPumpSopStageStates(template, saved, device = state.activeCriticalDevice) {
@@ -17066,7 +17176,7 @@ function getPumpSopStageStates(template, saved, device = state.activeCriticalDev
       accessible,
       stepStates
     };
-    previousComplete = previousComplete && complete;
+    previousComplete = previousComplete && complete && faultCount === 0;
     return result;
   });
 }
@@ -17181,7 +17291,10 @@ function renderCriticalSop() {
       : "Step-By-Step MOS Workflow";
   }
 
-  tabs.innerHTML = criticalSopTemplates.map((template) => {
+  const visibleTemplates = getCurrentUserRole() === "Technician" && activeDevice
+    ? [activeTemplate]
+    : criticalSopTemplates;
+  tabs.innerHTML = visibleTemplates.map((template) => {
     const checkKey = getCriticalSopStorageKey(template.id);
     const check = state.criticalSops[checkKey] || state.criticalSops[template.id] || { steps: {} };
     const completed = getCriticalSopCompleteCount(template, check);
@@ -17257,15 +17370,11 @@ function renderCriticalSop() {
           <label>
             Before Photo
             <input id="criticalBeforePhoto" type="file" accept="image/*">
-            <input id="criticalBeforePhotoDemo" type="hidden" value="${escapeHtml(evidence.beforePhoto || "")}">
-            <button type="button" class="secondary sop-demo-photo" data-critical-demo-photo="before">Use Demo Before Photo</button>
             <span id="criticalBeforePhotoName">${escapeHtml(evidence.beforePhoto || "No before photo saved")}</span>
           </label>
           <label>
             After Photo
             <input id="criticalAfterPhoto" type="file" accept="image/*">
-            <input id="criticalAfterPhotoDemo" type="hidden" value="${escapeHtml(evidence.afterPhoto || "")}">
-            <button type="button" class="secondary sop-demo-photo" data-critical-demo-photo="after">Use Demo After Photo</button>
             <span id="criticalAfterPhotoName">${escapeHtml(evidence.afterPhoto || "No after photo saved")}</span>
           </label>
         </div>
@@ -17294,7 +17403,7 @@ function renderCriticalSop() {
       const pumpStepExpanded = state.pumpSopExpandedStepKey === pumpStepExpansionKey;
       const pumpStepCollapsed = Boolean(pumpStage && (isComplete || disabled) && !pumpStepExpanded);
       const remarkRequired = sopStepNeedsRemark(step) || sopStepChoiceNeedsRemark(step, stepState) || Boolean(step.phaseSupplyValidation && getPumpPhaseSupplyState(stepState).abnormal);
-      const remarkVisible = remarkRequired || Boolean(String(stepState.remark || "").trim());
+      const remarkVisible = sopStepShowsRemark(activeTemplate.steps[index], stepState, activeTemplate.id, index);
       if (!isComplete) locked = true;
       return `
         <fieldset class="sop-step ${step.critical ? "critical" : ""} ${disabled ? "locked" : ""} ${isComplete ? "complete" : ""} ${pumpStepHidden ? "pump-sop-step-hidden" : ""} ${pumpStepCollapsed ? "pump-sop-step-collapsed" : ""}" ${pumpStage ? `data-pump-sop-step-stage="${escapeHtml(pumpStage.id)}"` : ""}>
@@ -17346,7 +17455,7 @@ function renderCriticalSop() {
               </label>
             ` : ""}
             ${step.usesStandbyConfiguration ? `<div class="sop-auto-result complete"><span>Configured standby · Read-only</span><strong>${escapeHtml(getSavedSopStandbyConfiguration(activeTemplate, saved) || "Not configured")}</strong><small>Auto-filled from the saved standby setup for this job/system.</small></div>` : ""}
-            ${step.optionalRemark && !remarkRequired && !remarkVisible ? `<button type="button" class="secondary sop-remark-toggle" data-sop-remark-toggle="${index}" ${disabled ? "disabled" : ""}>Add Remarks</button>` : ""}
+            ${!remarkVisible ? `<button type="button" class="secondary sop-remark-toggle" data-sop-remark-toggle="${index}" ${disabled ? "disabled" : ""}>+ Add Remarks</button>` : ""}
             ${remarkVisible ? `
               <label data-sop-remark-field="${index}">
                 ${remarkRequired ? "Remarks *" : "Optional Remark"}
@@ -17357,8 +17466,6 @@ function renderCriticalSop() {
               <label>
                 Required Photo
                 <input name="sop-photo-${index}" type="file" accept="image/*" ${disabled ? "disabled" : ""}>
-                <input name="sop-photo-demo-${index}" type="hidden" value="${escapeHtml(stepState.photo || "")}">
-                <button type="button" class="secondary sop-demo-photo" data-sop-demo-photo="${index}" ${disabled ? "disabled" : ""}>Use Demo Photo</button>
                 <span id="sop-photo-name-${index}">${escapeHtml(stepState.photo || "No saved photo name")}</span>
               </label>
             ` : ""}
@@ -17488,6 +17595,8 @@ function renderCriticalSop() {
   form.querySelectorAll("[data-sop-remark-toggle]").forEach((button) => {
     button.addEventListener("click", () => {
       const index = button.dataset.sopRemarkToggle;
+      state.sopRemarkVisibility = state.sopRemarkVisibility || {};
+      state.sopRemarkVisibility[getCriticalSopEvidenceKey(activeTemplate.id, index)] = true;
       const field = document.createElement("label");
       field.dataset.sopRemarkField = index;
       field.innerHTML = `Optional Remark<input name="sop-remark-${escapeHtml(index)}" placeholder="Optional additional observation">`;
@@ -17512,41 +17621,40 @@ function renderCriticalSop() {
     });
   });
 
-  form.querySelectorAll(".sop-demo-photo").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const index = button.dataset.sopDemoPhoto;
-      const demoPhotoName = `DEMO photo captured - ${new Date().toLocaleString()}`;
-      const input = document.querySelector(`input[name="sop-photo-demo-${index}"]`);
-      const label = document.querySelector(`#sop-photo-name-${index}`);
-      if (input) input.value = demoPhotoName;
-      if (label) label.textContent = demoPhotoName;
-      await saveCriticalSop(false);
-      document.querySelector("#syncState").textContent = `Demo photo added for Step ${Number(index) + 1}`;
-    });
-  });
-
-  form.querySelectorAll("[data-critical-demo-photo]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const type = button.dataset.criticalDemoPhoto;
-      const demoPhotoName = `DEMO ${type} photo captured - ${new Date().toLocaleString()}`;
-      const input = document.querySelector(type === "before" ? "#criticalBeforePhotoDemo" : "#criticalAfterPhotoDemo");
-      const label = document.querySelector(type === "before" ? "#criticalBeforePhotoName" : "#criticalAfterPhotoName");
-      if (input) input.value = demoPhotoName;
-      if (label) label.textContent = demoPhotoName;
-      await saveCriticalSop(false);
-      renderCriticalSopPreservingScroll();
-      document.querySelector("#syncState").textContent = `${type === "before" ? "Before" : "After"} photo added for ${activeTemplate.title}`;
-    });
-  });
-
   form.querySelectorAll("#criticalBeforePhoto, #criticalAfterPhoto").forEach((input) => {
     input.addEventListener("change", async () => {
-      const fileName = input.files?.[0]?.name || "";
+      const file = input.files?.[0];
+      const fileName = file?.name || "";
+      if (!file) return;
+      const type = input.id === "criticalBeforePhoto" ? "before" : "after";
+      const key = getCriticalSopEvidenceKey(activeTemplate.id);
+      pendingCriticalSopPhotoEvidence.overall[key] = pendingCriticalSopPhotoEvidence.overall[key] || {};
+      pendingCriticalSopPhotoEvidence.overall[key][type] = await createPhotoEvidenceFromFile(file, `critical-${type}`, getPhotoEvidenceContext({
+        deviceId: activeDevice?.id || activeDevice?.tag || activeTemplate.id,
+        locationLabel: activeDevice?.location || activeDevice?.floor || ""
+      }));
       const label = document.querySelector(input.id === "criticalBeforePhoto" ? "#criticalBeforePhotoName" : "#criticalAfterPhotoName");
       if (label && fileName) label.textContent = fileName;
       await saveCriticalSop(false);
       renderCriticalSopPreservingScroll();
       document.querySelector("#syncState").textContent = `${input.id === "criticalBeforePhoto" ? "Before" : "After"} photo recorded`;
+    });
+  });
+  form.querySelectorAll("input[name^='sop-photo-']").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const index = Number(input.name.replace("sop-photo-", ""));
+      const key = getCriticalSopEvidenceKey(activeTemplate.id, index);
+      pendingCriticalSopPhotoEvidence.steps[key] = await createPhotoEvidenceFromFile(file, `critical-step-${index + 1}`, getPhotoEvidenceContext({
+        deviceId: activeDevice?.id || activeDevice?.tag || activeTemplate.id,
+        locationLabel: activeDevice?.location || activeDevice?.floor || ""
+      }));
+      const label = document.querySelector(`#sop-photo-name-${index}`);
+      if (label) label.textContent = file.name;
+      await saveCriticalSop(false);
+      renderCriticalSopPreservingScroll();
+      document.querySelector("#syncState").textContent = `Photo recorded for Step ${index + 1}`;
     });
   });
   if (activeTemplate.id === "fire-alarm-tripping-sop") {
@@ -17813,6 +17921,8 @@ async function saveCriticalSop(showMessage = true) {
     steps,
     beforePhoto: evidence.beforePhoto,
     afterPhoto: evidence.afterPhoto,
+    beforePhotoEvidence: evidence.beforePhotoEvidence || null,
+    afterPhotoEvidence: evidence.afterPhotoEvidence || null,
     filledBy: getCurrentUserName(),
     filledRole: getCurrentUserRole(),
     evidenceAt: evidence.beforePhoto || evidence.afterPhoto ? now : evidence.evidenceAt,
@@ -17831,6 +17941,24 @@ async function saveCriticalSop(showMessage = true) {
     }
     savedRecord.pumpConfiguration = configurationSave.configuration || getPumpConfiguration(activeSchedule, state.activeCriticalDevice) || null;
     savedRecord.pumpConfigurationSyncStatus = configurationSave.offline ? "LOCAL_DRAFT" : "SYNCED";
+  }
+  if (template.id === "sprinkler-hydrant-pump-sop") {
+    const linkedResults = await syncPumpManualLinkedVerifications(template, savedRecord, activeSchedule, state.activeCriticalDevice);
+    if (linkedResults.some((result) => result && !result.ok && !result.offline)) {
+      state.criticalSops[storageKey] = previous;
+      document.querySelector("#syncState").textContent = "Linked pump verification was rejected. The critical checklist was not completed.";
+      return { ok: false, linkedVerificationRejected: true };
+    }
+    savedRecord.linkedVerificationStatuses = linkedResults.map((result) => result.linkedVerification?.status || (result.offline ? "LOCAL_COMPLETE_AWAITING_SYNC" : "AWAITING_COUNTERPART"));
+  }
+  if (template.id === "gas-discharge-sop") {
+    const linkedResults = await syncGasReleaseLinkedVerification(template, savedRecord, activeSchedule, state.activeCriticalDevice);
+    if (linkedResults.some((result) => result && !result.ok && !result.offline)) {
+      state.criticalSops[storageKey] = previous;
+      document.querySelector("#syncState").textContent = "Linked gas verification was rejected. The critical checklist was not completed.";
+      return { ok: false, linkedVerificationRejected: true };
+    }
+    savedRecord.linkedVerificationStatuses = linkedResults.map((result) => result.linkedVerification?.status || (result.offline ? "LOCAL_COMPLETE_AWAITING_SYNC" : "AWAITING_COUNTERPART"));
   }
   const complete = getCriticalSopCompleteCount(template, savedRecord);
   const criticalComplete = isCriticalSopRecordComplete(template, savedRecord);
@@ -17875,20 +18003,17 @@ async function saveCriticalSop(showMessage = true) {
     }
     return { ok: false, conflict: true };
   }
+  if (sharedSave.forbidden || sharedSave.invalid) {
+    state.criticalSops[storageKey] = previous;
+    if (showMessage) document.querySelector("#syncState").textContent = sharedSave.reason || "The server rejected this critical checklist save.";
+    return { ok: false, forbidden: Boolean(sharedSave.forbidden), invalid: Boolean(sharedSave.invalid) };
+  }
   if (sharedSave.offline) {
     savedRecord.syncStatus = "draft";
     savedRecord.unsynced = true;
   } else if (!sharedSave.localOnly) {
     savedRecord.syncStatus = "synced";
     savedRecord.sharedRevision = Number(sharedSave.record?.revision || savedRecord.sharedRevision || 0);
-  }
-  if (template.id === "sprinkler-hydrant-pump-sop") {
-    const linkedResults = await syncPumpManualLinkedVerifications(template, savedRecord, activeSchedule, state.activeCriticalDevice);
-    savedRecord.linkedVerificationStatuses = linkedResults.map((result) => result.linkedVerification?.status || (result.offline ? "LOCAL_COMPLETE_AWAITING_SYNC" : "PENDING"));
-  }
-  if (template.id === "gas-discharge-sop") {
-    const linkedResults = await syncGasReleaseLinkedVerification(template, savedRecord, activeSchedule, state.activeCriticalDevice);
-    savedRecord.linkedVerificationStatuses = linkedResults.map((result) => result.linkedVerification?.status || (result.offline ? "LOCAL_COMPLETE_AWAITING_SYNC" : "PENDING"));
   }
   invalidateRuntimeCaches();
   writeStoredJson("rmtCriticalSops", state.criticalSops);

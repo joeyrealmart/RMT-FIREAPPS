@@ -1,0 +1,362 @@
+{
+  "ok": true,
+  "checks": [
+    {
+      "name": "normal checklist requires explicit answers",
+      "passed": true,
+      "details": {
+        "questionCount": 5,
+        "selectedCount": 0,
+        "addRemarksVisible": true
+      }
+    },
+    {
+      "name": "normal checklist exposes Add Remarks",
+      "passed": true,
+      "details": {
+        "questionCount": 5,
+        "selectedCount": 0,
+        "addRemarksVisible": true
+      }
+    },
+    {
+      "name": "unjustified N/A is blocked",
+      "passed": true,
+      "details": {
+        "before": false,
+        "saved": null,
+        "message": "N/A needs a remark explaining why the check is not applicable.",
+        "remarksExpanded": true
+      }
+    },
+    {
+      "name": "explicit PASS saves and optional remarks persist",
+      "passed": true,
+      "details": {
+        "status": "pass",
+        "note": "Optional QA observation",
+        "action": "No corrective action required",
+        "reopenedAction": "No corrective action required"
+      }
+    },
+    {
+      "name": "FAULT cannot be saved with an all-PASS checklist",
+      "passed": true,
+      "details": {
+        "contradictorySaved": false,
+        "savedStatus": "fail",
+        "message": "QA.SD.QUALITY.FAIL FAIL saved. Back on mimic."
+      }
+    },
+    {
+      "name": "explicit FAULT remains FAULT",
+      "passed": true,
+      "details": {
+        "contradictorySaved": false,
+        "savedStatus": "fail",
+        "message": "QA.SD.QUALITY.FAIL FAIL saved. Back on mimic."
+      }
+    },
+    {
+      "name": "all rendered normal checklist families pass integrity matrix",
+      "passed": true,
+      "details": [
+        {
+          "system": "Manual Call Point",
+          "checklist": "Normal device inspection",
+          "questionCount": 5,
+          "addRemarksVisible": true,
+          "passWithoutRemark": true,
+          "faultAutoOpensRemark": true,
+          "faultRequiresCorrectData": true,
+          "naHandledCorrectly": true,
+          "saveAndReopen": true,
+          "saveAndNext": "covered by qa-tech-save-next.cjs",
+          "criticalControlPreserved": "not applicable"
+        },
+        {
+          "system": "Smoke Detector",
+          "checklist": "Normal device inspection",
+          "questionCount": 5,
+          "addRemarksVisible": true,
+          "passWithoutRemark": true,
+          "faultAutoOpensRemark": true,
+          "faultRequiresCorrectData": true,
+          "naHandledCorrectly": true,
+          "saveAndReopen": true,
+          "saveAndNext": "covered by qa-tech-save-next.cjs",
+          "criticalControlPreserved": "not applicable"
+        },
+        {
+          "system": "Heat Detector",
+          "checklist": "Normal device inspection",
+          "questionCount": 4,
+          "addRemarksVisible": true,
+          "passWithoutRemark": true,
+          "faultAutoOpensRemark": true,
+          "faultRequiresCorrectData": true,
+          "naHandledCorrectly": true,
+          "saveAndReopen": true,
+          "saveAndNext": "covered by qa-tech-save-next.cjs",
+          "criticalControlPreserved": "not applicable"
+        },
+        {
+          "system": "Beam Detector",
+          "checklist": "Normal device inspection",
+          "questionCount": 5,
+          "addRemarksVisible": true,
+          "passWithoutRemark": true,
+          "faultAutoOpensRemark": true,
+          "faultRequiresCorrectData": true,
+          "naHandledCorrectly": true,
+          "saveAndReopen": true,
+          "saveAndNext": "covered by qa-tech-save-next.cjs",
+          "criticalControlPreserved": "not applicable"
+        },
+        {
+          "system": "Bell / Sounder",
+          "checklist": "Normal device inspection",
+          "questionCount": 5,
+          "addRemarksVisible": true,
+          "passWithoutRemark": true,
+          "faultAutoOpensRemark": true,
+          "faultRequiresCorrectData": true,
+          "naHandledCorrectly": true,
+          "saveAndReopen": true,
+          "saveAndNext": "covered by qa-tech-save-next.cjs",
+          "criticalControlPreserved": "not applicable"
+        },
+        {
+          "system": "Hose Reel",
+          "checklist": "Normal device inspection",
+          "questionCount": 5,
+          "addRemarksVisible": true,
+          "passWithoutRemark": true,
+          "faultAutoOpensRemark": true,
+          "faultRequiresCorrectData": true,
+          "naHandledCorrectly": true,
+          "saveAndReopen": true,
+          "saveAndNext": "covered by qa-tech-save-next.cjs",
+          "criticalControlPreserved": "not applicable"
+        },
+        {
+          "system": "Emergency Light",
+          "checklist": "Normal device inspection",
+          "questionCount": 5,
+          "addRemarksVisible": true,
+          "passWithoutRemark": true,
+          "faultAutoOpensRemark": true,
+          "faultRequiresCorrectData": true,
+          "naHandledCorrectly": true,
+          "saveAndReopen": true,
+          "saveAndNext": "covered by qa-tech-save-next.cjs",
+          "criticalControlPreserved": "not applicable"
+        },
+        {
+          "system": "Exit Sign",
+          "checklist": "Normal device inspection",
+          "questionCount": 5,
+          "addRemarksVisible": true,
+          "passWithoutRemark": true,
+          "faultAutoOpensRemark": true,
+          "faultRequiresCorrectData": true,
+          "naHandledCorrectly": true,
+          "saveAndReopen": true,
+          "saveAndNext": "covered by qa-tech-save-next.cjs",
+          "criticalControlPreserved": "not applicable"
+        },
+        {
+          "system": "Fire Door",
+          "checklist": "Normal device inspection",
+          "questionCount": 5,
+          "addRemarksVisible": true,
+          "passWithoutRemark": true,
+          "faultAutoOpensRemark": true,
+          "faultRequiresCorrectData": true,
+          "naHandledCorrectly": true,
+          "saveAndReopen": true,
+          "saveAndNext": "covered by qa-tech-save-next.cjs",
+          "criticalControlPreserved": "not applicable"
+        },
+        {
+          "system": "Fireman Intercom",
+          "checklist": "Normal device inspection",
+          "questionCount": 4,
+          "addRemarksVisible": true,
+          "passWithoutRemark": true,
+          "faultAutoOpensRemark": true,
+          "faultRequiresCorrectData": true,
+          "naHandledCorrectly": true,
+          "saveAndReopen": true,
+          "saveAndNext": "covered by qa-tech-save-next.cjs",
+          "criticalControlPreserved": "not applicable"
+        },
+        {
+          "system": "Flow Switch",
+          "checklist": "Normal device inspection",
+          "questionCount": 4,
+          "addRemarksVisible": true,
+          "passWithoutRemark": true,
+          "faultAutoOpensRemark": true,
+          "faultRequiresCorrectData": true,
+          "naHandledCorrectly": true,
+          "saveAndReopen": true,
+          "saveAndNext": "covered by qa-tech-save-next.cjs",
+          "criticalControlPreserved": "not applicable"
+        },
+        {
+          "system": "Other",
+          "checklist": "Normal device inspection",
+          "questionCount": 5,
+          "addRemarksVisible": true,
+          "passWithoutRemark": true,
+          "faultAutoOpensRemark": true,
+          "faultRequiresCorrectData": true,
+          "naHandledCorrectly": true,
+          "saveAndReopen": true,
+          "saveAndNext": "covered by qa-tech-save-next.cjs",
+          "criticalControlPreserved": "not applicable"
+        }
+      ]
+    },
+    {
+      "name": "critical remark helper exists",
+      "passed": true,
+      "details": {
+        "helperExists": true,
+        "passShowsRemark": false,
+        "failShowsRemark": true,
+        "unsafe": {
+          "insufficient": true,
+          "structuredFail": true,
+          "linkedFail": true
+        }
+      }
+    },
+    {
+      "name": "critical PASS keeps optional remarks collapsed",
+      "passed": true,
+      "details": {
+        "helperExists": true,
+        "passShowsRemark": false,
+        "failShowsRemark": true,
+        "unsafe": {
+          "insufficient": true,
+          "structuredFail": true,
+          "linkedFail": true
+        }
+      }
+    },
+    {
+      "name": "critical FAULT auto-shows remarks",
+      "passed": true,
+      "details": {
+        "helperExists": true,
+        "passShowsRemark": false,
+        "failShowsRemark": true,
+        "unsafe": {
+          "insufficient": true,
+          "structuredFail": true,
+          "linkedFail": true
+        }
+      }
+    },
+    {
+      "name": "structured unsafe states are detected",
+      "passed": true,
+      "details": {
+        "insufficient": true,
+        "structuredFail": true,
+        "linkedFail": true
+      }
+    },
+    {
+      "name": "every rendered critical step has one remark control",
+      "passed": true,
+      "details": [
+        {
+          "templateId": "fire-alarm-tripping-sop",
+          "stepCount": 11,
+          "remarkControls": 11,
+          "demoPhotoButtons": 0,
+          "stageRows": 0
+        },
+        {
+          "templateId": "hose-reel-pump-sop",
+          "stepCount": 18,
+          "remarkControls": 18,
+          "demoPhotoButtons": 0,
+          "stageRows": 0
+        },
+        {
+          "templateId": "sprinkler-hydrant-pump-sop",
+          "stepCount": 18,
+          "remarkControls": 18,
+          "demoPhotoButtons": 0,
+          "stageRows": 0
+        },
+        {
+          "templateId": "gas-discharge-sop",
+          "stepCount": 16,
+          "remarkControls": 16,
+          "demoPhotoButtons": 0,
+          "stageRows": 0
+        },
+        {
+          "templateId": "wet-chemical-sop",
+          "stepCount": 15,
+          "remarkControls": 15,
+          "demoPhotoButtons": 0,
+          "stageRows": 0
+        }
+      ]
+    },
+    {
+      "name": "production critical SOP has no demo-photo controls",
+      "passed": true,
+      "details": [
+        {
+          "templateId": "fire-alarm-tripping-sop",
+          "stepCount": 11,
+          "remarkControls": 11,
+          "demoPhotoButtons": 0,
+          "stageRows": 0
+        },
+        {
+          "templateId": "hose-reel-pump-sop",
+          "stepCount": 18,
+          "remarkControls": 18,
+          "demoPhotoButtons": 0,
+          "stageRows": 0
+        },
+        {
+          "templateId": "sprinkler-hydrant-pump-sop",
+          "stepCount": 18,
+          "remarkControls": 18,
+          "demoPhotoButtons": 0,
+          "stageRows": 0
+        },
+        {
+          "templateId": "gas-discharge-sop",
+          "stepCount": 16,
+          "remarkControls": 16,
+          "demoPhotoButtons": 0,
+          "stageRows": 0
+        },
+        {
+          "templateId": "wet-chemical-sop",
+          "stepCount": 15,
+          "remarkControls": 15,
+          "demoPhotoButtons": 0,
+          "stageRows": 0
+        }
+      ]
+    },
+    {
+      "name": "no browser console errors",
+      "passed": true,
+      "details": []
+    }
+  ],
+  "consoleErrors": []
+}

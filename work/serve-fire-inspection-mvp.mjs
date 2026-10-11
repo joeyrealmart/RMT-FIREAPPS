@@ -1291,7 +1291,7 @@ function normalizeSharedCriticalSopRecord(scheduleId, incoming = {}) {
   const deviceId = incoming.parentDeviceId || incoming.deviceId || incoming.deviceTag || templateId;
   return {
     ...incoming,
-    recordId: incoming.recordId || getCriticalSopRecordId(scheduleId, templateId, deviceId),
+    recordId: getCriticalSopRecordId(scheduleId, templateId, deviceId),
     scheduleId,
     templateId,
     parentDeviceId: incoming.parentDeviceId || deviceId,
@@ -1299,6 +1299,116 @@ function normalizeSharedCriticalSopRecord(scheduleId, incoming = {}) {
     status: incoming.status || (incoming.workflowStatus === "complete" ? "pass" : "partial"),
     evidenceRefs: Array.isArray(incoming.evidenceRefs) ? incoming.evidenceRefs : []
   };
+}
+
+const criticalTemplateMinimumSteps = {
+  "fire-alarm-tripping-sop": 11,
+  "gas-discharge-sop": 16,
+  "wet-chemical-sop": 15,
+  "hose-reel-pump-sop": 18,
+  "sprinkler-hydrant-pump-sop": 18
+};
+
+function normalizedCriticalValue(value) {
+  return String(value ?? "").trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+}
+
+function criticalValueMatches(value, options = []) {
+  const normalized = normalizedCriticalValue(value);
+  return options.some((option) => normalizedCriticalValue(option) === normalized);
+}
+
+function criticalEvidenceIsRetained(evidence = null) {
+  if (!evidence?.evidenceId) return false;
+  return Boolean(
+    evidence.originalDataUrl
+    || evidence.stampedDataUrl
+    || evidence.dataUrl
+    || evidence.originalPhotoUrl
+    || evidence.stampedPhotoUrl
+    || evidence.photoUrl
+  );
+}
+
+function criticalSnapshotFields(step = {}, state = {}) {
+  const values = state.fieldValues || {};
+  const base = Array.isArray(step.fields) ? step.fields : [];
+  const variant = step.variants && typeof step.variants === "object"
+    ? (step.variants[state.choice] || step.variants[values.standbyType] || [])
+    : [];
+  return [...base, ...(Array.isArray(variant) ? variant : [])].filter((field) => {
+    if (!field?.when) return true;
+    return criticalValueMatches(values[field.when.fieldId], field.when.values || []);
+  });
+}
+
+function criticalStepUnsafe(step = {}, state = {}) {
+  const negative = new Set([
+    "fail", "failed", "fault", "insufficient", "partially open", "closed", "some closed",
+    "weak", "low", "abnormal", "need attention", "needs attention", "not confirmed",
+    "no indication", "not received", "mismatch"
+  ]);
+  if (negative.has(normalizedCriticalValue(state.choice))) return true;
+  if (normalizedCriticalValue(state.autoResult?.overall) === "fail") return true;
+  return criticalSnapshotFields(step, state).some((field) => {
+    const value = state.fieldValues?.[field.id];
+    return negative.has(normalizedCriticalValue(value))
+      || (Array.isArray(field.requiresRemarkOn) && criticalValueMatches(value, field.requiresRemarkOn));
+  });
+}
+
+function validateSharedCriticalSopRecord(record = {}) {
+  const snapshot = record.templateSnapshot;
+  const expectedMinimum = criticalTemplateMinimumSteps[record.templateId];
+  if (!snapshot || snapshot.id !== record.templateId || !Array.isArray(snapshot.steps)) {
+    return { valid: false, complete: false, reason: "A matching versioned critical SOP template snapshot is required." };
+  }
+  if (expectedMinimum && snapshot.steps.length < expectedMinimum) {
+    return { valid: false, complete: false, reason: "The critical SOP template snapshot is incomplete." };
+  }
+  const missing = [];
+  let unsafe = false;
+  snapshot.steps.forEach((step, index) => {
+    const state = record.steps?.[index] || {};
+    const fields = criticalSnapshotFields(step, state);
+    if (step.requiresChoice && !String(state.choice || "").trim()) missing.push(`Step ${index + 1} choice`);
+    if (step.requiresReading && !String(state.reading || "").trim()) missing.push(`Step ${index + 1} reading`);
+    if (!step.noRemark && (step.requiresRemark || (step.critical && !step.tickOnly) || criticalValueMatches(state.choice, step.remarkOnChoices || [])) && !String(state.remark || "").trim()) {
+      missing.push(`Step ${index + 1} remark`);
+    }
+    fields.forEach((field) => {
+      const value = state.fieldValues?.[field.id];
+      if (field.required && !String(value ?? "").trim()) missing.push(`Step ${index + 1} ${field.label || field.id}`);
+      if (criticalValueMatches(value, field.requiresRemarkOn || []) && !String(state.fieldRemarks?.[field.id] || "").trim()) {
+        missing.push(`Step ${index + 1} ${field.label || field.id} remark`);
+      }
+    });
+    const photoRequired = step.requiresPhoto
+      || criticalValueMatches(state.choice, step.photoOnChoices || [])
+      || (step.requiresPhotoOnFieldFailure && fields.some((field) => criticalValueMatches(state.fieldValues?.[field.id], field.requiresRemarkOn || [])));
+    if (photoRequired && !criticalEvidenceIsRetained(state.photoEvidence)) missing.push(`Step ${index + 1} photo`);
+    if (step.requiresSupervisor && !String(state.supervisor || "").trim()) missing.push(`Step ${index + 1} supervisor`);
+    if (!step.noConfirm && !state.confirmed) missing.push(`Step ${index + 1} confirmation`);
+    unsafe = unsafe || criticalStepUnsafe(step, state);
+  });
+  if (snapshot.requiresBeforeAfterPhotos && !criticalEvidenceIsRetained(record.beforePhotoEvidence)) missing.push("before photo");
+  if (snapshot.requiresBeforeAfterPhotos && !criticalEvidenceIsRetained(record.afterPhotoEvidence)) missing.push("after photo");
+  if (Array.isArray(record.linkedVerificationStatuses) && record.linkedVerificationStatuses.some((status) => normalizedCriticalValue(status) !== "verified")) {
+    missing.push("linked verification reconciliation");
+  }
+  return { valid: true, complete: missing.length === 0 && !unsafe, unsafe, missing };
+}
+
+function applyStoredCriticalEvidence(record = {}, evidenceRefs = []) {
+  const next = { ...record, evidenceRefs };
+  next.beforePhotoEvidence = evidenceRefs.find((item) => item.type === "before") || record.beforePhotoEvidence || null;
+  next.afterPhotoEvidence = evidenceRefs.find((item) => item.type === "after") || record.afterPhotoEvidence || null;
+  next.steps = { ...(record.steps || {}) };
+  evidenceRefs.filter((item) => item.type === "step" && Number.isInteger(Number(item.stepIndex))).forEach((item) => {
+    const index = Number(item.stepIndex);
+    next.steps[index] = { ...(next.steps[index] || {}), photoEvidence: item };
+  });
+  return next;
 }
 
 function saveRevisionedRecord(store, collectionName, incomingRecord, expectedRevision) {
@@ -1353,7 +1463,7 @@ function calculateSharedProgress(store, schedule = null) {
     const sopRecord = getSharedCriticalSopByDevice(store, deviceId);
     const inspectionRecord = getSharedInspectionByDevice(store, deviceId);
     const status = String(sopRecord?.status || inspectionRecord?.status || "pending").toLowerCase();
-    if (status === "pass" || status === "done" || status === "completed") {
+    if (status === "pass" || status === "done" || status === "completed" || status === "n/a" || status === "na") {
       summary.pass += 1;
       summary.done += 1;
     } else if (status === "fail" || status === "fault") {
@@ -1952,8 +2062,20 @@ const server = http.createServer(async (req, res) => {
       if (req.method === "POST" && action === "critical-sop-records") {
         const payload = await readRequestJson(req);
         const store = getOrCreateSharedJobStore(scheduleId, payload.schedule || null);
-        const record = normalizeSharedCriticalSopRecord(scheduleId, payload.record || payload);
         const schedule = findSavedSchedule(scheduleId) || store.scheduleSnapshot || payload.schedule || {};
+        let record = normalizeSharedCriticalSopRecord(scheduleId, payload.record || payload);
+        const plannedDeviceIds = Array.isArray(schedule.plannedDeviceIds) ? schedule.plannedDeviceIds.map(String) : [];
+        if (plannedDeviceIds.length && !plannedDeviceIds.includes(String(record.deviceId))) {
+          sendJson(res, 403, {
+            ok: false,
+            forbidden: true,
+            type: "critical-sop-scope",
+            scheduleId,
+            deviceId: record.deviceId,
+            error: "This critical system item is not in the frozen job scope."
+          });
+          return;
+        }
         if (!technicianMatchesScheduleDeviceAssignment(schedule, record)) {
           sendJson(res, 403, {
             ok: false,
@@ -1965,8 +2087,47 @@ const server = http.createServer(async (req, res) => {
           });
           return;
         }
-        const result = saveRevisionedRecord(store, "criticalSopRecords", record, payload.expectedRevision);
+        const criticalValidation = validateSharedCriticalSopRecord(record);
+        const requestedComplete = ["pass", "done", "completed", "complete"].includes(normalizedCriticalValue(record.status));
+        if (requestedComplete && (!criticalValidation.valid || !criticalValidation.complete)) {
+          sendJson(res, 422, {
+            ok: false,
+            invalid: true,
+            type: "critical-sop-validation",
+            scheduleId,
+            deviceId: record.deviceId,
+            reason: criticalValidation.reason || "Critical checklist completion failed server validation.",
+            missing: criticalValidation.missing || [],
+            unsafe: Boolean(criticalValidation.unsafe)
+          });
+          return;
+        }
+        record.status = criticalValidation.complete ? "pass" : Object.keys(record.steps || {}).length ? "partial" : "pending";
+        const evidenceDirectory = getSharedInspectionEvidenceDirectory(scheduleId, record);
+        const evidenceFilesBefore = snapshotDirectoryFiles(evidenceDirectory);
+        const previewRecord = applyStoredCriticalEvidence(record, previewSharedInspectionEvidence(record, store.criticalSopRecords?.[record.recordId] || null));
+        const inspected = inspectRevisionedRecord(store, "criticalSopRecords", previewRecord, payload.expectedRevision);
+        if (!inspected.ok) {
+          sendJson(res, 409, {
+            ok: false,
+            conflict: true,
+            type: "critical-sop",
+            scheduleId,
+            recordId: record.recordId,
+            expectedRevision: inspected.expectedRevision,
+            currentRevision: inspected.currentRevision,
+            current: inspected.current
+          });
+          return;
+        }
+        let result = inspected;
+        if (!inspected.idempotent) {
+          const storedEvidence = writeSharedInspectionEvidence(scheduleId, record, inspected.current);
+          record = applyStoredCriticalEvidence(record, storedEvidence);
+          result = saveRevisionedRecord(store, "criticalSopRecords", record, payload.expectedRevision);
+        }
         if (!result.ok) {
+          removeFilesCreatedAfterSnapshot(evidenceDirectory, evidenceFilesBefore);
           sendJson(res, 409, {
             ok: false,
             conflict: true,

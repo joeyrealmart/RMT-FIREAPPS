@@ -222,9 +222,9 @@ async function api(path, options = {}) {
         steps: {
           0: { confirmed: true, remark: "Client informed" },
           1: { confirmed: true, reading: "Addressable / normal" },
-          2: { confirmed: true, photo: "before.jpg" },
+          2: { confirmed: true, photo: "before.jpg", photoEvidence: { evidenceId: "qa-fap-before", originalDataUrl: "data:image/png;base64,AA==" } },
           3: { fieldValues: { testMode: "Silence Test", testResult: "Pass" }, fieldRemarks: {} },
-          4: { confirmed: true, photo: "isolation.jpg" }
+          4: { confirmed: true, photo: "isolation.jpg", photoEvidence: { evidenceId: "qa-fap-isolation", originalDataUrl: "data:image/png;base64,AA==" } }
         }
       };
       renderCriticalSop();

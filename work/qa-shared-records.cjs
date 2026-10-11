@@ -188,6 +188,27 @@ async function runServerRegression() {
     jobId: schedule.jobId,
     scheduleId,
     templateId: "fire-alarm-tripping-sop",
+    templateVersion: "qa-fire-alarm-tripping-sop-v1",
+    templateSnapshot: {
+      id: "fire-alarm-tripping-sop",
+      requiresBeforeAfterPhotos: false,
+      steps: [
+        { title: "Client / FM informed", requiresRemark: true },
+        { title: "Record panel type and status", requiresReading: true },
+        { title: "Panel photo before test", requiresPhoto: true },
+        { title: "Silence, alarm and actual operation tests", noConfirm: true, fields: [
+          { id: "testMode", label: "Test Mode", required: true },
+          { id: "testResult", label: "Selected Test Result", required: true, requiresRemarkOn: ["Fail"] }
+        ] },
+        { title: "Switch off all tripping outputs", critical: true, requiresPhoto: true, noRemark: true },
+        { title: "Check power supply, battery and charger", noConfirm: true, requiresReading: true },
+        { title: "Panel setting, mimic and bulb test", noConfirm: true, requiresChoice: true, requiresRemark: true },
+        { title: "Pump / gas release linked indication", noConfirm: true, requiresChoice: true },
+        { title: "Interface alarm mode test", critical: true, requiresChoice: true, requiresSupervisor: true, requiresRemark: true },
+        { title: "Reset and restore all isolations", critical: true, requiresPhoto: true, requiresSupervisor: true },
+        { title: "Inform client testing completed", requiresRemark: true }
+      ]
+    },
     parentDeviceId: "QA.MFAP.SR",
     deviceId: "QA.MFAP.SR",
     deviceTag: "QA.MFAP.SR",
@@ -195,18 +216,18 @@ async function runServerRegression() {
     technicianName: techA.name,
     status: "pass",
     workflowStatus: "complete",
-    beforePhoto: "mfap-before.jpg",
-    afterPhoto: "mfap-after.jpg",
     steps: {
-      0: { confirmed: true, title: "Record panel type and status", reading: "Addressable / normal" },
-      1: { confirmed: true, title: "Panel photo before test", photo: "mfap-before.jpg" },
-      2: { title: "Set Silence / Alarm Test mode", choice: "Silence/Test Mode Set" },
-      3: { confirmed: true, title: "Switch off all tripping outputs", photo: "tripping-isolated.jpg" },
-      4: { title: "Check power supply, battery and charger", choice: "27V" },
-      5: { title: "Panel setting, mimic and bulb test", choice: "Pass" },
-      6: { title: "Test pump / gas release indication", choice: "Pass" },
-      7: { confirmed: true, title: "Interface alarm mode test", choice: "N/A", remark: "Not applicable for QA", supervisor: "QA Supervisor" },
-      8: { confirmed: true, title: "Reset and restore all isolations", photo: "mfap-after.jpg", supervisor: "QA Supervisor" }
+      0: { confirmed: true, remark: "QA client approval recorded" },
+      1: { confirmed: true, reading: "Addressable / normal" },
+      2: { confirmed: true, photo: "mfap-before.jpg", photoEvidence: { evidenceId: "qa-mfap-before", originalDataUrl: "data:image/png;base64,AA==" } },
+      3: { fieldValues: { testMode: "Silence Test", testResult: "Pass" }, fieldRemarks: {} },
+      4: { confirmed: true, photo: "tripping-isolated.jpg", photoEvidence: { evidenceId: "qa-mfap-isolated", originalDataUrl: "data:image/png;base64,AA==" } },
+      5: { reading: "27.0" },
+      6: { choice: "Pass", remark: "Panel indications normal" },
+      7: { choice: "Pass" },
+      8: { confirmed: true, choice: "Confirmed and Tested", remark: "QA interface confirmation", supervisor: "QA Supervisor" },
+      9: { confirmed: true, remark: "All isolations restored", photo: "mfap-after.jpg", photoEvidence: { evidenceId: "qa-mfap-after", originalDataUrl: "data:image/png;base64,AA==" }, supervisor: "QA Supervisor" },
+      10: { confirmed: true, remark: "QA client informed" }
     }
   };
   const mfapSave = await api(`/api/jobs/${encodeURIComponent(scheduleId)}/critical-sop-records`, {
@@ -454,9 +475,12 @@ async function runBrowserSharedRegression() {
 
   const mfapRecord = await pageA.evaluate((schedule) => {
     const template = criticalSopTemplates.find((item) => item.id === "fire-alarm-tripping-sop");
+    const mfap = getScheduledAssignedDevices(schedule).find((item) => item.id === "QA.MFAP.SR");
+    ensureActiveJobCriticalWorkflows(schedule);
+    const workflow = getCriticalWorkflowRunForParentDevice(mfap, schedule);
     const steps = {};
-    template.steps.forEach((step, index) => {
-      if (index > 6) return;
+    (workflow?.prerequisiteStepIndexes || []).forEach((index) => {
+      const step = template.steps[index];
       steps[index] = {
         confirmed: !step.noConfirm,
         title: step.title,
@@ -465,6 +489,7 @@ async function runBrowserSharedRegression() {
         reading: step.requiresReading ? (step.readingType === "number" ? "26.7" : "QA normal") : "",
         remark: sopStepNeedsRemark(step) ? "QA remark" : "",
         photo: step.requiresPhoto ? "QA photo" : "",
+        photoEvidence: step.requiresPhoto ? { evidenceId: `qa-shared-mfap-${index}`, originalDataUrl: "data:image/png;base64,AA==" } : null,
         supervisor: step.requiresSupervisor ? "QA Supervisor" : "",
         fieldValues: Object.fromEntries((step.fields || []).map((field) => [
           field.id,
@@ -479,6 +504,8 @@ async function runBrowserSharedRegression() {
       templateId: "fire-alarm-tripping-sop",
       templateVersion: getCriticalSopTemplateVersion(template),
       templateSnapshot: createCriticalSopTemplateSnapshot(template),
+      workflowId: workflow?.workflowId || "",
+      dependencyDefinitionId: workflow?.definitionId || "",
       title: template.title,
       parentDeviceId: "QA.MFAP.SR",
       deviceId: "QA.MFAP.SR",
@@ -588,7 +615,8 @@ async function runBrowserSharedRegression() {
   await pageC.waitForFunction((scheduleId) => JSON.parse(localStorage.getItem("rmtActiveJob") || "null")?.scheduleId === scheduleId, offlineSchedule.scheduleId);
   const offlineResult = await pageC.evaluate(async () => {
     selectDevice("QA.OFF.EL1");
-    await saveInspection("pass");
+    document.querySelectorAll('#questionList input[type="radio"][value="Pass"]').forEach((input) => input.click());
+    await saveInspection();
     const signoffAttempt = await completeActiveJobWithSignOff({
       technicianName: getCurrentUserName(),
       supervisorName: "QA Supervisor",

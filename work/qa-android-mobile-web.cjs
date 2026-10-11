@@ -447,6 +447,9 @@ function ensureQaFaultPhoto() {
       actionText: document.querySelector("#checklistForm button[type='submit']")?.textContent.trim() || ""
     };
   });
+  await page.locator("#questionList .question").evaluateAll((questions) => {
+    questions.forEach((question) => question.querySelector('input[value="Pass"]')?.click());
+  });
   await page.locator("#checklistForm button[type='submit']").click();
   await page.waitForSelector("#workspace.tech-screen-mimic", { timeout: 15000 });
   const autoStartTapResult = await page.evaluate(() => ({
@@ -479,6 +482,9 @@ function ensureQaFaultPhoto() {
       actionVisible: isVisible(".inspection-action-field"),
       faultChoiceVisible: isVisible('#questionList input[value="Fail"]')
     };
+  });
+  await page.locator("#questionList .question").evaluateAll((questions) => {
+    questions.forEach((question) => question.querySelector('input[value="Pass"]')?.click());
   });
   await page.locator('#questionList input[value="Fail"]').first().check();
   await page.waitForFunction(() => document.querySelector("#workspace")?.classList.contains("tech-fault-entry-active"), null, { timeout: 15000 });

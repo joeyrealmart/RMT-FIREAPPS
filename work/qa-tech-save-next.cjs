@@ -132,9 +132,13 @@ async function seedSaveNextJob(page) {
 
 async function completeMfapPrerequisite(page) {
   await page.evaluate(() => {
+    const schedule = getActiveTechnicianMaintenanceSchedule();
+    const mfap = getScheduledAssignedDevices(schedule).find((device) => (device.id || device.tag) === "QA.MFAP.SN");
+    ensureActiveJobCriticalWorkflows(schedule);
+    const workflow = getCriticalWorkflowRunForParentDevice(mfap, schedule);
     const template = criticalSopTemplates.find((item) => item.id === "fire-alarm-tripping-sop");
     const steps = {};
-    [0, 1, 2, 3, 4, 5, 6].forEach((index) => {
+    (workflow?.prerequisiteStepIndexes || []).forEach((index) => {
       const step = template.steps[index];
       steps[index] = {
         confirmed: true,
@@ -144,6 +148,7 @@ async function completeMfapPrerequisite(page) {
         reading: step.requiresReading ? (step.readingType === "number" ? "26.7" : "QA reading normal") : "",
         remark: sopStepNeedsRemark(step) ? "QA remark" : "",
         photo: step.requiresPhoto ? "QA photo" : "",
+        photoEvidence: step.requiresPhoto ? { evidenceId: `qa-save-next-mfap-${index}`, originalDataUrl: "data:image/png;base64,AA==" } : null,
         supervisor: step.requiresSupervisor ? "QA Supervisor" : "",
         fieldValues: Object.fromEntries((step.fields || []).map((field) => [
           field.id,
@@ -156,6 +161,8 @@ async function completeMfapPrerequisite(page) {
       templateId: "fire-alarm-tripping-sop",
       templateVersion: getCriticalSopTemplateVersion(template),
       templateSnapshot: createCriticalSopTemplateSnapshot(template),
+      workflowId: workflow?.workflowId || "",
+      dependencyDefinitionId: workflow?.definitionId || "",
       title: template.title,
       deviceTag: "QA.MFAP.SN",
       deviceType: "Main Fire Alarm Panel",
@@ -178,9 +185,11 @@ async function completeMfapPrerequisite(page) {
   });
 }
 
+let browser;
+
 (async () => {
   const executablePath = EDGE_PATHS.find((item) => existsSync(item));
-  const browser = await chromium.launch({ headless: true, executablePath });
+  browser = await chromium.launch({ headless: true, executablePath });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const consoleErrors = [];
   page.on("console", (message) => {
@@ -203,10 +212,25 @@ async function completeMfapPrerequisite(page) {
   assert(firstDeviceName === "QA.MCP.SN1", `Expected first MCP checklist, got ${firstDeviceName}`);
   assert(await page.locator("#saveNextInspectionBtn").isVisible(), "Save & Next Item button is not visible");
 
-  await page.click("#saveNextInspectionBtn");
-  await page.waitForFunction(() => {
-    return document.querySelector("#checklistForm:not(.hidden) #deviceName")?.textContent.trim() === "QA.MCP.SN2";
+  await page.locator("#questionList .question").evaluateAll((questions) => {
+    questions.forEach((question) => {
+      const pass = question.querySelector('input[type="radio"][value="Pass"]');
+      if (!pass) throw new Error("Rendered checklist question is missing PASS");
+      pass.click();
+    });
   });
+
+  await page.click("#saveNextInspectionBtn");
+  await page.waitForTimeout(1500);
+
+  const saveNextState = await page.evaluate(() => ({
+    selectedId: state.selectedId,
+    deviceName: document.querySelector("#deviceName")?.textContent.trim() || "",
+    checklistVisible: !document.querySelector("#checklistForm")?.classList.contains("hidden"),
+    syncState: document.querySelector("#syncState")?.textContent.trim() || "",
+    saving: document.querySelector("#checklistForm")?.dataset.saving || ""
+  }));
+  assert(saveNextState.checklistVisible && saveNextState.deviceName === "QA.MCP.SN2", `Save & Next did not open the next assigned device: ${JSON.stringify(saveNextState)}`);
 
   const nextDeviceName = (await page.textContent("#deviceName")).trim();
   const progress = await page.evaluate(() => getAssignedCompletionSummary(getActiveTechnicianMaintenanceSchedule()));
@@ -216,11 +240,12 @@ async function completeMfapPrerequisite(page) {
     firstDeviceName,
     nextOpened: nextDeviceName,
     progress,
+    saveNextState,
     consoleErrors
   }, null, 2));
 
   await browser.close();
 })().catch((error) => {
   console.error(error.message);
-  process.exit(1);
+  browser?.close().finally(() => process.exit(1));
 });

@@ -181,6 +181,7 @@ async function writeSopStage(page, tag, templateId, throughIndex) {
         reading: step.requiresReading ? (step.readingType === "number" ? "26.7" : "QA reading normal") : "",
         remark: sopStepNeedsRemark(step) ? "QA remark" : "",
         photo: step.requiresPhoto ? "QA photo" : "",
+        photoEvidence: step.requiresPhoto ? { evidenceId: `qa-${templateId}-${index}`, originalDataUrl: "data:image/png;base64,AA==" } : null,
         supervisor: step.requiresSupervisor ? "QA Supervisor" : "",
         fieldValues: Object.fromEntries(structuredFields.map((field) => [field.id, field.kind === "number" ? "415" : field.choices?.[0] || "QA value"])),
         fieldRemarks: {}
@@ -200,6 +201,8 @@ async function writeSopStage(page, tag, templateId, throughIndex) {
       steps,
       beforePhoto: template.requiresBeforeAfterPhotos ? "QA before" : "",
       afterPhoto: template.requiresBeforeAfterPhotos && throughIndex >= template.steps.length - 1 ? "QA after" : "",
+      beforePhotoEvidence: template.requiresBeforeAfterPhotos ? { evidenceId: `qa-${templateId}-before`, originalDataUrl: "data:image/png;base64,AA==" } : null,
+      afterPhotoEvidence: template.requiresBeforeAfterPhotos && throughIndex >= template.steps.length - 1 ? { evidenceId: `qa-${templateId}-after`, originalDataUrl: "data:image/png;base64,AA==" } : null,
       filledBy: getCurrentUserName(),
       filledRole: getCurrentUserRole(),
       savedAt: new Date().toISOString(),

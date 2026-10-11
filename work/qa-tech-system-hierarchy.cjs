@@ -435,6 +435,7 @@ async function completeMfapPrerequisite(page, fixture) {
         reading: step.requiresReading ? (step.readingType === "number" ? "26.7" : "QA reading normal") : "",
         remark: sopStepNeedsRemark(step) ? "QA prerequisite completed." : "",
         photo: step.requiresPhoto ? "qa-prerequisite-photo.jpg" : "",
+        photoEvidence: step.requiresPhoto ? { evidenceId: `qa-hierarchy-mfap-${index}`, originalDataUrl: "data:image/png;base64,AA==" } : null,
         supervisor: step.requiresSupervisor ? "QA Supervisor" : "",
         fieldValues: Object.fromEntries((step.fields || []).map((field) => [
           field.id,
@@ -543,6 +544,9 @@ async function savePassFromMarker(page, tag) {
     return document.querySelector("#workspace")?.classList.contains("tech-screen-inspection")
       && document.querySelector("#checklistForm:not(.hidden) #deviceName")?.textContent.trim() === deviceTag;
   }, tag, { timeout: 15000 });
+  await page.locator("#questionList .question").evaluateAll((questions) => {
+    questions.forEach((question) => question.querySelector('input[value="Pass"]')?.click());
+  });
   await page.locator("#checklistForm button[type='submit']").click();
   await page.waitForFunction((deviceTag) => {
     const marker = [...document.querySelectorAll(".marker.assigned-scope")]
@@ -569,6 +573,9 @@ async function savePassWithPhotoFromMarker(page, tag, photoName = "qa-pass-photo
   await page.waitForFunction((expectedName) => {
     return document.querySelector("#photoEvidenceStatus")?.textContent.includes(expectedName);
   }, photoName, { timeout: 5000 });
+  await page.locator("#questionList .question").evaluateAll((questions) => {
+    questions.forEach((question) => question.querySelector('input[value="Pass"]')?.click());
+  });
   await page.locator("#checklistForm button[type='submit']").click();
   await page.waitForFunction((deviceTag) => {
     const marker = [...document.querySelectorAll(".marker.assigned-scope")]
@@ -599,6 +606,9 @@ async function savePassWithPhotoAndNextFromMarker(page, tag, photoName = "qa-sav
     mimeType: "image/png",
     buffer: TINY_PNG
   });
+  await page.locator("#questionList .question").evaluateAll((questions) => {
+    questions.forEach((question) => question.querySelector('input[value="Pass"]')?.click());
+  });
   await page.locator("#saveNextInspectionBtn").click();
   await page.waitForFunction((deviceTag) => {
     return state.inspections[deviceTag]?.status === "pass"
@@ -628,6 +638,9 @@ async function saveFaultFromMarker(page, tag) {
     return document.querySelector("#workspace")?.classList.contains("tech-screen-inspection")
       && document.querySelector("#checklistForm:not(.hidden) #deviceName")?.textContent.trim() === deviceTag;
   }, tag, { timeout: 15000 });
+  await page.locator("#questionList .question").evaluateAll((questions) => {
+    questions.forEach((question) => question.querySelector('input[value="Pass"]')?.click());
+  });
   await page.locator('#questionList input[value="Fail"]').first().check();
   await page.waitForFunction(() => document.querySelector("#workspace")?.classList.contains("tech-fault-entry-active"), null, { timeout: 15000 });
   await page.fill("#notes", "QA fault requiring evidence.");
