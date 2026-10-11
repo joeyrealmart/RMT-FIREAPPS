@@ -3693,6 +3693,24 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+.sop-demo-evidence-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px dashed #d97706;
+  border-radius: 8px;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.sop-demo-evidence-actions strong {
+  width: 100%;
+  font-size: 11px;
+}
+
 .sop-progress {
   display: flex;
   gap: 10px;
@@ -6830,6 +6848,9 @@ button.admin-record-row.active {
   }
 
   .tech-sidebar-brand {
+    position: sticky;
+    top: 0;
+    z-index: 3;
     display: grid;
     grid-template-columns: 38px minmax(0, 1fr) 34px;
     align-items: center;
@@ -7282,12 +7303,16 @@ button.admin-record-row.active {
   }
 
   .tech-sidebar-brand {
+    position: sticky;
+    top: 0;
+    z-index: 3;
     display: grid;
     grid-template-columns: 38px minmax(0, 1fr) 38px;
     align-items: center;
     gap: 7px;
     padding-bottom: 8px;
     border-bottom: 2px solid var(--red);
+    background: #fff;
   }
 
   .tech-sidebar-brand img,

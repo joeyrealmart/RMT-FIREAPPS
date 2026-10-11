@@ -1320,6 +1320,7 @@ function criticalValueMatches(value, options = []) {
 
 function criticalEvidenceIsRetained(evidence = null) {
   if (!evidence?.evidenceId) return false;
+  if (evidence.evidenceMode === "DEMO_TEST" && process.env.NODE_ENV === "production") return false;
   return Boolean(
     evidence.originalDataUrl
     || evidence.stampedDataUrl

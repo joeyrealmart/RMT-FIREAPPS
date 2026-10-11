@@ -1908,6 +1908,7 @@ function showTechnicianSystemList() {
   persistTechnicianActiveContext(schedule?.scheduleId || "", "", floorSelect?.value || "");
   renderTechWorkPanel();
   setTechScreen("jobs", { scroll: true, skipDirtyCheck: true });
+  if (window.matchMedia("(max-width: 980px)").matches) setTechSystemDrawerOpen(false);
   document.querySelector("#syncState").textContent = "Choose an assigned fire system to continue.";
   return true;
 }
@@ -1996,10 +1997,21 @@ function bindTechNavigationControls() {
     });
   });
   techSystemSidebar?.querySelectorAll("[data-tech-system-list]").forEach((button) => {
-    bindReliableTap(button, showTechnicianSystemList);
+    bindReliableTap(button, (event) => {
+      event.preventDefault();
+      showTechnicianSystemList();
+    });
   });
   techSystemSidebar?.querySelectorAll("[data-tech-screen]").forEach((button) => {
-    bindReliableTap(button, () => setTechScreen(button.dataset.techScreen, { scroll: true }));
+    bindReliableTap(button, async (event) => {
+      event.preventDefault();
+      if (button.dataset.techScreen === "mimic") {
+        await openCurrentTechnicianMimic({ scroll: true });
+      } else {
+        setTechScreen(button.dataset.techScreen, { scroll: true });
+      }
+      if (window.matchMedia("(max-width: 980px)").matches) setTechSystemDrawerOpen(false);
+    });
   });
   checklistForm?.addEventListener("input", markTechnicianInspectionDirty);
   checklistForm?.addEventListener("change", markTechnicianInspectionDirty);
@@ -5319,7 +5331,9 @@ function readFileData(file) {
 const PHOTO_EVIDENCE_STAMP_VERSION = "rmt-photo-stamp-v1";
 const pendingInspectionPhotoEvidence = { before: null, after: null };
 const pendingCriticalSopPhotoEvidence = { overall: {}, steps: {} };
+const criticalSopEvidenceProcessingKeys = new Set();
 const photoEvidenceFileCache = new WeakMap();
+const DEMO_CRITICAL_EVIDENCE_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR42mNkYPj/n4GBgYGJAQoAHgQCAZ7dV1AAAAAASUVORK5CYII=";
 
 function createEvidenceId(prefix = "EVD") {
   const random = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -5479,7 +5493,17 @@ async function createPhotoEvidenceFromFile(file, category, contextOverrides = {}
     const context = getPhotoEvidenceContext(contextOverrides);
     const evidenceId = createEvidenceId();
     const stampFields = getPhotoStampFields(context, capturedDate);
-    const stamped = await createStampedEvidenceDataUrl(originalDataUrl, stampFields);
+    let stamped;
+    let stampStatus = "STAMPED";
+    let stampError = "";
+    try {
+      stamped = await createStampedEvidenceDataUrl(originalDataUrl, stampFields);
+    } catch (error) {
+      if (contextOverrides.allowUnstampedFallback !== true) throw error;
+      stampStatus = "ORIGINAL_RETAINED_STAMP_FAILED";
+      stampError = error?.message || "Photo stamp generation failed";
+      stamped = { dataUrl: originalDataUrl, width: 0, height: 0, processingTimingMs: {} };
+    }
     return {
       schemaVersion: "photo-evidence-v1",
       evidenceId,
@@ -5510,6 +5534,8 @@ async function createPhotoEvidenceFromFile(file, category, contextOverrides = {}
       locationLabel: context.locationLabel || context.floorLabel || "",
       gps: context.gps,
       stampVersion: PHOTO_EVIDENCE_STAMP_VERSION,
+      stampStatus,
+      stampError,
       stampFields,
       syncState: "LOCAL",
       originalDataUrl,
@@ -16542,6 +16568,7 @@ function getCriticalSopEvidenceKey(templateId = state.activeCriticalSopId, index
 
 function hasRetainedPhotoEvidence(evidence = null) {
   if (!evidence?.evidenceId) return false;
+  if (evidence.evidenceMode === "DEMO_TEST" && !isCriticalDemoEvidenceMode()) return false;
   return Boolean(
     evidence.originalDataUrl
     || evidence.stampedDataUrl
@@ -16550,6 +16577,66 @@ function hasRetainedPhotoEvidence(evidence = null) {
     || evidence.stampedPhotoUrl
     || evidence.photoUrl
   );
+}
+
+function isCriticalDemoEvidenceMode() {
+  try {
+    return new URLSearchParams(window.location.search).get("demoEvidence") === "1";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function createCriticalDemoEvidence(category, contextOverrides = {}) {
+  const capturedDate = new Date();
+  const context = getPhotoEvidenceContext(contextOverrides);
+  const evidenceId = createEvidenceId("DEMO-EVD");
+  return {
+    schemaVersion: "photo-evidence-v1",
+    evidenceId,
+    originalEvidenceId: `${evidenceId}::original`,
+    stampedEvidenceId: `${evidenceId}::stamped`,
+    name: `DEMO-${category}.png`,
+    originalFileName: `DEMO-${category}.png`,
+    type: "image/png",
+    size: 0,
+    category,
+    evidenceMode: "DEMO_TEST",
+    isDemoEvidence: true,
+    testOnly: true,
+    jobId: context.jobId,
+    scheduleId: context.scheduleId,
+    clientId: context.clientId,
+    clientName: context.clientName,
+    siteId: context.siteId,
+    siteName: context.siteName,
+    floorId: context.floorId,
+    floorLabel: context.floorLabel,
+    deviceId: context.deviceId,
+    technicianId: context.technicianId,
+    technicianName: context.technicianName,
+    capturedAt: capturedDate.toISOString(),
+    capturedAtLocal: formatLocalCaptureTimestamp(capturedDate),
+    capturedAtUtc: capturedDate.toISOString(),
+    timezoneOffset: formatTimezoneOffset(capturedDate),
+    locationLabel: context.locationLabel || context.floorLabel || "",
+    syncState: "LOCAL",
+    stampVersion: PHOTO_EVIDENCE_STAMP_VERSION,
+    stampStatus: "DEMO_TEST",
+    originalDataUrl: DEMO_CRITICAL_EVIDENCE_DATA_URL,
+    stampedDataUrl: DEMO_CRITICAL_EVIDENCE_DATA_URL,
+    dataUrl: DEMO_CRITICAL_EVIDENCE_DATA_URL
+  };
+}
+
+function criticalEvidenceDisplayName(name, evidence) {
+  if (evidence?.evidenceMode === "DEMO_TEST") return `${name || evidence.name || "Demo picture"} · DEMO / TEST EVIDENCE`;
+  return name || evidence?.originalFileName || evidence?.name || "";
+}
+
+function isCriticalSopEvidenceProcessing(templateId = state.activeCriticalSopId) {
+  const keyPrefix = `${getCriticalSopEvidenceKey(templateId)}::`;
+  return [...criticalSopEvidenceProcessingKeys].some((key) => key.startsWith(keyPrefix));
 }
 
 function sopStepShowsRemark(step, stepState = {}, templateId = state.activeCriticalSopId, index = -1) {
@@ -16571,8 +16658,8 @@ function getCriticalSopEvidenceDomState(saved = {}) {
   const beforePhotoEvidence = pending.before || saved.beforePhotoEvidence || null;
   const afterPhotoEvidence = pending.after || saved.afterPhotoEvidence || null;
   return {
-    beforePhoto: beforePhotoInput?.files?.[0]?.name || beforePhotoEvidence?.originalFileName || saved.beforePhoto || "",
-    afterPhoto: afterPhotoInput?.files?.[0]?.name || afterPhotoEvidence?.originalFileName || saved.afterPhoto || "",
+    beforePhoto: criticalEvidenceDisplayName(beforePhotoInput?.files?.[0]?.name || saved.beforePhoto || "", beforePhotoEvidence),
+    afterPhoto: criticalEvidenceDisplayName(afterPhotoInput?.files?.[0]?.name || saved.afterPhoto || "", afterPhotoEvidence),
     beforePhotoEvidence,
     afterPhotoEvidence,
     filledBy: saved.filledBy || saved.savedBy || getCurrentUserName(),
@@ -17378,6 +17465,13 @@ function renderCriticalSop() {
             <span id="criticalAfterPhotoName">${escapeHtml(evidence.afterPhoto || "No after photo saved")}</span>
           </label>
         </div>
+        ${isCriticalDemoEvidenceMode() ? `
+          <div class="sop-demo-evidence-actions" role="group" aria-label="Development evidence controls">
+            <strong>TEST / DEVELOPMENT MODE</strong>
+            <button type="button" class="secondary sop-demo-photo" data-critical-demo-photo="before">Demo Before Picture</button>
+            <button type="button" class="secondary sop-demo-photo" data-critical-demo-photo="after">Demo After Picture</button>
+          </div>
+        ` : ""}
         ${evidenceMissing.length ? `<p class="locked-note">Required before final confirmation: ${escapeHtml(evidenceMissing.join(", "))}.</p>` : ""}
       </div>
     ` : ""}
@@ -17628,16 +17722,50 @@ function renderCriticalSop() {
       if (!file) return;
       const type = input.id === "criticalBeforePhoto" ? "before" : "after";
       const key = getCriticalSopEvidenceKey(activeTemplate.id);
+      const label = document.querySelector(input.id === "criticalBeforePhoto" ? "#criticalBeforePhotoName" : "#criticalAfterPhotoName");
+      const processingKey = `${key}::${type}`;
+      criticalSopEvidenceProcessingKeys.add(processingKey);
+      input.disabled = true;
+      if (label) label.textContent = `Processing ${fileName || `${type} photo`}...`;
+      document.querySelector("#syncState").textContent = `${input.id === "criticalBeforePhoto" ? "Before" : "After"} photo is being processed. Please wait.`;
+      try {
+        const retainedEvidence = await createPhotoEvidenceFromFile(file, `critical-${type}`, {
+          deviceId: activeDevice?.id || activeDevice?.tag || activeTemplate.id,
+          locationLabel: activeDevice?.location || activeDevice?.floor || "",
+          allowUnstampedFallback: true
+        });
+        if (!hasRetainedPhotoEvidence(retainedEvidence)) throw new Error("The selected photo could not be retained.");
+        pendingCriticalSopPhotoEvidence.overall[key] = pendingCriticalSopPhotoEvidence.overall[key] || {};
+        pendingCriticalSopPhotoEvidence.overall[key][type] = retainedEvidence;
+        criticalSopEvidenceProcessingKeys.delete(processingKey);
+        if (label) label.textContent = criticalEvidenceDisplayName(fileName, retainedEvidence);
+        const saveResult = await saveCriticalSop(false);
+        if (!saveResult?.ok) throw new Error(saveResult?.reason || "The retained photo could not be saved.");
+        renderCriticalSopPreservingScroll();
+        document.querySelector("#syncState").textContent = `${input.id === "criticalBeforePhoto" ? "Before" : "After"} photo saved and ready`;
+      } catch (error) {
+        criticalSopEvidenceProcessingKeys.delete(processingKey);
+        input.disabled = false;
+        if (label) label.textContent = `Photo not saved · ${error?.message || "processing failed"}`;
+        document.querySelector("#syncState").textContent = `${input.id === "criticalBeforePhoto" ? "Before" : "After"} photo was not saved. Choose the photo again.`;
+      }
+    });
+  });
+  form.querySelectorAll("[data-critical-demo-photo]").forEach((button) => {
+    bindReliableTap(button, async (event) => {
+      event.preventDefault();
+      if (!isCriticalDemoEvidenceMode()) return;
+      const type = button.dataset.criticalDemoPhoto;
+      const key = getCriticalSopEvidenceKey(activeTemplate.id);
       pendingCriticalSopPhotoEvidence.overall[key] = pendingCriticalSopPhotoEvidence.overall[key] || {};
-      pendingCriticalSopPhotoEvidence.overall[key][type] = await createPhotoEvidenceFromFile(file, `critical-${type}`, getPhotoEvidenceContext({
+      pendingCriticalSopPhotoEvidence.overall[key][type] = createCriticalDemoEvidence(`critical-${type}`, {
         deviceId: activeDevice?.id || activeDevice?.tag || activeTemplate.id,
         locationLabel: activeDevice?.location || activeDevice?.floor || ""
-      }));
-      const label = document.querySelector(input.id === "criticalBeforePhoto" ? "#criticalBeforePhotoName" : "#criticalAfterPhotoName");
-      if (label && fileName) label.textContent = fileName;
-      await saveCriticalSop(false);
+      });
+      const saveResult = await saveCriticalSop(false);
+      if (!saveResult?.ok) return;
       renderCriticalSopPreservingScroll();
-      document.querySelector("#syncState").textContent = `${input.id === "criticalBeforePhoto" ? "Before" : "After"} photo recorded`;
+      document.querySelector("#syncState").textContent = `${type === "before" ? "Before" : "After"} DEMO / TEST EVIDENCE saved`;
     });
   });
   form.querySelectorAll("input[name^='sop-photo-']").forEach((input) => {
@@ -17646,10 +17774,11 @@ function renderCriticalSop() {
       if (!file) return;
       const index = Number(input.name.replace("sop-photo-", ""));
       const key = getCriticalSopEvidenceKey(activeTemplate.id, index);
-      pendingCriticalSopPhotoEvidence.steps[key] = await createPhotoEvidenceFromFile(file, `critical-step-${index + 1}`, getPhotoEvidenceContext({
+      pendingCriticalSopPhotoEvidence.steps[key] = await createPhotoEvidenceFromFile(file, `critical-step-${index + 1}`, {
         deviceId: activeDevice?.id || activeDevice?.tag || activeTemplate.id,
-        locationLabel: activeDevice?.location || activeDevice?.floor || ""
-      }));
+        locationLabel: activeDevice?.location || activeDevice?.floor || "",
+        allowUnstampedFallback: true
+      });
       const label = document.querySelector(`#sop-photo-name-${index}`);
       if (label) label.textContent = file.name;
       await saveCriticalSop(false);
@@ -17877,6 +18006,10 @@ async function syncGasReleaseLinkedVerification(template, saved, schedule, devic
 
 async function saveCriticalSop(showMessage = true) {
   const template = criticalSopTemplates.find((item) => item.id === state.activeCriticalSopId) || criticalSopTemplates[0];
+  if (isCriticalSopEvidenceProcessing(template.id)) {
+    document.querySelector("#syncState").textContent = "Wait for the selected critical photo to finish processing before saving.";
+    return { ok: false, evidenceProcessing: true };
+  }
   const storageKey = getCriticalSopStorageKey(template.id);
   const previous = state.criticalSops[storageKey] || state.criticalSops[template.id] || {};
   const evidence = getCriticalSopEvidenceDomState(previous);
@@ -18045,7 +18178,7 @@ async function saveCriticalSopAndOpenNext() {
   const currentDeviceTag = state.activeCriticalDevice?.tag || "";
   const storageKey = getCriticalSopStorageKey(template.id);
   const saveResult = await saveCriticalSop(true);
-  if (saveResult?.conflict) return;
+  if (!saveResult?.ok) return;
   const saved = state.criticalSops[storageKey];
   const activeSchedule = getActiveTechnicianMaintenanceSchedule();
   const workflowRun = state.activeCriticalDevice ? getCriticalWorkflowRunForParentDevice(state.activeCriticalDevice, activeSchedule) : null;
