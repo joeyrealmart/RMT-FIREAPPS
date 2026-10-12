@@ -50,11 +50,26 @@ function sendJson(res, status, payload) {
 }
 
 function sendFile(res, filePath) {
-  res.writeHead(200, {
-    "Content-Type": mime[extname(filePath).toLowerCase()] || "application/octet-stream",
-    ...noCacheHeaders
+  const stream = createReadStream(filePath);
+  stream.on("error", (error) => {
+    console.error(`Unable to stream ${filePath}`, error);
+    if (!res.headersSent) {
+      sendJson(res, 500, { ok: false, error: "Unable to read requested file." });
+    } else if (!res.writableEnded) {
+      res.destroy(error);
+    }
   });
-  createReadStream(filePath).pipe(res);
+  stream.on("open", () => {
+    if (res.destroyed) {
+      stream.destroy();
+      return;
+    }
+    res.writeHead(200, {
+      "Content-Type": mime[extname(filePath).toLowerCase()] || "application/octet-stream",
+      ...noCacheHeaders
+    });
+    stream.pipe(res);
+  });
 }
 
 function sendNotFound(res) {
@@ -1746,7 +1761,7 @@ function inspectionRunToCsv(run = {}) {
   return [headers.join(","), ...rows].join("\n");
 }
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   const requestUrl = new URL(req.url || "/", `http://127.0.0.1:${port}`);
   const urlPath = decodeURIComponent(requestUrl.pathname);
   const jobRoute = urlPath.match(/^\/api\/jobs\/([^/]+)\/([^/]+)$/);
@@ -2641,6 +2656,34 @@ const server = http.createServer(async (req, res) => {
   }
 
   sendFile(res, filePath);
+}
+
+const server = http.createServer((req, res) => {
+  handleRequest(req, res).catch((error) => {
+    const disconnected = error?.code === "ECONNRESET" || error?.code === "EPIPE" || req.destroyed;
+    const message = disconnected ? "Client disconnected before the request completed." : "Unhandled request error.";
+    console.error(message, error);
+    if (res.writableEnded || res.destroyed) return;
+    if (!res.headersSent) {
+      sendJson(res, disconnected ? 400 : 500, { ok: false, error: message });
+      return;
+    }
+    res.destroy(error);
+  });
+});
+
+server.on("clientError", (error, socket) => {
+  console.warn("HTTP client connection error.", error?.code || error?.message || error);
+  if (!socket.writable || socket.destroyed) return;
+  socket.end("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n");
+});
+
+server.on("error", (error) => {
+  console.error("RMT FIREAPPS preview server error.", error);
+  if (error?.code === "EADDRINUSE") {
+    process.exitCode = 98;
+    server.close(() => process.exit(98));
+  }
 });
 
 server.listen(port, host, () => {
